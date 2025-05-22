@@ -633,6 +633,9 @@ const SalesVSInventoryReport: React.FC = () => {
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Best Performing Month
                   </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Quantity Sold in Best Performing Month
+                  </th>
                 </tr>
               </thead>
               <tbody className='bg-white divide-y divide-gray-200'>
@@ -725,6 +728,9 @@ const SalesVSInventoryReport: React.FC = () => {
                       </td>
                       <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
                         {item.best_performing_month}
+                      </td>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        {item.best_performing_month_details.quantity_sold}
                       </td>
                     </tr>
                   );
