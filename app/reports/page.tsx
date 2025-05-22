@@ -1,6 +1,7 @@
 'use client'; // This component needs to be client-side
 
 import { useAuth } from '@/components/context/AuthContext';
+import SalesVSInventoryReport from '@/components/reports/BlinkitSalesVsInventoryReport';
 import React from 'react';
 
 function Page() {
@@ -14,7 +15,7 @@ function Page() {
   if (!accessToken) {
     return <p>Please log in to see this content.</p>; // Or redirect here if needed
   }
-  return <p className='text-xl'>Welcome {user.name}, Reports</p>;
+  return <SalesVSInventoryReport />;
 }
 
 export default Page;

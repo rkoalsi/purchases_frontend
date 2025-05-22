@@ -111,7 +111,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       // IMPORTANT: Ensure your backend /login endpoint returns the user object
       // along with the access_token, e.g., { access_token: "...", user: { ... } }
-      const res = await axios.post(`${process.env.api_url}/login`, {
+      const res = await axios.post(`${process.env.api_url}/auth/login`, {
         // Use NEXT_PUBLIC_
         email,
         password,

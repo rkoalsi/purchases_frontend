@@ -33,8 +33,8 @@ const navigation = [
     ),
   },
   {
-    name: 'Sales',
-    href: '/sales',
+    name: 'Items',
+    href: '/inventory',
     icon: (
       <svg
         xmlns='http://www.w3.org/2000/svg'
@@ -52,38 +52,16 @@ const navigation = [
       </svg>
     ),
     children: [
-      { name: 'Total Sales', href: '/sales/total' },
-      { name: 'Sales by Customer', href: '/sales/by-customer' },
       {
-        name: 'Sales by Platform',
-        href: '/sales/by-platform',
+        name: 'Items by Platform',
+        href: '/items',
         children: [
-          { name: 'Amazon', href: '/sales/by-platform/amazon' },
-          { name: 'Blinkit', href: '/sales/by-platform/blinkit' },
-          { name: 'Zoho', href: '/sales/by-platform/zoho' },
+          { name: 'Amazon', href: '/items/amazon' },
+          { name: 'Blinkit', href: '/items/blinkit' },
+          { name: 'Zoho', href: '/items/zoho' },
         ],
       },
     ],
-  },
-  {
-    name: 'Analytics',
-    href: '/analytics',
-    icon: (
-      <svg
-        xmlns='http://www.w3.org/2000/svg'
-        className='h-5 w-5'
-        fill='none'
-        viewBox='0 0 24 24'
-        stroke='currentColor'
-      >
-        <path
-          strokeLinecap='round'
-          strokeLinejoin='round'
-          strokeWidth={2}
-          d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
-        />
-      </svg>
-    ),
   },
   {
     name: 'Reports',
@@ -104,6 +82,11 @@ const navigation = [
         />
       </svg>
     ),
+    children: [
+      { name: 'Amazon', href: '/reports/amazon' },
+      { name: 'Blinkit', href: '/reports/blinkit' },
+      { name: 'Zoho', href: '/reports/zoho' },
+    ],
   },
   {
     name: 'Settings',

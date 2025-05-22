@@ -1,6 +1,7 @@
 'use client'; // This component needs to be client-side
 
 import { useAuth } from '@/components/context/AuthContext';
+import BlinkitItemsTable from '@/components/inventory/BlinkitItemsTable';
 import React from 'react';
 
 function Page() {
@@ -13,7 +14,11 @@ function Page() {
   if (!accessToken) {
     return <p>Please log in to see this content.</p>;
   }
-  return <p className='text-xl'>Welcome {user.name}, Total Sales</p>;
+  return (
+    <>
+      <BlinkitItemsTable />
+    </>
+  );
 }
 
 export default Page;

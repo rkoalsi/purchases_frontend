@@ -13,7 +13,7 @@ function Page() {
   if (!accessToken) {
     return <p>Please log in to see this content.</p>;
   }
-  return <p className='text-xl'>Welcome {user.name}, Sales By Platform</p>;
+  return <p className='text-xl'>Welcome {user.name}, Sales On Zoho</p>;
 }
 
 export default Page;

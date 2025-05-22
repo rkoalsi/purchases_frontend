@@ -5,53 +5,18 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format } from 'date-fns';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
 import { toast } from 'react-toastify';
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
 
 // Define type for report data structure
 interface ReportItem {
-  year: number;
-  month: number;
-  generated_at: string;
-  sku_code: string;
-  city: string;
-  item_name: string;
+  _id: string;
   item_id: number;
-  warehouse: string;
-  metrics: {
-    avg_daily_on_stock_days: number;
-    avg_weekly_on_stock_days: number;
-    avg_monthly_on_stock_days: number;
-    total_sales_in_period: number;
-    days_of_coverage: number;
-    days_with_inventory: number;
-    closing_stock: number;
-  };
-}
-
-// Extend ReportItem with UI-specific fields
-interface EnhancedReportItem extends ReportItem {
-  uniqueId: string;
-  label: string;
+  sku_code: string;
+  hsn_code: string;
+  item_name: string;
+  quantity: number;
+  city: string;
+  order_date: string;
 }
 
 const SalesReport: React.FC = () => {
@@ -98,7 +63,7 @@ const SalesReport: React.FC = () => {
       }
 
       const response = await fetch(
-        `${apiUrl}/blinkit/get_saved_report?month=${selectedMonth}&year=${selectedYear}`
+        `${apiUrl}/blinkit/get_sales_report?month=${selectedMonth}&year=${selectedYear}`
       );
 
       if (!response.ok) {
@@ -328,175 +293,11 @@ const SalesReport: React.FC = () => {
     });
   };
 
-  // ===== CHART DATA PREPARATION =====
-  const chartData = useMemo(() => {
-    if (!reportData || reportData.length === 0) {
-      return { labels: [], datasets: [] };
-    }
-
-    // Enhance report items with UI identifiers
-    const enhancedItems: EnhancedReportItem[] = reportData.map((item) => ({
-      ...item,
-      uniqueId: `${item.item_id}-${item.city}`,
-      label: `${item.item_name} (${item.city})`,
-    }));
-
-    if (selectedItems.length === 0) {
-      // Case 1: No items selected - Show Avg Daily Sales per item
-      // Calculate average daily sales (total sales / days in month)
-      // Sort by avg daily sales descending
-      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-
-      const sortedItems = [...enhancedItems].sort((a, b) => {
-        const avgDailySalesA = a.metrics.total_sales_in_period / daysInMonth;
-        const avgDailySalesB = b.metrics.total_sales_in_period / daysInMonth;
-        return avgDailySalesB - avgDailySalesA;
-      });
-
-      return {
-        labels: sortedItems.map((item) => item.label),
-        datasets: [
-          {
-            label: `Avg Daily Sales (${formattedDate})`,
-            data: sortedItems.map(
-              (item) => item.metrics.total_sales_in_period / daysInMonth
-            ),
-            backgroundColor: 'rgba(54, 162, 235, 0.8)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 1,
-          },
-        ],
-      };
-    } else {
-      // Case 2: Items selected - Compare key metrics for selected items
-      const filteredItems = enhancedItems.filter((item) =>
-        selectedItems.includes(item.uniqueId)
-      );
-
-      filteredItems.sort((a, b) => a.label.localeCompare(b.label));
-
-      // Calculate average daily sales
-      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-
-      const metricsToShow = [
-        {
-          key: 'avg_daily_sales',
-          label: 'Avg Daily Sales',
-          color: 'rgba(54, 162, 235, 0.8)',
-          getValue: (item: EnhancedReportItem) =>
-            item.metrics.total_sales_in_period / daysInMonth,
-        },
-        {
-          key: 'avg_daily_on_stock_days',
-          label: 'Avg Daily Stock Days',
-          color: 'rgba(255, 99, 132, 0.8)',
-          getValue: (item: EnhancedReportItem) =>
-            item.metrics.avg_daily_on_stock_days,
-        },
-        {
-          key: 'closing_stock',
-          label: 'Closing Stock',
-          color: 'rgba(255, 206, 86, 0.8)',
-          getValue: (item: EnhancedReportItem) => item.metrics.closing_stock,
-        },
-        {
-          key: 'days_of_coverage',
-          label: 'Days of Coverage',
-          color: 'rgba(153, 102, 255, 0.8)',
-          getValue: (item: EnhancedReportItem) => item.metrics.days_of_coverage,
-        },
-        {
-          key: 'days_with_inventory',
-          label: 'Days with Inventory',
-          color: 'rgba(75, 192, 192, 0.8)',
-          getValue: (item: EnhancedReportItem) =>
-            item.metrics.days_with_inventory,
-        },
-      ];
-
-      if (filteredItems.length === 0) {
-        return { labels: [], datasets: [] };
-      }
-
-      return {
-        labels: filteredItems.map((item) => item.label),
-        datasets: metricsToShow.map((metric) => ({
-          label: metric.label,
-          data: filteredItems.map((item) => metric.getValue(item)),
-          backgroundColor: metric.color,
-          borderColor: metric.color.replace('0.8', '1'),
-          borderWidth: 1,
-        })),
-      };
-    }
-  }, [reportData, selectedItems, selectedDate, selectedMonth, selectedYear]);
-
-  // ===== CHART OPTIONS =====
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    // plugins: {
-    //   legend: {
-    //     position: 'top' as const,
-    //   },
-    //   title: {
-    //     display: true,
-    //     text:
-    //       selectedItems.length === 0
-    //         ? `Average Daily Sales per Item (${formattedDate})`
-    //         : `Metric Comparison for Selected Items (${formattedDate})`,
-    //     font: {
-    //       size: 16,
-    //       weight: 'bold',
-    //     },
-    //   },
-    //   tooltip: {
-    //     callbacks: {
-    //       label: function (context: any) {
-    //         let label = context.dataset.label || '';
-    //         if (label) {
-    //           label += ': ';
-    //         }
-    //         if (context.parsed.y !== null) {
-    //           label += new Intl.NumberFormat('en-IN', {
-    //             maximumFractionDigits: 2,
-    //           }).format(context.parsed.y);
-    //         }
-    //         return label;
-    //       },
-    //     },
-    //   },
-    // },
-    scales: {
-      x: {
-        ticks: {
-          autoSkip: false,
-          maxRotation: 90,
-          minRotation: 45,
-          font: {
-            size: 10,
-          },
-        },
-        grid: {
-          display: false,
-        },
-      },
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
-        },
-      },
-    },
-  };
-
   // ===== COMPONENT RENDERING =====
   return (
     <div className='container mx-auto p-4 bg-gray-50'>
       <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
-        <h1 className='text-2xl font-bold text-gray-800 mb-6'>
-          Sales vs Inventory Report
-        </h1>
+        <h1 className='text-2xl font-bold text-gray-800 mb-6'>Sales Report</h1>
 
         {/* Controls Section */}
         <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-6'>
@@ -540,25 +341,6 @@ const SalesReport: React.FC = () => {
                   {salesFile
                     ? `${salesFile.name.substring(0, 12)}...`
                     : 'Sales File'}
-                </label>
-              </div>
-
-              <div className='flex-1'>
-                <input
-                  type='file'
-                  ref={inventoryFileInputRef}
-                  onChange={handleInventoryFileChange}
-                  accept='.xlsx, .xls'
-                  className='hidden'
-                  id='inventoryFileInput'
-                />
-                <label
-                  htmlFor='inventoryFileInput'
-                  className='w-full inline-flex justify-center items-center px-3 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 truncate'
-                >
-                  {inventoryFile
-                    ? `${inventoryFile.name.substring(0, 12)}...`
-                    : 'Inventory File'}
                 </label>
               </div>
             </div>
@@ -616,31 +398,6 @@ const SalesReport: React.FC = () => {
             </p>
           </div>
         )}
-
-        {/* Chart Display */}
-        {!loading && reportData.length > 0 && (
-          <div className='mb-8'>
-            <div className='bg-white rounded-lg p-2 mb-4'>
-              <p className='text-center text-gray-700 text-sm'>
-                {selectedItems.length === 0
-                  ? 'Showing average daily sales for all items. Select items in the table below to compare metrics.'
-                  : 'Showing metrics for selected items.'}
-              </p>
-            </div>
-
-            <div className='bg-white rounded-lg p-4 h-80'>
-              {chartData &&
-              chartData.datasets.length > 0 &&
-              chartData.labels.length > 0 ? (
-                <Bar data={chartData} options={chartOptions} />
-              ) : (
-                <p className='text-gray-600 text-center pt-32'>
-                  No data to display in chart based on current selection.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Report Table */}
@@ -660,46 +417,28 @@ const SalesReport: React.FC = () => {
               <thead className='bg-gray-50'>
                 <tr>
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Select
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     #
                   </th>
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Item Name (SKU)
+                    Sku Code
+                  </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    HSN Code
+                  </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Item Name
                   </th>
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     City
                   </th>
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Warehouse
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Avg Daily Stock
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Avg Weekly Stock
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Avg Monthly Stock
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Total Sales
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    DOC
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Days with Inventory
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Closing Stock
+                    Quantity
                   </th>
                 </tr>
               </thead>
               <tbody className='bg-white divide-y divide-gray-200'>
                 {reportData.map((item, index) => {
-                  const itemIdentifier = `${item.item_id}-${item.city}`;
+                  const itemIdentifier = `${item._id}-${item.city}-${item.quantity}`;
                   const isItemSelected = selectedItems.includes(itemIdentifier);
 
                   return (
@@ -709,49 +448,23 @@ const SalesReport: React.FC = () => {
                         isItemSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
                       }
                     >
-                      <td className='px-4 py-3 whitespace-nowrap'>
-                        <input
-                          type='checkbox'
-                          checked={isItemSelected}
-                          onChange={(e) =>
-                            handleItemSelect(itemIdentifier, e.target.checked)
-                          }
-                          className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-                        />
-                      </td>
                       <td className='px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900'>
                         {index + 1}
                       </td>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        {item.sku_code}
+                      </td>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        {item.hsn_code}
+                      </td>
                       <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900'>
-                        {item.item_name}{' '}
-                        <span className='text-gray-500'>({item.sku_code})</span>
+                        {item.item_name}
                       </td>
                       <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
                         {item.city}
                       </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.warehouse}
-                      </td>
                       <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics.avg_daily_on_stock_days.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.metrics.avg_weekly_on_stock_days.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.metrics.avg_monthly_on_stock_days.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics.total_sales_in_period.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.metrics.days_of_coverage.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.metrics.days_with_inventory}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics.closing_stock.toFixed(2)}
+                        {item.quantity}
                       </td>
                     </tr>
                   );

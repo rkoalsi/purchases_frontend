@@ -13,7 +13,7 @@ function Page() {
   if (!accessToken) {
     return <p>Please log in to see this content.</p>;
   }
-  return <p className='text-xl'>Welcome {user.name}, Sales By Customer</p>;
+  return <p className='text-xl'>Welcome {user.name}, Sales On Amazon</p>;
 }
 
 export default Page;
