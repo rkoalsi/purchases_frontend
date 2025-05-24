@@ -158,16 +158,11 @@ const SalesVSInventoryReport: React.FC = () => {
     }
   };
 
-  // ===== UPLOAD LOGIC =====
   const handleUpload = async () => {
     if (!salesFile || !inventoryFile) {
       toast.warning('Please select both Sales and Inventory files.');
       return;
     }
-
-    // Get the month and year for upload (using end date for current reports)
-    const uploadMonth = endDate.getMonth() + 1;
-    const uploadYear = endDate.getFullYear();
 
     setUploading(true);
 
@@ -178,7 +173,34 @@ const SalesVSInventoryReport: React.FC = () => {
       return;
     }
 
+    // Create an AbortController for cancellation
+    const abortController = new AbortController();
+
     try {
+      // Pre-validate files on the client side
+      const maxFileSize = 50 * 1024 * 1024; // 50MB limit
+      if (salesFile.size > maxFileSize || inventoryFile.size > maxFileSize) {
+        throw new Error(
+          'File size exceeds 50MB limit. Please compress your files.'
+        );
+      }
+
+      // Validate file extensions
+      const validExtensions = ['.xlsx', '.xls'];
+      const salesExt = salesFile.name
+        .toLowerCase()
+        .slice(salesFile.name.lastIndexOf('.'));
+      const inventoryExt = inventoryFile.name
+        .toLowerCase()
+        .slice(inventoryFile.name.lastIndexOf('.'));
+
+      if (
+        !validExtensions.includes(salesExt) ||
+        !validExtensions.includes(inventoryExt)
+      ) {
+        throw new Error('Please upload only Excel files (.xlsx or .xls)');
+      }
+
       // Create FormData objects
       const salesFormData = new FormData();
       salesFormData.append('file', salesFile);
@@ -186,19 +208,25 @@ const SalesVSInventoryReport: React.FC = () => {
       const inventoryFormData = new FormData();
       inventoryFormData.append('file', inventoryFile);
 
-      // Upload both files concurrently
-      const [salesResponse, inventoryResponse] = await Promise.all([
-        fetch(`${apiUrl}/blinkit/upload_sales_data`, {
-          method: 'POST',
-          body: salesFormData,
-        }),
-        fetch(`${apiUrl}/blinkit/upload_inventory_data`, {
-          method: 'POST',
-          body: inventoryFormData,
-        }),
-      ]);
+      // Set up fetch options with timeout and optimized settings
+      const fetchOptions = {
+        method: 'POST',
+        signal: abortController.signal,
+        // Add timeout after 5 minutes
+        timeout: 300000,
+        // Keep connection alive for better performance
+        keepalive: true,
+      };
 
-      // Check responses
+      // Upload files sequentially for better error handling and memory management
+      // (Concurrent uploads can overwhelm the server with large files)
+      toast.info('Uploading sales data...');
+
+      const salesResponse = await fetch(`${apiUrl}/blinkit/upload_sales_data`, {
+        ...fetchOptions,
+        body: salesFormData,
+      });
+
       if (!salesResponse.ok) {
         const salesError = await salesResponse.json();
         throw new Error(
@@ -207,6 +235,19 @@ const SalesVSInventoryReport: React.FC = () => {
           }`
         );
       }
+
+      const salesResult = await salesResponse.json();
+      toast.success(`Sales data uploaded: ${salesResult.message}`);
+
+      toast.info('Uploading inventory data...');
+
+      const inventoryResponse = await fetch(
+        `${apiUrl}/blinkit/upload_inventory_data`,
+        {
+          ...fetchOptions,
+          body: inventoryFormData,
+        }
+      );
 
       if (!inventoryResponse.ok) {
         const inventoryError = await inventoryResponse.json();
@@ -217,15 +258,22 @@ const SalesVSInventoryReport: React.FC = () => {
         );
       }
 
-      // Both uploads successful, generate report
-      toast.success('Files uploaded successfully. Generating report...');
+      const inventoryResult = await inventoryResponse.json();
+      toast.success(`Inventory data uploaded: ${inventoryResult.message}`);
+
+      // Generate report with corrected parameters
+      toast.info('Generating report...');
 
       const generateResponse = await fetch(
         `${apiUrl}/blinkit/generate_report?start_month=${
           startDate.getMonth() + 1
-        }&start_year=${startDate.getMonth() + 1}&end_month=${
-          startDate.getMonth() + 1
-        }&end_year=${startDate.getMonth() + 1}`
+        }&start_year=${startDate.getFullYear()}&end_month=${
+          endDate.getMonth() + 1
+        }&end_year=${endDate.getFullYear()}`,
+        {
+          method: 'GET',
+          signal: abortController.signal,
+        }
       );
 
       if (!generateResponse.ok) {
@@ -247,10 +295,20 @@ const SalesVSInventoryReport: React.FC = () => {
       toast.success('Report generated successfully!');
 
       // Fetch the updated report data
-      fetchReportData();
+      await fetchReportData();
+      setShowUploadModal(false);
     } catch (err: any) {
-      console.error('Upload process failed:', err);
-      toast.error(err.message);
+      // Handle different types of errors
+      if (err.name === 'AbortError') {
+        toast.warning('Upload was cancelled.');
+      } else if (err.name === 'TimeoutError') {
+        toast.error('Upload timed out. Please try again with smaller files.');
+      } else {
+        console.error('Upload process failed:', err);
+        toast.error(
+          err.message || 'An unexpected error occurred during upload.'
+        );
+      }
     } finally {
       setUploading(false);
     }
