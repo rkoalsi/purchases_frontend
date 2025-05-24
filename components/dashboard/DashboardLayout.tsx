@@ -6,6 +6,7 @@ import Sidebar from './Sidebar';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  user: any;
   onLogout: () => void;
   userEmail: string;
   darkMode: boolean;
@@ -14,6 +15,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({
   children,
+  user,
   onLogout,
   userEmail,
   darkMode,
@@ -22,23 +24,30 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className='h-screen flex overflow-hidden bg-gray-100 dark:bg-gray-900'>
-      {/* Mobile sidebar */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        setIsOpen={setSidebarOpen}
-        isMobile={true}
-      />
-
-      {/* Static sidebar for desktop */}
-      <div className='hidden md:flex md:flex-shrink-0'>
-        <div className='flex flex-col w-64'>
-          <Sidebar isOpen={true} setIsOpen={() => {}} isMobile={false} />
-        </div>
+    <div className='h-screen flex overflow-hidden bg-gray-50 dark:bg-gray-900'>
+      {/* Mobile sidebar overlay */}
+      <div className='md:hidden'>
+        <Sidebar
+          user={user}
+          isOpen={sidebarOpen}
+          setIsOpen={setSidebarOpen}
+          isMobile={true}
+        />
       </div>
 
-      {/* Content area */}
-      <div className='flex flex-col w-0 flex-1 overflow-hidden'>
+      {/* Desktop sidebar - now responsive to collapse state */}
+      <div className='hidden md:flex md:flex-shrink-0'>
+        <Sidebar
+          isOpen={true}
+          setIsOpen={() => {}}
+          isMobile={false}
+          user={user}
+        />
+      </div>
+
+      {/* Main content area */}
+      <div className='flex flex-col flex-1 min-w-0 overflow-hidden'>
+        {/* Header */}
         <Header
           onSidebarOpen={() => setSidebarOpen(true)}
           onLogout={onLogout}
@@ -47,8 +56,11 @@ export default function DashboardLayout({
           toggleDarkMode={toggleDarkMode}
         />
 
-        <main className='flex-1 relative overflow-y-auto focus:outline-none p-6'>
-          {children}
+        {/* Main content */}
+        <main className='flex-1 relative overflow-y-auto focus:outline-none'>
+          <div className='p-6'>
+            <div className='max-w-7xl mx-auto'>{children}</div>
+          </div>
         </main>
       </div>
     </div>

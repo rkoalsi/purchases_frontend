@@ -26,7 +26,7 @@ export default function AuthGuard({
   toggleDarkMode,
 }: AuthGuardProps) {
   // Consume the auth state and loading state from the context
-  const { accessToken, email, isLoading, login, logout } = useAuth();
+  const { accessToken, email, isLoading, login, logout, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname(); // Get current path
 
@@ -81,6 +81,7 @@ export default function AuthGuard({
     return (
       <DashboardLayout
         // Pass userEmail and logout function from context
+        user={user}
         userEmail={email || ''} // Provide default if email is null
         onLogout={logout}
         darkMode={darkMode} // Pass dark mode props
