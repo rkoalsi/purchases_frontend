@@ -7,7 +7,7 @@ import React from 'react';
 
 function Page() {
   // Consume the auth state from the context
-  const { email, isLoading, accessToken, user } = useAuth();
+  const { isLoading, accessToken, user } = useAuth();
 
   // You might want to show a loading state if auth is still loading
   if (isLoading) {
