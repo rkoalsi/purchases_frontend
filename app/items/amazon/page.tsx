@@ -103,11 +103,9 @@ const SkuMappingComponent = () => {
     <div className='max-w-6xl mx-auto p-6 bg-white'>
       <div className='mb-8'>
         <h1 className='text-3xl font-bold text-gray-900 mb-2'>
-          SKU Mapping Management
+          Amazon SKU Mapping Management
         </h1>
-        <p className='text-gray-600'>
-          Upload and manage Amazon SKU mapping data
-        </p>
+        <p className='text-gray-600'>Upload and manage Amazon ASIN and Sku's</p>
       </div>
 
       {/* Upload Section */}
@@ -122,7 +120,7 @@ const SkuMappingComponent = () => {
               type='file'
               accept='.xlsx,.xls'
               onChange={handleFileSelect}
-              className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+              className='w-full text-black px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             />
             <p className='text-sm text-gray-500 mt-1'>
               Expected columns: ASIN, SKU, Item Name

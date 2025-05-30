@@ -41,16 +41,9 @@ const navigation = [
     href: '/inventory',
     icon: Package,
     children: [
-      {
-        name: 'Items by Platform',
-        href: '/items',
-        icon: ShoppingBag,
-        children: [
-          { name: 'Amazon', href: '/items/amazon', icon: AmazonIcon },
-          { name: 'Blinkit', href: '/items/blinkit', icon: Zap },
-          { name: 'Zoho', href: '/items/zoho', icon: Building2 },
-        ],
-      },
+      { name: 'Amazon', href: '/items/amazon', icon: AmazonIcon },
+      { name: 'Blinkit', href: '/items/blinkit', icon: Zap },
+      { name: 'Zoho', href: '/items/zoho', icon: Building2 },
     ],
   },
   {
@@ -363,7 +356,9 @@ export default function Sidebar({
           <div className='flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700'>
             <div className='flex items-center'>
               <div className='w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center'>
-                <span className='text-xs font-medium text-white'>U</span>
+                <span className='text-xs font-medium text-white'>
+                  {user?.name?.charAt(0)}
+                </span>
               </div>
               <div className='ml-3'>
                 <p className='text-sm font-medium text-gray-900 dark:text-white'>

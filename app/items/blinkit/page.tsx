@@ -111,6 +111,12 @@ function Page() {
   return (
     <>
       <div className='bg-gray-50 rounded-lg p-6 mb-8'>
+        <div className='mb-8'>
+          <h1 className='text-3xl font-bold text-black mb-2'>
+            Blinkit SKU Mapping Management
+          </h1>
+          <p className='text-black'>Upload and manage Blinkit ASIN and Sku's</p>
+        </div>
         <h2 className='text-xl font-semibold text-gray-800 mb-4'>
           Upload SKU Mapping
         </h2>
@@ -121,9 +127,9 @@ function Page() {
               type='file'
               accept='.xlsx,.xls'
               onChange={handleFileSelect}
-              className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+              className='w-full text-black px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             />
-            <p className='text-sm text-gray-500 mt-1'>
+            <p className='text-sm text-gray-700 mt-1'>
               Expected columns: Item ID, SKU Code, Item Name
             </p>
           </div>

@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
   env: {
-    api_url: 'https://purchase.pupscribe.in/api',
+    api_url: 'http://127.0.0.1:8000',
   },
 };
 
