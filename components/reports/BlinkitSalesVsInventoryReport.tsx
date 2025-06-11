@@ -89,7 +89,7 @@ const SalesVSInventoryReport: React.FC = () => {
   }>({ key: null, direction: 'asc' });
 
   const filteredAndSortedData = useMemo(() => {
-    let filteredData = reportData.filter((item) => {
+    const filteredData = reportData.filter((item) => {
       const matchesSearch =
         item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sku_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
