@@ -80,10 +80,134 @@ const SalesVSInventoryReport: React.FC = () => {
   // Refs for file inputs
   const salesFileInputRef = useRef<HTMLInputElement>(null);
   const inventoryFileInputRef = useRef<HTMLInputElement>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [cityFilter, setCityFilter] = useState<string>('');
+  const [warehouseFilter, setWarehouseFilter] = useState<string>('');
+  const [sortConfig, setSortConfig] = useState<{
+    key: string | null;
+    direction: 'asc' | 'desc';
+  }>({ key: null, direction: 'asc' });
+
+  const filteredAndSortedData = useMemo(() => {
+    let filteredData = reportData.filter((item) => {
+      const matchesSearch =
+        item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.sku_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.warehouse.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesCity = !cityFilter || item.city === cityFilter;
+      const matchesWarehouse =
+        !warehouseFilter || item.warehouse === warehouseFilter;
+
+      return matchesSearch && matchesCity && matchesWarehouse;
+    });
+
+    // Apply sorting
+    if (sortConfig.key) {
+      filteredData.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        if (sortConfig.key?.startsWith('metrics.')) {
+          const metricKey = sortConfig.key.replace('metrics.', '');
+          aValue = a.metrics[metricKey as keyof typeof a.metrics];
+          bValue = b.metrics[metricKey as keyof typeof b.metrics];
+        } else {
+          aValue = a[sortConfig.key as keyof typeof a];
+          bValue = b[sortConfig.key as keyof typeof b];
+        }
+
+        if (typeof aValue === 'string') {
+          aValue = aValue.toLowerCase();
+          bValue = bValue.toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filteredData;
+  }, [reportData, searchTerm, cityFilter, warehouseFilter, sortConfig]);
 
   // Date formatting helpers
   const formatDateRange = () => {
     return `${format(startDate, 'MMM yyyy')} - ${format(endDate, 'MMM yyyy')}`;
+  };
+  const uniqueCities = useMemo(() => {
+    return [...new Set(reportData.map((item) => item.city))].sort();
+  }, [reportData]);
+
+  const uniqueWarehouses = useMemo(() => {
+    return [...new Set(reportData.map((item) => item.warehouse))].sort();
+  }, [reportData]);
+
+  // Sort handler
+  const handleSort = (key: string) => {
+    setSortConfig((prevConfig) => ({
+      key,
+      direction:
+        prevConfig.key === key && prevConfig.direction === 'asc'
+          ? 'desc'
+          : 'asc',
+    }));
+  };
+
+  // Sort icon component
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortConfig.key !== column) {
+      return (
+        <svg
+          className='w-4 h-4 text-gray-400'
+          fill='none'
+          stroke='currentColor'
+          viewBox='0 0 24 24'
+        >
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            strokeWidth={2}
+            d='M8 9l4-4 4 4m0 6l-4 4-4-4'
+          />
+        </svg>
+      );
+    }
+
+    return sortConfig.direction === 'asc' ? (
+      <svg
+        className='w-4 h-4 text-blue-600'
+        fill='none'
+        stroke='currentColor'
+        viewBox='0 0 24 24'
+      >
+        <path
+          strokeLinecap='round'
+          strokeLinejoin='round'
+          strokeWidth={2}
+          d='M5 15l7-7 7 7'
+        />
+      </svg>
+    ) : (
+      <svg
+        className='w-4 h-4 text-blue-600'
+        fill='none'
+        stroke='currentColor'
+        viewBox='0 0 24 24'
+      >
+        <path
+          strokeLinecap='round'
+          strokeLinejoin='round'
+          strokeWidth={2}
+          d='M19 9l-7 7-7-7'
+        />
+      </svg>
+    );
   };
 
   // Handle date changes
@@ -618,181 +742,412 @@ const SalesVSInventoryReport: React.FC = () => {
       {/* Report Table */}
       {!loading && reportData.length > 0 && (
         <div className='bg-white rounded-lg shadow-md overflow-hidden'>
-          <div className='p-4 bg-gray-50 border-b border-gray-200'>
-            <h2 className='text-lg font-semibold text-gray-800'>
-              Report Details
-            </h2>
-            <p className='text-sm text-gray-600'>
-              Select items to compare metrics in the chart above
-            </p>
+          {/* Table Header with Search and Filters */}
+          <div className='p-6 bg-gray-50 border-b border-gray-200'>
+            <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4'>
+              <div>
+                <h2 className='text-lg font-semibold text-gray-800'>
+                  Report Details
+                </h2>
+                <p className='text-sm text-gray-600'>
+                  Showing {filteredAndSortedData.length} of {reportData.length}{' '}
+                  items
+                </p>
+              </div>
+
+              {/* Search Bar */}
+              <div className='relative flex-1 max-w-md'>
+                <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                  <svg
+                    className='h-5 w-5 text-gray-400'
+                    fill='none'
+                    stroke='currentColor'
+                    viewBox='0 0 24 24'
+                  >
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      strokeWidth={2}
+                      d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
+                    />
+                  </svg>
+                </div>
+                <input
+                  type='text'
+                  placeholder='Search items, SKU, city, warehouse...'
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className='block w-full text-black pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className='absolute inset-y-0 right-0 pr-3 flex items-center'
+                  >
+                    <svg
+                      className='h-4 w-4 text-gray-400 hover:text-gray-600'
+                      fill='none'
+                      stroke='currentColor'
+                      viewBox='0 0 24 24'
+                    >
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        strokeWidth={2}
+                        d='M6 18L18 6M6 6l12 12'
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className='flex flex-wrap gap-3'>
+              <div className='min-w-0 flex-1 min-w-[120px]'>
+                <select
+                  value={cityFilter}
+                  onChange={(e) => setCityFilter(e.target.value)}
+                  className='block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white'
+                >
+                  <option value=''>All Cities</option>
+                  {uniqueCities.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className='min-w-0 flex-1 min-w-[120px]'>
+                <select
+                  value={warehouseFilter}
+                  onChange={(e) => setWarehouseFilter(e.target.value)}
+                  className='block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white'
+                >
+                  <option value=''>All Warehouses</option>
+                  {uniqueWarehouses.map((warehouse) => (
+                    <option key={warehouse} value={warehouse}>
+                      {warehouse}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Clear Filters Button */}
+              {(searchTerm || cityFilter || warehouseFilter) && (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCityFilter('');
+                    setWarehouseFilter('');
+                  }}
+                  className='px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors'
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className='overflow-x-auto'>
+          {/* Table Container with Fixed Height and Sticky Header */}
+          <div className='relative max-h-[70vh] overflow-auto'>
             <table className='min-w-full divide-y divide-gray-200'>
-              <thead className='bg-gray-50'>
+              {/* Sticky Header */}
+              <thead className='bg-gray-50 sticky top-0 z-10 shadow-sm'>
                 <tr>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Select
+                  <th className='sticky left-0 z-20 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200'>
+                    <div className='flex items-center gap-2'>
+                      <input
+                        type='checkbox'
+                        checked={
+                          selectedItems.length ===
+                            filteredAndSortedData.length &&
+                          filteredAndSortedData.length > 0
+                        }
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedItems(
+                              filteredAndSortedData.map(
+                                (item) => `${item.item_id}-${item.city}`
+                              )
+                            );
+                          } else {
+                            setSelectedItems([]);
+                          }
+                        }}
+                        className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+                      />
+                      <span>Select</span>
+                    </div>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='sticky left-[80px] z-20 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200'>
                     #
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Item Name
+                  <th className='sticky left-[130px] z-20 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[200px]'>
+                    <button
+                      onClick={() => handleSort('item_name')}
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Item Name
+                      <SortIcon column='item_name' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Sku Code
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                    <button
+                      onClick={() => handleSort('sku_code')}
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      SKU Code
+                      <SortIcon column='sku_code' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    City
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]'>
+                    <button
+                      onClick={() => handleSort('city')}
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      City
+                      <SortIcon column='city' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Warehouse
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                    <button
+                      onClick={() => handleSort('warehouse')}
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Warehouse
+                      <SortIcon column='warehouse' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Avg Daily Sale
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                    <button
+                      onClick={() =>
+                        handleSort('metrics.avg_daily_on_stock_days')
+                      }
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Avg Daily Sale
+                      <SortIcon column='metrics.avg_daily_on_stock_days' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Avg Weekly Sale
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                    <button
+                      onClick={() =>
+                        handleSort('metrics.avg_weekly_on_stock_days')
+                      }
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Avg Weekly Sale
+                      <SortIcon column='metrics.avg_weekly_on_stock_days' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Avg Monthly Sale
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]'>
+                    <button
+                      onClick={() =>
+                        handleSort('metrics.avg_monthly_on_stock_days')
+                      }
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Avg Monthly Sale
+                      <SortIcon column='metrics.avg_monthly_on_stock_days' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Total Sales
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[110px]'>
+                    <button
+                      onClick={() =>
+                        handleSort('metrics.total_sales_in_period')
+                      }
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Total Sales
+                      <SortIcon column='metrics.total_sales_in_period' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    DOC
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]'>
+                    <button
+                      onClick={() => handleSort('metrics.days_of_coverage')}
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      DOC
+                      <SortIcon column='metrics.days_of_coverage' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Days with Inventory
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]'>
+                    <button
+                      onClick={() => handleSort('metrics.days_with_inventory')}
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Days with Inventory
+                      <SortIcon column='metrics.days_with_inventory' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Closing Stock
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                    <button
+                      onClick={() => handleSort('metrics.closing_stock')}
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Closing Stock
+                      <SortIcon column='metrics.closing_stock' />
+                    </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]'>
                     Past 7 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]'>
                     Two Weeks Ago Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]'>
                     Performance Two Weeks Ago vs 7 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]'>
                     Past 30 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]'>
                     Past 60 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]'>
                     Performance Past 60 vs 30 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]'>
                     Best Performing Month
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]'>
                     Quantity Sold in Best Performing Month
                   </th>
                 </tr>
               </thead>
-              <tbody className='bg-white divide-y divide-gray-200'>
-                {reportData.map((item: any, index) => {
-                  const itemIdentifier = `${item.item_id}-${item.city}`;
-                  const isItemSelected = selectedItems.includes(itemIdentifier);
 
-                  return (
-                    <tr
-                      key={itemIdentifier}
-                      className={
-                        isItemSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-                      }
+              {/* Table Body */}
+              <tbody className='bg-white divide-y divide-gray-200'>
+                {filteredAndSortedData.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={21}
+                      className='px-4 py-8 text-center text-sm text-gray-500'
                     >
-                      <td className='px-4 py-3 whitespace-nowrap'>
-                        <input
-                          type='checkbox'
-                          checked={isItemSelected}
-                          onChange={(e) =>
-                            handleItemSelect(itemIdentifier, e.target.checked)
-                          }
-                          className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-                        />
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900'>
-                        {index + 1}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900'>
-                        {item.item_name}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900'>
-                        {item.sku_code}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.city}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.warehouse}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics.avg_daily_on_stock_days.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.metrics.avg_weekly_on_stock_days.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.metrics.avg_monthly_on_stock_days?.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics?.total_sales_in_period?.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.metrics.days_of_coverage.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
-                        {item.metrics.days_with_inventory}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics.closing_stock?.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics?.sales_last_7_days_ending_lcd?.toFixed(2)}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics?.sales_prev_7_days_before_that?.toFixed(
-                          2
-                        )}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics?.performance_vs_prev_7_days_pct?.toFixed(
-                          2
-                        )}
-                        %
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics?.sales_last_30_days_ending_lcd?.toFixed(
-                          2
-                        )}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics?.sales_prev_30_days_before_that?.toFixed(
-                          2
-                        )}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.metrics?.performance_vs_prev_30_days_pct?.toFixed(
-                          2
-                        )}
-                        %
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.best_performing_month}
-                      </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
-                        {item.best_performing_month_details.quantity_sold}
-                      </td>
-                    </tr>
-                  );
-                })}
+                      No items match your search criteria
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAndSortedData.map((item: any, index) => {
+                    const itemIdentifier = `${item.item_id}-${item.city}`;
+                    const isItemSelected =
+                      selectedItems.includes(itemIdentifier);
+
+                    return (
+                      <tr
+                        key={itemIdentifier}
+                        className={`${
+                          isItemSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
+                        } transition-colors`}
+                      >
+                        <td className='sticky left-0 z-10 bg-white px-4 py-3 whitespace-nowrap border-r border-gray-200'>
+                          <input
+                            type='checkbox'
+                            checked={isItemSelected}
+                            onChange={(e) =>
+                              handleItemSelect(itemIdentifier, e.target.checked)
+                            }
+                            className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+                          />
+                        </td>
+                        <td className='sticky left-[80px] z-10 bg-white px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200'>
+                          {index + 1}
+                        </td>
+                        <td className='sticky left-[130px] z-10 bg-white px-4 py-3 text-sm text-gray-900 border-r border-gray-200 max-w-[200px]'>
+                          <div className='truncate' title={item.item_name}>
+                            {item.item_name}
+                          </div>
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900'>
+                          {item.sku_code}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                          {item.city}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                          {item.warehouse}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.metrics.avg_daily_on_stock_days.toFixed(2)}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                          {item.metrics.avg_weekly_on_stock_days.toFixed(2)}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                          {item.metrics.avg_monthly_on_stock_days?.toFixed(2)}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.metrics?.total_sales_in_period?.toFixed(2)}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                          {item.metrics.days_of_coverage.toFixed(2)}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                          {item.metrics.days_with_inventory}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.metrics.closing_stock?.toFixed(2)}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.metrics?.sales_last_7_days_ending_lcd?.toFixed(
+                            2
+                          )}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.metrics?.sales_prev_7_days_before_that?.toFixed(
+                            2
+                          )}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              item.metrics?.performance_vs_prev_7_days_pct >= 0
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {item.metrics?.performance_vs_prev_7_days_pct?.toFixed(
+                              2
+                            )}
+                            %
+                          </span>
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.metrics?.sales_last_30_days_ending_lcd?.toFixed(
+                            2
+                          )}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.metrics?.sales_prev_30_days_before_that?.toFixed(
+                            2
+                          )}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              item.metrics?.performance_vs_prev_30_days_pct >= 0
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {item.metrics?.performance_vs_prev_30_days_pct?.toFixed(
+                              2
+                            )}
+                            %
+                          </span>
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.best_performing_month}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.best_performing_month_details?.quantity_sold}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
