@@ -854,9 +854,9 @@ const SalesVSInventoryReport: React.FC = () => {
           <div className='relative max-h-[70vh] overflow-auto'>
             <table className='min-w-full divide-y divide-gray-200'>
               {/* Sticky Header */}
-              <thead className='bg-gray-50 sticky top-0 z-10 shadow-sm'>
+              <thead className='bg-gray-50 sticky top-0 z-30 shadow-sm'>
                 <tr>
-                  <th className='sticky left-0 z-20 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200'>
+                  <th className='sticky left-0 z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200'>
                     <div className='flex items-center gap-2'>
                       <input
                         type='checkbox'
@@ -881,10 +881,10 @@ const SalesVSInventoryReport: React.FC = () => {
                       <span>Select</span>
                     </div>
                   </th>
-                  <th className='sticky left-[80px] z-20 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200'>
+                  <th className='sticky left-[80px] z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200'>
                     #
                   </th>
-                  <th className='sticky left-[130px] z-20 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[200px]'>
+                  <th className='sticky left-[130px] z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[250px]'>
                     <button
                       onClick={() => handleSort('item_name')}
                       className='flex items-center gap-1 hover:text-gray-700 transition-colors'
@@ -1042,7 +1042,7 @@ const SalesVSInventoryReport: React.FC = () => {
                           isItemSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
                         } transition-colors`}
                       >
-                        <td className='sticky left-0 z-10 bg-white px-4 py-3 whitespace-nowrap border-r border-gray-200'>
+                        <td className='sticky left-0 z-20 bg-white px-4 py-3 whitespace-nowrap border-r border-gray-200'>
                           <input
                             type='checkbox'
                             checked={isItemSelected}
@@ -1052,11 +1052,11 @@ const SalesVSInventoryReport: React.FC = () => {
                             className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
                           />
                         </td>
-                        <td className='sticky left-[80px] z-10 bg-white px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200'>
+                        <td className='sticky left-[80px] z-20 bg-white px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200'>
                           {index + 1}
                         </td>
-                        <td className='sticky left-[130px] z-10 bg-white px-4 py-3 text-sm text-gray-900 border-r border-gray-200 max-w-[200px]'>
-                          <div className='truncate' title={item.item_name}>
+                        <td className='sticky left-[130px] z-20 bg-white px-4 py-3 text-sm text-gray-900 border-r border-gray-200 min-w-[250px] max-w-[350px]'>
+                          <div className='break-words leading-tight'>
                             {item.item_name}
                           </div>
                         </td>
