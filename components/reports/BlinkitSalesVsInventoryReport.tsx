@@ -1,10 +1,8 @@
 // components/SalesReport.tsx
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import DatePicker from 'react-datepicker';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
-import { format, isAfter, isBefore, addMonths } from 'date-fns';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,10 +12,12 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-
-import { toast } from 'react-toastify';
-import axios from 'axios';
+import { format } from 'date-fns';
+import dateUtils from '../common/DateUtils';
+import DatePicker from '../common/DatePicker';
 import UploadModal from '../common/Modal';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 
 // Register Chart.js components
 ChartJS.register(
@@ -64,8 +64,10 @@ interface EnhancedReportItem extends ReportItem {
 const SalesVSInventoryReport: React.FC = () => {
   // ===== STATE MANAGEMENT =====
   const currentDate = new Date();
-  const [startDate, setStartDate] = useState<Date>(currentDate);
-  const [endDate, setEndDate] = useState<Date>(currentDate);
+  const [startDate, setStartDate] = useState<Date>(
+    new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+  );
+  const [endDate, setEndDate] = useState<Date>(currentDate); // Current date
   const [reportData, setReportData] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -138,7 +140,10 @@ const SalesVSInventoryReport: React.FC = () => {
 
   // Date formatting helpers
   const formatDateRange = () => {
-    return `${format(startDate, 'MMM yyyy')} - ${format(endDate, 'MMM yyyy')}`;
+    return `${dateUtils.format(startDate, 'dd MMM yyyy')} - ${dateUtils.format(
+      endDate,
+      'dd MMM yyyy'
+    )}`;
   };
   const uniqueCities = useMemo(() => {
     return [...new Set(reportData.map((item) => item.city))].sort();
@@ -214,7 +219,7 @@ const SalesVSInventoryReport: React.FC = () => {
   const handleStartDateChange = (date: Date | null) => {
     if (!date) return;
     // If selected start date is after current end date, set end date to start date
-    if (isAfter(date, endDate)) {
+    if (dateUtils.isAfter(date, endDate)) {
       setEndDate(date);
     }
     setStartDate(date);
@@ -223,7 +228,7 @@ const SalesVSInventoryReport: React.FC = () => {
   const handleEndDateChange = (date: Date | null) => {
     if (!date) return;
     // If selected end date is before current start date, set start date to end date
-    if (isBefore(date, startDate)) {
+    if (dateUtils.isBefore(date, startDate)) {
       setStartDate(date);
     }
     setEndDate(date);
@@ -243,13 +248,14 @@ const SalesVSInventoryReport: React.FC = () => {
       if (!apiUrl) {
         throw new Error('api_url environment variable is not set.');
       }
-      // Fetch reports for all months in the range
+
+      // Format dates for API call (YYYY-MM-DD)
+      const startDateStr = format(startDate, 'yyyy-MM-dd');
+      const endDateStr = format(endDate, 'yyyy-MM-dd');
+
+      // Use the new date range API endpoint
       const r = await axios.get(
-        `${apiUrl}/blinkit/get_report_data?start_month=${
-          startDate.getMonth() + 1
-        }&start_year=${startDate.getFullYear()}&end_month=${
-          endDate.getMonth() + 1
-        }&end_year=${endDate.getFullYear()}`
+        `${apiUrl}/blinkit/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`
       );
       console.log(r.data.data);
       setReportData(r.data.data);
@@ -284,7 +290,7 @@ const SalesVSInventoryReport: React.FC = () => {
 
   const handleUpload = async () => {
     if (!salesFile || !inventoryFile) {
-      toast.warning('Please select both Sales and Inventory files.');
+      alert('Please select both Sales and Inventory files.');
       return;
     }
 
@@ -292,7 +298,7 @@ const SalesVSInventoryReport: React.FC = () => {
 
     const apiUrl = process.env.api_url;
     if (!apiUrl) {
-      toast.error('API URL environment variable is not set.');
+      alert('API URL environment variable is not set.');
       setUploading(false);
       return;
     }
@@ -343,8 +349,7 @@ const SalesVSInventoryReport: React.FC = () => {
       };
 
       // Upload files sequentially for better error handling and memory management
-      // (Concurrent uploads can overwhelm the server with large files)
-      toast.info('Uploading sales data...');
+      console.log('Uploading sales data...');
 
       const salesResponse = await fetch(`${apiUrl}/blinkit/upload_sales_data`, {
         ...fetchOptions,
@@ -361,9 +366,9 @@ const SalesVSInventoryReport: React.FC = () => {
       }
 
       const salesResult = await salesResponse.json();
-      toast.success(`Sales data uploaded: ${salesResult.message}`);
+      console.log(`Sales data uploaded: ${salesResult.message}`);
 
-      toast.info('Uploading inventory data...');
+      console.log('Uploading inventory data...');
 
       const inventoryResponse = await fetch(
         `${apiUrl}/blinkit/upload_inventory_data`,
@@ -381,19 +386,25 @@ const SalesVSInventoryReport: React.FC = () => {
           }`
         );
       }
-
       const inventoryResult = await inventoryResponse.json();
-      toast.success(`Inventory data uploaded: ${inventoryResult.message}`);
+      console.log(`Inventory data uploaded: ${inventoryResult.message}`);
 
-      // Generate report with corrected parameters
-      toast.info('Generating report...');
+      // Generate report with date range parameters instead of month parameters
+      console.log('Generating report...');
+      console.log(startDate, endDate);
+      console.log(dateUtils.format(startDate, 'yyyy-MM-dd'));
+      const startDateStr = dateUtils.format(startDate, 'yyyy-MM-dd');
+      const endDateStr = dateUtils.format(endDate, 'yyyy-MM-dd');
+
+      console.log(
+        'Generating report with dates:',
+        startDateStr,
+        'to',
+        endDateStr
+      );
 
       const generateResponse = await fetch(
-        `${apiUrl}/blinkit/generate_report?start_month=${
-          startDate.getMonth() + 1
-        }&start_year=${startDate.getFullYear()}&end_month=${
-          endDate.getMonth() + 1
-        }&end_year=${endDate.getFullYear()}`,
+        `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`,
         {
           method: 'GET',
           signal: abortController.signal,
@@ -416,22 +427,19 @@ const SalesVSInventoryReport: React.FC = () => {
       if (inventoryFileInputRef.current)
         inventoryFileInputRef.current.value = '';
 
-      toast.success('Report generated successfully!');
-
+      console.log('Report generated successfully!');
       // Fetch the updated report data
       await fetchReportData();
       setShowUploadModal(false);
     } catch (err: any) {
       // Handle different types of errors
       if (err.name === 'AbortError') {
-        toast.warning('Upload was cancelled.');
+        console.log('Upload was cancelled.');
       } else if (err.name === 'TimeoutError') {
-        toast.error('Upload timed out. Please try again with smaller files.');
+        console.error('Upload timed out. Please try again with smaller files.');
       } else {
         console.error('Upload process failed:', err);
-        toast.error(
-          err.message || 'An unexpected error occurred during upload.'
-        );
+        alert(err.message || 'An unexpected error occurred during upload.');
       }
     } finally {
       setUploading(false);
@@ -444,20 +452,18 @@ const SalesVSInventoryReport: React.FC = () => {
 
     const apiUrl = process.env.api_url;
     if (!apiUrl) {
-      toast.error('API URL environment variable is not set.');
+      alert('API URL environment variable is not set.');
       setDownloading(false);
       return;
     }
 
     try {
-      // Get range parameters for download
-      const startMonth = startDate.getMonth() + 1;
-      const startYear = startDate.getFullYear();
-      const endMonth = endDate.getMonth() + 1;
-      const endYear = endDate.getFullYear();
+      // Format dates for download API call
+      const startDateStr = dateUtils.format(startDate, 'yyyy-MM-dd');
+      const endDateStr = dateUtils.format(endDate, 'yyyy-MM-dd');
 
       const response = await fetch(
-        `${apiUrl}/blinkit/download_report?start_month=${startMonth}&start_year=${startYear}&end_month=${endMonth}&end_year=${endYear}`
+        `${apiUrl}/blinkit/download_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`
       );
 
       if (!response.ok) {
@@ -477,27 +483,24 @@ const SalesVSInventoryReport: React.FC = () => {
       await processDownload(response);
     } catch (err: any) {
       console.error('Download failed:', err);
-      toast.error(`Download failed: ${err.message}`);
+      alert(`Download failed: ${err.message}`);
     } finally {
       setDownloading(false);
     }
   };
 
   const processDownload = async (response: Response) => {
-    // Process the downloaded file
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
 
-    // Create download link
     const a = document.createElement('a');
     a.href = url;
 
-    // Try to extract filename from Content-Disposition header
     const contentDisposition = response.headers.get('Content-Disposition');
-    let filename = `sales_inventory_report_${format(
+    let filename = `sales_inventory_report_${dateUtils.format(
       startDate,
-      'yyyy-MM'
-    )}_to_${format(endDate, 'yyyy-MM')}.xlsx`;
+      'yyyy-MM-dd'
+    )}_to_${dateUtils.format(endDate, 'yyyy-MM-dd')}.xlsx`;
 
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(
@@ -517,10 +520,8 @@ const SalesVSInventoryReport: React.FC = () => {
     a.click();
     a.remove();
 
-    // Clean up object URL after download
     setTimeout(() => window.URL.revokeObjectURL(url), 100);
-
-    toast.success('Report downloaded successfully!');
+    console.log('Report downloaded successfully!');
   };
 
   // ===== SELECTION HANDLING =====
@@ -535,28 +536,6 @@ const SalesVSInventoryReport: React.FC = () => {
     });
   };
 
-  // Group data by item for trend analysis
-  const groupedData = useMemo(() => {
-    const grouped: Record<string, EnhancedReportItem[]> = {};
-
-    reportData.forEach((item) => {
-      const key = `${item.item_id}-${item.city}`;
-      const enhancedItem: EnhancedReportItem = {
-        ...item,
-        uniqueId: key,
-        label: `${item.item_name} (${item.city})`,
-      };
-
-      if (!grouped[key]) {
-        grouped[key] = [];
-      }
-
-      grouped[key].push(enhancedItem);
-    });
-
-    return grouped;
-  }, [reportData]);
-
   // ===== COMPONENT RENDERING =====
   return (
     <div className='container mx-auto p-4 bg-gray-50'>
@@ -564,11 +543,9 @@ const SalesVSInventoryReport: React.FC = () => {
         <h1 className='text-2xl font-bold text-gray-800 mb-6'>
           Sales vs Inventory Report
         </h1>
-
-        {/* Enhanced Controls Card */}
         <div className='bg-white rounded-2xl shadow-lg border border-gray-100 p-6 lg:p-8 mb-6 lg:mb-8 hover:shadow-xl transition-shadow duration-300'>
           <div className='grid gap-6 lg:grid-cols-2 lg:items-end'>
-            {/* Date Pickers Section */}
+            {/* Date Pickers Section - UPDATED */}
             <div className='space-y-3'>
               <div className='flex items-center gap-2 mb-3'>
                 <div className='w-2 h-2 bg-blue-500 rounded-full'></div>
@@ -578,34 +555,28 @@ const SalesVSInventoryReport: React.FC = () => {
               </div>
               <div className='grid grid-cols-2 gap-3'>
                 <div className='relative group'>
-                  <label className='block text-xs font-medium text-gray-600 mb-1 ml-1'>
-                    From
-                  </label>
                   <DatePicker
                     selected={startDate}
                     onChange={handleStartDateChange}
-                    dateFormat='MMM yyyy'
-                    showMonthYearPicker
-                    className='w-full text-gray-800 text-sm p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white group-hover:border-gray-300'
-                    popperClassName='shadow-2xl rounded-xl border border-gray-100'
+                    maxDate={endDate} // Prevent selecting start date after end date
+                    label='From'
+                    placeholder='Select start date'
+                    className='group-hover:border-gray-300'
                   />
                 </div>
                 <div className='relative group'>
-                  <label className='block text-xs font-medium text-gray-600 mb-1 ml-1'>
-                    To
-                  </label>
                   <DatePicker
                     selected={endDate}
                     onChange={handleEndDateChange}
-                    dateFormat='MMM yyyy'
-                    showMonthYearPicker
-                    className='w-full text-gray-800 text-sm p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white group-hover:border-gray-300'
-                    popperClassName='shadow-2xl rounded-xl border border-gray-100'
+                    minDate={startDate} // Prevent selecting end date before start date
+                    maxDate={new Date()} // Prevent selecting future dates
+                    label='To'
+                    placeholder='Select end date'
+                    className='group-hover:border-gray-300'
                   />
                 </div>
               </div>
             </div>
-
             {/* Action Buttons Section */}
             <div className='flex flex-col sm:flex-row gap-3'>
               <button
@@ -689,36 +660,32 @@ const SalesVSInventoryReport: React.FC = () => {
               </button>
             </div>
           </div>
-          <UploadModal
-            isOpen={showUploadModal}
-            onClose={() => setShowUploadModal(false)}
-            salesFile={salesFile}
-            inventoryFile={inventoryFile}
-            onSalesFileChange={handleSalesFileChange}
-            onInventoryFileChange={handleInventoryFileChange}
-            onUpload={handleUpload}
-            uploading={uploading}
-          />
-          {/* Status Indicator */}
-          {reportData.length > 0 && (
-            <div className='mt-4 pt-4 border-t border-gray-100'>
-              <div className='flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg'>
-                <svg
-                  className='w-4 h-4'
-                  fill='currentColor'
-                  viewBox='0 0 20 20'
-                >
-                  <path
-                    fillRule='evenodd'
-                    d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
-                    clipRule='evenodd'
-                  />
-                </svg>
-                Report data loaded ({reportData.length} records)
-              </div>
-            </div>
-          )}
         </div>
+        <UploadModal
+          isOpen={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          salesFile={salesFile}
+          inventoryFile={inventoryFile}
+          onSalesFileChange={handleSalesFileChange}
+          onInventoryFileChange={handleInventoryFileChange}
+          onUpload={handleUpload}
+          uploading={uploading}
+        />
+        {/* Status Indicator */}
+        {reportData.length > 0 && (
+          <div className='mt-4 pt-4 border-t border-gray-100'>
+            <div className='flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg'>
+              <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
+                <path
+                  fillRule='evenodd'
+                  d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
+                  clipRule='evenodd'
+                />
+              </svg>
+              Report data loaded ({reportData.length} records)
+            </div>
+          </div>
+        )}
 
         {/* Loading State */}
         {loading && (
