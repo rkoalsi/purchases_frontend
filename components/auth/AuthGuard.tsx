@@ -54,7 +54,7 @@ export default function AuthGuard({
       // Optional: If logged in and trying to access login/signup, redirect to dashboard
       // Adjust redirection logic as per your app flow
       if (pathname === '/login' || pathname === '/signup') {
-        router.push('/dashboard');
+        router.push('/');
       }
     }
   }, [isLoggedIn, isLoading, pathname, router]); // Re-run if these change
