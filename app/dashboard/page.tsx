@@ -12,7 +12,9 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { TrendingUp, Package, Award, BarChart3 } from 'lucide-react';
+import { TrendingUp, Package, Award, BarChart3, Calendar } from 'lucide-react';
+import DatePicker from '../../components/common/DatePicker'; // Adjust the import path as needed
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 // Types for the API response
 interface ProductMetrics {
@@ -64,6 +66,16 @@ function Page() {
   const [error, setError] = useState<string | null>(null);
   const [totalUnits, setTotalUnits] = useState(0);
   const [bestPerformer, setBestPerformer] = useState<TopProduct | null>(null);
+  const [preset, setPreset] = useState('thisMonth');
+  // Date filtering state
+  const [startDate, setStartDate] = useState<Date>(
+    startOfMonth(subMonths(new Date(), 0))
+  ); // Current month start
+  const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date())); // Current month end
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [availableWarehouses, setAvailableWarehouses] = useState<string[]>([]);
 
   // API Base URL - adjust according to your setup
   const API_BASE_URL = `${process.env.api_url}/dashboard`;
@@ -76,7 +88,21 @@ function Page() {
       setError(null);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/top-products?limit=10`, {
+        // Build query parameters
+        const params = new URLSearchParams({
+          limit: '10',
+          start_date: format(startDate, 'yyyy-MM-dd'),
+          end_date: format(endDate, 'yyyy-MM-dd'),
+        });
+
+        if (selectedCity) {
+          params.append('city', selectedCity);
+        }
+        if (selectedWarehouse) {
+          params.append('warehouse', selectedWarehouse);
+        }
+
+        const response = await fetch(`${API_BASE_URL}/top-products?${params}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
@@ -90,6 +116,14 @@ function Page() {
         const result: TopProductsResponse = await response.json();
 
         setData(result.products);
+
+        // Extract unique cities and warehouses for filters
+        const cities = [...new Set(result.products.map((p) => p.city))];
+        const warehouses = [
+          ...new Set(result.products.map((p) => p.warehouse)),
+        ];
+        setAvailableCities(cities);
+        setAvailableWarehouses(warehouses);
 
         // Calculate totals
         const total = result.products.reduce(
@@ -111,7 +145,39 @@ function Page() {
     };
 
     fetchData();
-  }, [accessToken, API_BASE_URL]);
+  }, [
+    accessToken,
+    startDate,
+    endDate,
+    selectedCity,
+    selectedWarehouse,
+    API_BASE_URL,
+  ]);
+
+  // Handle preset date ranges
+  const handlePresetRange = (range: string) => {
+    const now = new Date();
+    switch (range) {
+      case 'thisMonth':
+        setStartDate(startOfMonth(now));
+        setEndDate(endOfMonth(now));
+        setPreset('thisMonth');
+        break;
+      case 'lastMonth':
+        const lastMonth = subMonths(now, 1);
+        setStartDate(startOfMonth(lastMonth));
+        setEndDate(endOfMonth(lastMonth));
+        setPreset('lastMonth');
+        break;
+      case 'last3Months':
+        setStartDate(startOfMonth(subMonths(now, 2)));
+        setEndDate(endOfMonth(now));
+        setPreset('last3Months');
+        break;
+      default:
+        break;
+    }
+  };
 
   // Transform data for the chart
   const chartData = data.map((product) => ({
@@ -121,7 +187,7 @@ function Page() {
         : product.item_name,
     fullName: product.item_name,
     unitsSold: product.metrics.total_sales_in_period,
-    category: product.city, // Using city as category, adjust as needed
+    category: product.city,
     warehouse: product.warehouse,
     sku: product.sku_code,
   }));
@@ -201,8 +267,89 @@ function Page() {
             Welcome back, {user?.name}!
           </h1>
           <p className='text-gray-600'>
-            Here's an overview of your top performing items for this month
+            Here's an overview of your top performing items for the selected
+            period
           </p>
+        </div>
+
+        {/* Filters Section */}
+        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8'>
+          <div className='flex items-center mb-4'>
+            <Calendar className='h-5 w-5 text-gray-500 mr-2' />
+            <h3 className='text-lg font-semibold text-gray-900'>Filters</h3>
+          </div>
+
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4'>
+            {/* Date Range Pickers */}
+            <DatePicker
+              selected={startDate}
+              onChange={setStartDate}
+              maxDate={endDate}
+              placeholder='Select start date'
+              label='Start Date'
+            />
+
+            <DatePicker
+              selected={endDate}
+              onChange={setEndDate}
+              minDate={startDate}
+              placeholder='Select end date'
+              label='End Date'
+            />
+
+            {/* City Filter */}
+            <div>
+              <label className='block text-xs font-medium text-gray-600 mb-1 ml-1'>
+                City
+              </label>
+              <select
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+                className='w-full text-gray-800 text-sm p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white hover:border-gray-300'
+              >
+                <option value=''>All Cities</option>
+                {availableCities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Quick Date Range Buttons */}
+          <div className='flex flex-wrap gap-2'>
+            <button
+              onClick={() => handlePresetRange('thisMonth')}
+              className={`px-3 py-1.5 text-sm ${
+                preset === 'thisMonth'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-700'
+              }  rounded-lg hover:bg-blue-200 transition-colors`}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => handlePresetRange(`lastMonth`)}
+              className={`px-3 py-1.5 text-sm ${
+                preset === 'lastMonth'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-700'
+              }  rounded-lg hover:bg-gray-200 transition-colors`}
+            >
+              Last Month
+            </button>
+            <button
+              onClick={() => handlePresetRange(`last3Months`)}
+              className={`px-3 py-1.5 text-sm ${
+                preset === 'last3Months'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-700'
+              } rounded-lg hover:bg-gray-200 transition-colors`}
+            >
+              Last 3 Months
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -218,6 +365,10 @@ function Page() {
                 </p>
                 <p className='text-2xl font-bold text-gray-900'>
                   {totalUnits.toLocaleString()}
+                </p>
+                <p className='text-xs text-gray-500 mt-1'>
+                  {format(startDate, 'MMM dd')} -{' '}
+                  {format(endDate, 'MMM dd, yyyy')}
                 </p>
               </div>
             </div>
@@ -238,6 +389,10 @@ function Page() {
                     ? bestPerformer.item_name.substring(0, 20) + '...'
                     : bestPerformer?.item_name || 'Loading...'}
                 </p>
+                <p className='text-xs text-gray-500 mt-1'>
+                  {bestPerformer?.metrics.total_sales_in_period.toLocaleString()}{' '}
+                  units
+                </p>
               </div>
             </div>
           </div>
@@ -256,6 +411,7 @@ function Page() {
                     ? Math.round(totalUnits / data.length).toLocaleString()
                     : '0'}
                 </p>
+                <p className='text-xs text-gray-500 mt-1'>Per product</p>
               </div>
             </div>
           </div>
@@ -268,7 +424,8 @@ function Page() {
               Top 10 Performing Items
             </h2>
             <p className='text-gray-600'>
-              Units sold by product for the current month
+              Units sold by product for {format(startDate, 'MMM dd')} -{' '}
+              {format(endDate, 'MMM dd, yyyy')}
             </p>
           </div>
 
@@ -280,6 +437,18 @@ function Page() {
                   <div className='h-4 bg-gray-200 rounded w-32 mx-auto'></div>
                 </div>
                 <p className='text-gray-500 mt-4'>Loading chart data...</p>
+              </div>
+            </div>
+          ) : data.length === 0 ? (
+            <div className='h-96 flex items-center justify-center'>
+              <div className='text-center'>
+                <Package className='h-16 w-16 text-gray-300 mx-auto mb-4' />
+                <p className='text-gray-500'>
+                  No data found for the selected period
+                </p>
+                <p className='text-sm text-gray-400 mt-2'>
+                  Try adjusting your date range or filters
+                </p>
               </div>
             </div>
           ) : (
@@ -323,85 +492,88 @@ function Page() {
         </div>
 
         {/* Data Table */}
-        <div className='mt-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden'>
-          <div className='px-6 py-4 border-b border-gray-200'>
-            <h3 className='text-lg font-semibold text-gray-900'>
-              Detailed Rankings
-            </h3>
-          </div>
-          <div className='overflow-x-auto'>
-            <table className='min-w-full divide-y divide-gray-200'>
-              <thead className='bg-gray-50'>
-                <tr>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Rank
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Item
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    SKU Code
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    City
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Warehouse
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                    Units Sold
-                  </th>
-                </tr>
-              </thead>
-              <tbody className='bg-white divide-y divide-gray-200'>
-                {data.map((item, index) => (
-                  <tr key={item.item_id} className='hover:bg-gray-50'>
-                    <td className='px-6 py-4 whitespace-nowrap'>
-                      <div className='flex items-center'>
-                        <span
-                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${
-                            index === 0
-                              ? 'bg-yellow-500'
-                              : index === 1
-                              ? 'bg-gray-400'
-                              : index === 2
-                              ? 'bg-orange-600'
-                              : 'bg-gray-300'
-                          }`}
-                        >
-                          {index + 1}
-                        </span>
-                      </div>
-                    </td>
-                    <td className='px-6 py-4'>
-                      <div className='text-sm font-medium text-gray-900 max-w-xs'>
-                        {item.item_name}
-                      </div>
-                    </td>
-                    <td className='px-6 py-4 whitespace-nowrap'>
-                      <span className='text-sm text-gray-900 font-mono'>
-                        {item.sku_code}
-                      </span>
-                    </td>
-                    <td className='px-6 py-4 whitespace-nowrap'>
-                      <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800'>
-                        {item.city}
-                      </span>
-                    </td>
-                    <td className='px-6 py-4 whitespace-nowrap'>
-                      <span className='text-sm text-gray-600'>
-                        {item.warehouse}
-                      </span>
-                    </td>
-                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold'>
-                      {item.metrics.total_sales_in_period.toLocaleString()}
-                    </td>
+        {data.length > 0 && (
+          <div className='mt-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden'>
+            <div className='px-6 py-4 border-b border-gray-200'>
+              <h3 className='text-lg font-semibold text-gray-900'>
+                Detailed Rankings
+              </h3>
+            </div>
+            <div className='overflow-x-auto'>
+              <table className='min-w-full divide-y divide-gray-200'>
+                <thead className='bg-gray-50'>
+                  <tr>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Rank
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Item
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      SKU Code
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      City
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Units Sold
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Closing Stock
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className='bg-white divide-y divide-gray-200'>
+                  {data.map((item, index) => (
+                    <tr
+                      key={`${item.item_id} ${item.city}`}
+                      className='hover:bg-gray-50'
+                    >
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        <div className='flex items-center'>
+                          <span
+                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${
+                              index === 0
+                                ? 'bg-yellow-500'
+                                : index === 1
+                                ? 'bg-gray-400'
+                                : index === 2
+                                ? 'bg-orange-600'
+                                : 'bg-gray-300'
+                            }`}
+                          >
+                            {index + 1}
+                          </span>
+                        </div>
+                      </td>
+                      <td className='px-6 py-4'>
+                        <div className='text-sm font-medium text-gray-900 max-w-xs'>
+                          {item.item_name}
+                        </div>
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        <span className='text-sm text-gray-900 font-mono'>
+                          {item.sku_code}
+                        </span>
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800'>
+                          {item.city}
+                        </span>
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold'>
+                        {item.metrics.total_sales_in_period.toLocaleString()}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                        {item.metrics.closing_stock.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
