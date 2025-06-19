@@ -14,8 +14,10 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+
 import { toast } from 'react-toastify';
+import { Trash2 } from 'lucide-react';
+import axios from 'axios';
 
 // Register Chart.js components
 ChartJS.register(
@@ -42,23 +44,15 @@ const BlinkitItemsTable: React.FC = () => {
   const [reportData, setReportData] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-
-  const [downloading, setDownloading] = useState<boolean>(false);
-
-  // Refs for file inputs
-  const salesFileInputRef = useRef<HTMLInputElement>(null);
-  const inventoryFileInputRef = useRef<HTMLInputElement>(null);
-
   const selectedMonth = selectedDate.getMonth() + 1;
   const selectedYear = selectedDate.getFullYear();
-  const formattedDate = format(selectedDate, 'MMM yyyy');
 
   // ===== DATA FETCHING =====
   useEffect(() => {
-    fetchReportData();
+    fetchItems();
   }, [selectedMonth, selectedYear]);
 
-  const fetchReportData = async () => {
+  const fetchItems = async () => {
     setLoading(true);
     setReportData([]);
     setSelectedItems([]);
@@ -88,7 +82,7 @@ const BlinkitItemsTable: React.FC = () => {
       if (Array.isArray(data)) {
         setReportData(data);
       } else {
-        console.warn('API returned a message instead of data:', data.message);
+        console.warn('API returned a message instead of items:', data.message);
         setReportData([]);
 
         if (data.message.includes('No saved report found')) {
@@ -98,13 +92,27 @@ const BlinkitItemsTable: React.FC = () => {
         }
       }
     } catch (err: any) {
-      console.error('Failed to fetch report data:', err);
-      toast.error(`Failed to fetch report data: ${err.message}`);
+      console.error('Failed to fetch items:', err);
+      toast.error(`Failed to fetch items: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
+  const deleteItem = async (item: any) => {
+    try {
+      const response = await axios.delete(
+        `${process.env.api_url}/blinkit/delete_item/${item._id}`
+      );
+      if (response.status == 200) {
+        toast.success(`Item Deleted Successfully`);
+        fetchItems();
+      }
+    } catch (error: any) {
+      console.log(error);
+      toast.error(`Error Deleting Item: `, error.message);
+    }
+  };
   // ===== COMPONENT RENDERING =====
   return (
     <div className='container mx-auto p-4 bg-gray-50'>
@@ -112,7 +120,9 @@ const BlinkitItemsTable: React.FC = () => {
       {loading && (
         <div className='flex justify-center items-center py-12'>
           <div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500'></div>
-          <span className='ml-3 text-blue-600'>Loading report data...</span>
+          <span className='ml-3 text-blue-600'>
+            Loading Blinkit Products...
+          </span>
         </div>
       )}
 
@@ -141,6 +151,9 @@ const BlinkitItemsTable: React.FC = () => {
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                     Item Id
                   </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className='bg-white divide-y divide-gray-200'>
@@ -166,6 +179,9 @@ const BlinkitItemsTable: React.FC = () => {
                       </td>
                       <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
                         {item.item_id}
+                      </td>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        <Trash2 onClick={() => deleteItem(item)} />
                       </td>
                     </tr>
                   );
