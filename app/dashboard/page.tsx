@@ -65,7 +65,9 @@ function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalUnits, setTotalUnits] = useState(0);
-  const [bestPerformer, setBestPerformer] = useState<TopProduct | null>(null);
+  const [bestPerformer, setBestPerformer]: any = useState<TopProduct | null>(
+    null
+  );
   const [preset, setPreset] = useState('thisMonth');
   // Date filtering state
   const [startDate, setStartDate] = useState<Date>(
@@ -384,10 +386,7 @@ function Page() {
                   Best Performer
                 </p>
                 <p className='text-lg font-bold text-gray-900'>
-                  {bestPerformer?.item_name.length &&
-                  bestPerformer.item_name.length > 20
-                    ? bestPerformer.item_name.substring(0, 20) + '...'
-                    : bestPerformer?.item_name || 'Loading...'}
+                  {bestPerformer.item_name}
                 </p>
                 <p className='text-xs text-gray-500 mt-1'>
                   {bestPerformer?.metrics.total_sales_in_period.toLocaleString()}{' '}
