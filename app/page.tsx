@@ -32,7 +32,6 @@ interface TopProduct {
   item_name: string;
   sku_code: string;
   city: string;
-  warehouse: string;
   metrics: ProductMetrics;
   year: number;
   month: number;
@@ -122,11 +121,8 @@ function Page() {
 
         // Extract unique cities and warehouses for filters
         const cities = [...new Set(result.products.map((p) => p.city))];
-        const warehouses = [
-          ...new Set(result.products.map((p) => p.warehouse)),
-        ];
+
         setAvailableCities(cities);
-        setAvailableWarehouses(warehouses);
 
         // Calculate totals
         const total = result.products.reduce(
@@ -191,7 +187,6 @@ function Page() {
     fullName: product.item_name,
     unitsSold: product.metrics.total_sales_in_period,
     category: product.city,
-    warehouse: product.warehouse,
     sku: product.sku_code,
   }));
 
@@ -210,7 +205,6 @@ function Page() {
           </p>
           <p className='text-gray-600 text-sm'>City: {data.category}</p>
           <p className='text-gray-600 text-sm'>SKU: {data.sku}</p>
-          <p className='text-gray-600 text-sm'>Warehouse: {data.warehouse}</p>
         </div>
       );
     }
