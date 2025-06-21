@@ -262,16 +262,58 @@ const FileUploader = ({
           <h1 className='text-3xl sm:text-4xl font-bold text-white mb-2'>
             PI Vs CL Checker
           </h1>
-          <p className='text-lg text-gray-300 max-w-2xl mx-auto'>
-            Download the Template to see the format of data that is accepted,
-            Copy and paste the data from manufacturer to this template and
-            upload it below.
-          </p>
-          <br />
-          <p className='text-md text-gray-200 max-w-2xl mx-auto'>
-            Data will then be checked against zoho and file will be given back
-            with all found data and missing data.
-          </p>
+          <div className='max-w-3xl mx-auto space-y-3'>
+            <p className='text-lg text-white-700 leading-relaxed'>
+              Download the template, paste manufacturer data, and upload to
+              check against Zoho
+            </p>
+            <div className='flex items-center justify-center space-x-4 text-sm text-white-600'>
+              <div className='flex items-center space-x-2'>
+                <div className='w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center'>
+                  <span className='text-xs font-semibold text-blue-600'>1</span>
+                </div>
+                <span>Download template</span>
+              </div>
+              <svg
+                className='w-4 h-4 text-gray-400'
+                fill='none'
+                stroke='currentColor'
+                viewBox='0 0 24 24'
+              >
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  strokeWidth={2}
+                  d='M9 5l7 7-7 7'
+                />
+              </svg>
+              <div className='flex items-center space-x-2'>
+                <div className='w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center'>
+                  <span className='text-xs font-semibold text-blue-600'>2</span>
+                </div>
+                <span>Add your data</span>
+              </div>
+              <svg
+                className='w-4 h-4 text-gray-400'
+                fill='none'
+                stroke='currentColor'
+                viewBox='0 0 24 24'
+              >
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  strokeWidth={2}
+                  d='M9 5l7 7-7 7'
+                />
+              </svg>
+              <div className='flex items-center space-x-2'>
+                <div className='w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center'>
+                  <span className='text-xs font-semibold text-blue-600'>3</span>
+                </div>
+                <span>Upload & process</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Main Content Card */}
