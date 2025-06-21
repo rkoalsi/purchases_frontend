@@ -95,6 +95,12 @@ export default function Header({
                     Settings
                   </Link>
                   <button
+                    onClick={toggleDarkMode}
+                    className='block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  >
+                    Toggle {darkMode ? 'Light' : 'Dark'} Mode
+                  </button>
+                  <button
                     onClick={onLogout}
                     className='block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   >
