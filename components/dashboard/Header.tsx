@@ -66,7 +66,6 @@ export default function Header({
             </button>
           </div>
           <div className='flex items-center'>
-            {/* Profile dropdown */}
             <div className='ml-4 relative flex-shrink-0' ref={dropdownRef}>
               <div>
                 <button
@@ -89,12 +88,6 @@ export default function Header({
                     <span className='font-medium'>{userEmail}</span>
                   </div>
                   <hr className='border-gray-200 dark:border-gray-700' />
-                  <Link
-                    href='/profile'
-                    className='block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  >
-                    Your Profile
-                  </Link>
                   <Link
                     href='/settings'
                     className='block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
