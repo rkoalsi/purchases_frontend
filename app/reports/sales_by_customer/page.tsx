@@ -163,7 +163,7 @@ const InvoiceReportGenerator = () => {
             <div className='flex justify-center items-center mb-4'>
               <FileSpreadsheet className='h-12 w-12 text-blue-600 mr-3' />
               <h1 className='text-3xl font-bold text-gray-900'>
-                Invoice Report Generator
+                Sales By Customer Report
               </h1>
             </div>
             <p className='text-gray-600'>
