@@ -15,6 +15,7 @@ import {
   Zap,
   Building2,
   Store,
+  Import,
 } from 'lucide-react';
 import capitalize from '@/util/capitalize';
 
@@ -59,6 +60,11 @@ const navigation = [
         name: 'Sales By Customer',
         href: '/reports/sales_by_customer',
         icon: Store,
+      },
+      {
+        name: 'PI vs CL',
+        href: '/reports/PI_vs_CL',
+        icon: Import,
       },
     ],
   },
