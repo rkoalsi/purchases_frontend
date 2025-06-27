@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -16,7 +16,10 @@ import {
   Building2,
   Store,
   Import,
+  User,
 } from 'lucide-react';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 import capitalize from '@/util/capitalize';
 
 const AmazonIcon = ({ className }: { className?: string }) => (
@@ -24,6 +27,7 @@ const AmazonIcon = ({ className }: { className?: string }) => (
     <path d='M.045 18.02c.072-.116.187-.124.348-.022 3.636 2.11 7.594 3.166 11.87 3.166 2.852 0 5.668-.533 8.447-1.595l.315-.14c.138-.06.234-.06.293.04.138.22-.293.523-.61.692-3.247 1.834-6.197 2.526-9.588 2.526-4.464 0-8.365-1.54-11.915-4.618-.138-.138-.2-.231-.16-.349M23.718 15.622c-.299-.41-1.96-.195-2.709-.098-.23.03-.268-.173-.06-.318 1.324-.93 3.499-.66 3.754-.35s-.067 2.48-1.309 3.515c-.195.165-.38.077-.294-.142.284-.715.919-2.315.618-2.607' />
   </svg>
 );
+
 interface SidebarProps {
   isOpen: boolean;
   user: any;
@@ -31,47 +35,109 @@ interface SidebarProps {
   isMobile: boolean;
 }
 
-// Navigation items with proper Lucide icons
+// Permission requirements for navigation items
+// Format: { permissionName: requiredAction } or null for always accessible
+const PERMISSION_REQUIREMENTS = {
+  DASHBOARD: { name: 'dashboard' },
+  INVENTORY: { name: 'items' },
+  REPORTS: { name: 'reports' },
+  USERS: { name: 'users' },
+  SETTINGS: null, // null means always visible
+  // Item-specific permissions
+  AMAZON_ITEMS: { name: 'items' },
+  BLINKIT_ITEMS: { name: 'items' },
+  ZOHO_ITEMS: { name: 'items' },
+  // Report-specific permissions
+  AMAZON_REPORTS: { name: 'reports' },
+  BLINKIT_REPORTS: { name: 'reports' },
+  ZOHO_REPORTS: { name: 'reports' },
+  SALES_REPORTS: { name: 'reports' },
+  PI_CL_REPORTS: { name: 'reports' },
+};
+
+// Navigation items with required permissions
 const navigation = [
   {
     name: 'Dashboard',
     href: '/',
     icon: Home,
+    requiredPermission: PERMISSION_REQUIREMENTS.DASHBOARD,
   },
   {
     name: 'Items',
     href: '/inventory',
     icon: Package,
+    requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY,
     children: [
-      { name: 'Amazon', href: '/items/amazon', icon: AmazonIcon },
-      { name: 'Blinkit', href: '/items/blinkit', icon: Zap },
-      { name: 'Zoho', href: '/items/zoho', icon: Building2 },
+      {
+        name: 'Amazon',
+        href: '/items/amazon',
+        icon: AmazonIcon,
+        requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY,
+      },
+      {
+        name: 'Blinkit',
+        href: '/items/blinkit',
+        icon: Zap,
+        requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY,
+      },
+      {
+        name: 'Zoho',
+        href: '/items/zoho',
+        icon: Building2,
+        requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY,
+      },
     ],
   },
   {
     name: 'Reports',
     href: '/reports',
     icon: BarChart3,
+    requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
     children: [
-      { name: 'Amazon', href: '/reports/amazon', icon: AmazonIcon },
-      { name: 'Blinkit', href: '/reports/blinkit', icon: Zap },
-      { name: 'Zoho', href: '/reports/zoho', icon: Building2 },
+      {
+        name: 'Amazon',
+        href: '/reports/amazon',
+        icon: AmazonIcon,
+        requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_REPORTS,
+      },
+      {
+        name: 'Blinkit',
+        href: '/reports/blinkit',
+        icon: Zap,
+        requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_REPORTS,
+      },
+      {
+        name: 'Zoho',
+        href: '/reports/zoho',
+        icon: Building2,
+        requiredPermission: PERMISSION_REQUIREMENTS.ZOHO_REPORTS,
+      },
       {
         name: 'Sales By Customer',
         href: '/reports/sales_by_customer',
         icon: Store,
+        requiredPermission: PERMISSION_REQUIREMENTS.SALES_REPORTS,
       },
       {
         name: 'PI vs CL',
         href: '/reports/PI_vs_CL',
         icon: Import,
+        requiredPermission: PERMISSION_REQUIREMENTS.PI_CL_REPORTS,
       },
     ],
+  },
+  {
+    name: 'Users',
+    href: '/users',
+    icon: User,
+    requiredPermission: PERMISSION_REQUIREMENTS.USERS,
   },
   {
     name: 'Settings',
     href: '/settings',
     icon: Settings,
+    requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS, // null - always visible
   },
 ];
 
@@ -83,8 +149,103 @@ export default function Sidebar({
 }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [availablePermissions, setAvailablePermissions] = useState<any[]>([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+
+  // Fetch permissions from API
+  const getPermissions = async () => {
+    try {
+      setPermissionsLoading(true);
+      const response = await axios.get(
+        `${process.env.api_url}/users/permissions`
+      );
+      const { data = [] } = response;
+      setAvailablePermissions(data);
+    } catch (error: any) {
+      console.log('Error fetching permissions:', error);
+      toast.error('Failed to load permissions');
+    } finally {
+      setPermissionsLoading(false);
+    }
+  };
+
+  // Load permissions on component mount
+  useEffect(() => {
+    getPermissions();
+  }, []);
+
+  // Get user's permission details from their permission IDs
+  const getUserPermissions = useMemo(() => {
+    if (
+      !user?.permissions ||
+      !Array.isArray(user.permissions) ||
+      availablePermissions.length === 0
+    ) {
+      return [];
+    }
+
+    return availablePermissions.filter((permission) =>
+      user.permissions.includes(permission._id)
+    );
+  }, [user?.permissions, availablePermissions]);
+
+  // Check if user has a specific permission with required action
+  const hasPermission = (
+    requiredPermission: { name: string } | null
+  ): boolean => {
+    // If no permission required (like Settings), always allow
+    if (requiredPermission === null) return true;
+
+    // If still loading permissions, deny access for now
+    if (permissionsLoading) return false;
+
+    // If user has no permissions array, deny access
+    if (!user?.permissions || !Array.isArray(user.permissions)) return false;
+
+    // Debug logging
+    console.log('Checking permission:', requiredPermission);
+    console.log('User permissions:', getUserPermissions);
+    console.log('Available permissions:', availablePermissions);
+
+    // Check if user has the required permission with the required action
+    const hasAccess = getUserPermissions.some((permission) => {
+      const nameMatch = permission.name === requiredPermission.name;
+      console.log(`Permission ${permission.name}: nameMatch=${nameMatch}`);
+      return nameMatch;
+    });
+
+    console.log('Has access:', hasAccess);
+    return hasAccess;
+  };
+
+  // Filter navigation items based on permissions
+  const filteredNavigation = useMemo(() => {
+    if (permissionsLoading) return []; // Hide navigation while loading
+
+    const filterItems = (items: any[]): any[] => {
+      return items
+        .filter((item) => hasPermission(item.requiredPermission))
+        .map((item) => {
+          if (item.children) {
+            const filteredChildren = filterItems(item.children);
+            // Only show parent if it has accessible children or if the parent itself is accessible
+            if (filteredChildren.length > 0) {
+              return { ...item, children: filteredChildren };
+            }
+            // If parent has permission but no accessible children, show it without children
+            return hasPermission(item.requiredPermission)
+              ? { ...item, children: [] }
+              : null;
+          }
+          return item;
+        })
+        .filter(Boolean);
+    };
+
+    return filterItems(navigation);
+  }, [user?.permissions, availablePermissions, permissionsLoading]);
 
   // Check if a route is active
   const isActive = (href: string) => {
@@ -112,7 +273,7 @@ export default function Sidebar({
 
   // Auto expand parent menus when child route is active
   useEffect(() => {
-    if (!pathname) return;
+    if (!pathname || filteredNavigation.length === 0) return;
 
     const newExpandedItems: string[] = [];
 
@@ -148,9 +309,9 @@ export default function Sidebar({
       });
     };
 
-    checkNavItem(navigation);
+    checkNavItem(filteredNavigation);
     setExpandedItems(newExpandedItems);
-  }, [pathname]);
+  }, [pathname, filteredNavigation]);
 
   // Toggle submenu
   const toggleSubmenu = (name: string) => {
@@ -185,7 +346,7 @@ export default function Sidebar({
 
       return (
         <div key={item.name} className={level > 0 ? 'ml-4' : ''}>
-          {item.children ? (
+          {item.children && item.children.length > 0 ? (
             <div>
               <button
                 onClick={() => toggleSubmenu(item.name)}
@@ -360,7 +521,28 @@ export default function Sidebar({
 
         {/* Navigation */}
         <div className='flex-1 overflow-y-auto py-4'>
-          <nav className='px-3 space-y-2'>{renderNavItems(navigation)}</nav>
+          <nav className='px-3 space-y-2'>
+            {permissionsLoading ? (
+              <div className='text-center py-8'>
+                {!isCollapsed && (
+                  <div className='space-y-2'>
+                    <div className='animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto'></div>
+                    <p className='text-sm text-gray-500 dark:text-gray-400'>
+                      Loading permissions...
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : filteredNavigation.length > 0 ? (
+              renderNavItems(filteredNavigation)
+            ) : (
+              <div className='text-center py-8'>
+                <p className='text-sm text-gray-500 dark:text-gray-400'>
+                  {!isCollapsed && 'No accessible pages'}
+                </p>
+              </div>
+            )}
+          </nav>
         </div>
 
         {/* Footer */}
@@ -377,7 +559,7 @@ export default function Sidebar({
                   {user?.name}
                 </p>
                 <p className='text-xs text-gray-500 dark:text-gray-400'>
-                  {capitalize(user?.role.replace('_', ' '))}
+                  {capitalize(user?.role?.replace('_', ' ') || '')}
                 </p>
               </div>
             </div>
