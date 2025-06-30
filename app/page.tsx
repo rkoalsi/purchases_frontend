@@ -203,7 +203,6 @@ function Page() {
               {payload[0].value.toLocaleString()}
             </span>
           </p>
-          <p className='text-gray-600 text-sm'>City: {data.category}</p>
           <p className='text-gray-600 text-sm'>SKU: {data.sku}</p>
         </div>
       );
