@@ -299,25 +299,6 @@ function Page() {
               placeholder='Select end date'
               label='End Date'
             />
-
-            {/* City Filter */}
-            <div>
-              <label className='block text-xs font-medium text-gray-600 mb-1 ml-1'>
-                City
-              </label>
-              <select
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                className='w-full text-gray-800 text-sm p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white hover:border-gray-300'
-              >
-                <option value=''>All Cities</option>
-                {availableCities.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
 
           {/* Quick Date Range Buttons */}
@@ -513,13 +494,7 @@ function Page() {
                       SKU Code
                     </th>
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      City
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Units Sold
-                    </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Closing Stock
                     </th>
                   </tr>
                 </thead>
@@ -534,18 +509,19 @@ function Page() {
                           <span
                             className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${
                               index === 0
-                                ? 'bg-yellow-500'
+                                ? 'bg-green-500' // Gold
                                 : index === 1
-                                ? 'bg-gray-400'
+                                ? 'bg-blue-500' // Silver
                                 : index === 2
-                                ? 'bg-orange-600'
-                                : 'bg-gray-300'
+                                ? 'bg-red-500' // Bronze-like
+                                : 'bg-gray-400' // Neutral
                             }`}
                           >
                             {index + 1}
                           </span>
                         </div>
                       </td>
+
                       <td className='px-6 py-4'>
                         <div className='text-sm font-medium text-gray-900 max-w-xs'>
                           {item.item_name}
@@ -556,16 +532,8 @@ function Page() {
                           {item.sku_code}
                         </span>
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap'>
-                        <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800'>
-                          {item.city}
-                        </span>
-                      </td>
                       <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold'>
                         {item.metrics.total_sales_in_period.toLocaleString()}
-                      </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                        {item.metrics.closing_stock.toLocaleString()}
                       </td>
                     </tr>
                   ))}
