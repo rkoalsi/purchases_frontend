@@ -1,6 +1,6 @@
-// components/SalesReport.tsx
-'use client';
+// components/BlinkitSalesReport.tsx
 
+'use client';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
@@ -55,13 +55,7 @@ interface ReportItem {
   };
 }
 
-// Extend ReportItem with UI-specific fields
-interface EnhancedReportItem extends ReportItem {
-  uniqueId: string;
-  label: string;
-}
-
-const SalesVSInventoryReport: React.FC = () => {
+const BlinkitSalesVsInventoryReport: React.FC = () => {
   // ===== STATE MANAGEMENT =====
   const currentDate = new Date();
   const [startDate, setStartDate] = useState<Date>(
@@ -359,7 +353,7 @@ const SalesVSInventoryReport: React.FC = () => {
       if (!salesResponse.ok) {
         const salesError = await salesResponse.json();
         throw new Error(
-          `Sales upload failed: ${
+          `Blinkit Sales upload failed: ${
             salesError.detail || salesResponse.statusText
           }`
         );
@@ -497,7 +491,7 @@ const SalesVSInventoryReport: React.FC = () => {
     a.href = url;
 
     const contentDisposition = response.headers.get('Content-Disposition');
-    let filename = `sales_inventory_report_${dateUtils.format(
+    let filename = `blinkit_sales_inventory_report_${dateUtils.format(
       startDate,
       'yyyy-MM-dd'
     )}_to_${dateUtils.format(endDate, 'yyyy-MM-dd')}.xlsx`;
@@ -541,7 +535,7 @@ const SalesVSInventoryReport: React.FC = () => {
     <div className='container mx-auto p-4 bg-gray-50'>
       <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
         <h1 className='text-2xl font-bold text-gray-800 mb-6'>
-          Sales vs Inventory Report
+          Blinkit Sales vs Inventory Report
         </h1>
         <div className='bg-white rounded-2xl shadow-lg border border-gray-100 p-6 lg:p-8 mb-6 lg:mb-8 hover:shadow-xl transition-shadow duration-300'>
           <div className='grid gap-6 lg:grid-cols-2 lg:items-end'>
@@ -1124,4 +1118,4 @@ const SalesVSInventoryReport: React.FC = () => {
   );
 };
 
-export default SalesVSInventoryReport;
+export default BlinkitSalesVsInventoryReport;

@@ -1,7 +1,7 @@
 'use client'; // This component needs to be client-side
 
 import { useAuth } from '@/components/context/AuthContext';
-import SalesReport from '@/components/reports/BlinkitSalesVsInventoryReport';
+import BlinkitSalesReport from '@/components/reports/BlinkitSalesVsInventoryReport';
 import React from 'react';
 
 function Page() {
@@ -16,7 +16,7 @@ function Page() {
   }
   return (
     <>
-      <SalesReport />
+      <BlinkitSalesReport />
     </>
   );
 }

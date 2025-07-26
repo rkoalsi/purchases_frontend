@@ -17,6 +17,7 @@ import {
   Store,
   Import,
   User,
+  WorkflowIcon,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -42,6 +43,7 @@ const PERMISSION_REQUIREMENTS = {
   INVENTORY: { name: 'items' },
   REPORTS: { name: 'reports' },
   USERS: { name: 'users' },
+  WORKFLOWS: { name: 'workflows' },
   SETTINGS: null, // null means always visible
   // Item-specific permissions
   AMAZON_ITEMS: { name: 'items' },
@@ -132,6 +134,12 @@ const navigation = [
     href: '/users',
     icon: User,
     requiredPermission: PERMISSION_REQUIREMENTS.USERS,
+  },
+  {
+    name: 'Workflows',
+    href: '/workflows',
+    icon: WorkflowIcon,
+    requiredPermission: PERMISSION_REQUIREMENTS.WORKFLOWS,
   },
   {
     name: 'Settings',
