@@ -89,10 +89,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   const filteredAndSortedData = useMemo(() => {
     const filteredData = reportData.filter((item) => {
       const matchesSearch =
-        item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.sku_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.warehouse.toLowerCase().includes(searchTerm.toLowerCase());
+        item.item_name.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesCity = !cityFilter || item.city === cityFilter;
       const matchesWarehouse =
@@ -703,7 +700,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                 </div>
                 <input
                   type="text"
-                  placeholder="Search items, SKU, city, warehouse..."
+                  placeholder="Search items"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="block w-full text-black pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -756,7 +753,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                 </select>
               </div>
 
-              {warehouseType == "all" ? (
+              {/* {warehouseType == "all" ? (
                 <div className="min-w-0 flex-1 min-w-[120px]">
                   <select
                     value={warehouseFilter}
@@ -771,7 +768,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                     ))}
                   </select>
                 </div>
-              ) : null}
+              ) : null} */}
 
               {/* Clear Filters Button */}
               {(searchTerm || cityFilter || warehouseFilter) && (
@@ -886,7 +883,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                   </tr>
                 ) : (
                   filteredAndSortedData.map((item: any, index) => {
-                    const itemIdentifier = `${item.units_sold}-${item.asin}-${item.warehouse}`;
+                    const itemIdentifier = `${item.units_sold}-${index}-${item.asin}-${item.warehouses}`;
                     const isItemSelected =
                       selectedItems.includes(itemIdentifier);
 
