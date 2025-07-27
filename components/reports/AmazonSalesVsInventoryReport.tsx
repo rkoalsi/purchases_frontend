@@ -867,6 +867,24 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                       <SortIcon column="sessions" />
                     </button>
                   </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    <button
+                      onClick={() => handleSort("total_days_in_stock")}
+                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                    >
+                      Total Days in Stock
+                      <SortIcon column="total_days_in_stock" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    <button
+                      onClick={() => handleSort("drr")}
+                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                    >
+                     DRR
+                      <SortIcon column="drr" />
+                    </button>
+                  </th>
                 </tr>
               </thead>
 
@@ -922,6 +940,12 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {item.sessions}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                          {item.total_days_in_stock}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                          {item.drr}
                         </td>
                       </tr>
                     );
