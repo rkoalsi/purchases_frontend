@@ -89,7 +89,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   const filteredAndSortedData = useMemo(() => {
     const filteredData = reportData.filter((item) => {
       const matchesSearch =
-        item.item_name.toLowerCase().includes(searchTerm.toLowerCase());
+        item.item_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesCity = !cityFilter || item.city === cityFilter;
       const matchesWarehouse =
