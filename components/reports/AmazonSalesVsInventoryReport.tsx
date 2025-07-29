@@ -1,36 +1,15 @@
 // components/AmazonSalesReport.tsx
 "use client";
-
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import "react-datepicker/dist/react-datepicker.css";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
 import { format } from "date-fns";
 import dateUtils from "../common/DateUtils";
 import DatePicker from "../common/DatePicker";
-import UploadModal from "../common/Modal";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { LucideRefreshCcw } from "lucide-react";
 
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
 
-// Define type for report data structure
 interface ReportItem {
   year: number;
   month: number;
@@ -69,15 +48,8 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   const [warehouseType, setWarehouseType] = useState("all");
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  // File upload state
-  const [salesFile, setSalesFile] = useState<File | null>(null);
-  const [inventoryFile, setInventoryFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState<boolean>(false);
   const [downloading, setDownloading] = useState<boolean>(false);
 
-  // Refs for file inputs
-  const salesFileInputRef = useRef<HTMLInputElement>(null);
-  const inventoryFileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
   const [warehouseFilter, setWarehouseFilter] = useState<string>("");
@@ -248,184 +220,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     }
   };
 
-  // ===== FILE HANDLING =====
-  const handleSalesFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSalesFile(file);
-      event.target.value = "";
-    }
-  };
-
-  const handleInventoryFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setInventoryFile(file);
-      event.target.value = "";
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!salesFile || !inventoryFile) {
-      alert("Please select both Sales and Inventory files.");
-      return;
-    }
-
-    setUploading(true);
-
-    const apiUrl = process.env.api_url;
-    if (!apiUrl) {
-      alert("API URL environment variable is not set.");
-      setUploading(false);
-      return;
-    }
-
-    // Create an AbortController for cancellation
-    const abortController = new AbortController();
-
-    try {
-      // Pre-validate files on the client side
-      const maxFileSize = 50 * 1024 * 1024; // 50MB limit
-      if (salesFile.size > maxFileSize || inventoryFile.size > maxFileSize) {
-        throw new Error(
-          "File size exceeds 50MB limit. Please compress your files."
-        );
-      }
-
-      // Validate file extensions
-      const validExtensions = [".xlsx", ".xls"];
-      const salesExt = salesFile.name
-        .toLowerCase()
-        .slice(salesFile.name.lastIndexOf("."));
-      const inventoryExt = inventoryFile.name
-        .toLowerCase()
-        .slice(inventoryFile.name.lastIndexOf("."));
-
-      if (
-        !validExtensions.includes(salesExt) ||
-        !validExtensions.includes(inventoryExt)
-      ) {
-        throw new Error("Please upload only Excel files (.xlsx or .xls)");
-      }
-
-      // Create FormData objects
-      const salesFormData = new FormData();
-      salesFormData.append("file", salesFile);
-
-      const inventoryFormData = new FormData();
-      inventoryFormData.append("file", inventoryFile);
-
-      // Set up fetch options with timeout and optimized settings
-      const fetchOptions = {
-        method: "POST",
-        signal: abortController.signal,
-        // Add timeout after 5 minutes
-        timeout: 300000,
-        // Keep connection alive for better performance
-        keepalive: true,
-      };
-
-      // Upload files sequentially for better error handling and memory management
-      console.log("Uploading sales data...");
-
-      const salesResponse = await fetch(`${apiUrl}/blinkit/upload_sales_data`, {
-        ...fetchOptions,
-        body: salesFormData,
-      });
-
-      if (!salesResponse.ok) {
-        const salesError = await salesResponse.json();
-        throw new Error(
-          `Sales upload failed: ${
-            salesError.detail || salesResponse.statusText
-          }`
-        );
-      }
-
-      const salesResult = await salesResponse.json();
-      console.log(`Sales data uploaded: ${salesResult.message}`);
-
-      console.log("Uploading inventory data...");
-
-      const inventoryResponse = await fetch(
-        `${apiUrl}/blinkit/upload_inventory_data`,
-        {
-          ...fetchOptions,
-          body: inventoryFormData,
-        }
-      );
-
-      if (!inventoryResponse.ok) {
-        const inventoryError = await inventoryResponse.json();
-        throw new Error(
-          `Inventory upload failed: ${
-            inventoryError.detail || inventoryResponse.statusText
-          }`
-        );
-      }
-      const inventoryResult = await inventoryResponse.json();
-      console.log(`Inventory data uploaded: ${inventoryResult.message}`);
-
-      // Generate report with date range parameters instead of month parameters
-      console.log("Generating report...");
-      console.log(startDate, endDate);
-      console.log(dateUtils.format(startDate, "yyyy-MM-dd"));
-      const startDateStr = dateUtils.format(startDate, "yyyy-MM-dd");
-      const endDateStr = dateUtils.format(endDate, "yyyy-MM-dd");
-
-      console.log(
-        "Generating report with dates:",
-        startDateStr,
-        "to",
-        endDateStr
-      );
-
-      const generateResponse = await fetch(
-        `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`,
-        {
-          method: "GET",
-          signal: abortController.signal,
-        }
-      );
-
-      if (!generateResponse.ok) {
-        const generateError = await generateResponse.json();
-        throw new Error(
-          `Report generation failed: ${
-            generateError.detail || generateResponse.statusText
-          }`
-        );
-      }
-
-      // Reset file inputs
-      setSalesFile(null);
-      setInventoryFile(null);
-      if (salesFileInputRef.current) salesFileInputRef.current.value = "";
-      if (inventoryFileInputRef.current)
-        inventoryFileInputRef.current.value = "";
-
-      console.log("Report generated successfully!");
-      // Fetch the updated report data
-      await fetchReportData();
-      setShowUploadModal(false);
-    } catch (err: any) {
-      // Handle different types of errors
-      if (err.name === "AbortError") {
-        console.log("Upload was cancelled.");
-      } else if (err.name === "TimeoutError") {
-        console.error("Upload timed out. Please try again with smaller files.");
-      } else {
-        console.error("Upload process failed:", err);
-        alert(err.message || "An unexpected error occurred during upload.");
-      }
-    } finally {
-      setUploading(false);
-    }
-  };
 
   // ===== DOWNLOAD LOGIC =====
   const handleDownload = async () => {
@@ -560,8 +354,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
             </div>
             {/* Action Buttons Section */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => setShowUploadModal(true)}
+              {/* <button
                 className="flex-1 group relative overflow-hidden py-3 px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 <div className="flex items-center justify-center gap-2">
@@ -569,7 +362,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                   Refresh Data
                 </div>
                 <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-              </button>
+              </button> */}
 
               <button
                 onClick={handleDownload}
@@ -745,9 +538,10 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                     // Keep this as 'all'
                     { label: "FBA", value: "fba" },
                     { label: "Seller Flex", value: "seller_flex" },
-                  ].map((city) => (
-                    <option key={city.value} value={city.value}>
-                      {city.label}
+                    { label: "Vendor Central", value: "vendor_central" },
+                  ].map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
