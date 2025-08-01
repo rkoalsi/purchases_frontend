@@ -9,7 +9,6 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { LucideRefreshCcw } from "lucide-react";
 
-
 interface ReportItem {
   year: number;
   month: number;
@@ -46,7 +45,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [warehouseType, setWarehouseType] = useState("all");
-  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const [downloading, setDownloading] = useState<boolean>(false);
 
@@ -60,8 +58,9 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
 
   const filteredAndSortedData = useMemo(() => {
     const filteredData = reportData.filter((item) => {
-      const matchesSearch =
-        item.item_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = item.item_name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
       const matchesCity = !cityFilter || item.city === cityFilter;
       const matchesWarehouse =
@@ -209,7 +208,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
 
       // Use the new date range API endpoint
       const r = await axios.get(
-        `${apiUrl}/amazon/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&warehouse_type=${warehouseType}`
+        `${apiUrl}/amazon/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&report_type=${warehouseType}`
       );
       setReportData(r.data);
     } catch (err: any) {
@@ -219,7 +218,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
       setLoading(false);
     }
   };
-
 
   // ===== DOWNLOAD LOGIC =====
   const handleDownload = async () => {
@@ -297,18 +295,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
 
     setTimeout(() => window.URL.revokeObjectURL(url), 100);
     console.log("Report downloaded successfully!");
-  };
-
-  // ===== SELECTION HANDLING =====
-  const handleItemSelect = (itemIdentifier: string, isSelected: boolean) => {
-    setSelectedItems((prev) => {
-      if (isSelected && !prev.includes(itemIdentifier)) {
-        return [...prev, itemIdentifier];
-      } else if (!isSelected) {
-        return prev.filter((id) => id !== itemIdentifier);
-      }
-      return prev;
-    });
   };
 
   // ===== COMPONENT RENDERING =====
@@ -535,7 +521,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                   {/* Change this value to 'all' to match the other 'All' option */}
                   <option value="all">FBA + Seller Flex</option>
                   {[
-                    // Keep this as 'all'
                     { label: "FBA", value: "fba" },
                     { label: "Seller Flex", value: "seller_flex" },
                     { label: "Vendor Central", value: "vendor_central" },
@@ -616,15 +601,17 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                       <SortIcon column="asin" />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                    <button
-                      onClick={() => handleSort("warehouse")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
-                    >
-                      Warehouse
-                      <SortIcon column="warehouse" />
-                    </button>
-                  </th>
+                  {warehouseType !== "vendor_central" && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                      <button
+                        onClick={() => handleSort("warehouse")}
+                        className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      >
+                        Warehouse
+                        <SortIcon column="warehouse" />
+                      </button>
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("units_sold")}
@@ -652,15 +639,17 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                       <SortIcon column="closing_stock" />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
-                    <button
-                      onClick={() => handleSort("sessions")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
-                    >
-                      Sessions
-                      <SortIcon column="sessions" />
-                    </button>
-                  </th>
+                  {warehouseType !== "vendor_central" && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                      <button
+                        onClick={() => handleSort("sessions")}
+                        className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      >
+                        Sessions
+                        <SortIcon column="sessions" />
+                      </button>
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("total_days_in_stock")}
@@ -675,7 +664,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                       onClick={() => handleSort("drr")}
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
-                     DRR
+                      DRR
                       <SortIcon column="drr" />
                     </button>
                   </th>
@@ -720,9 +709,11 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                           {item.asin}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                          {item.warehouses.map((w: string) => w).join(",")}
-                        </td>
+                        {warehouseType !== "vendor_central" && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {item?.warehouses?.map((w: string) => w).join(",")}
+                          </td>
+                        )}
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {item.units_sold}
                         </td>
@@ -732,9 +723,11 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {item.closing_stock}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
-                          {item.sessions}
-                        </td>
+                        {warehouseType !== "vendor_central" && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            {item.sessions}
+                          </td>
+                        )}
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {item.total_days_in_stock}
                         </td>
