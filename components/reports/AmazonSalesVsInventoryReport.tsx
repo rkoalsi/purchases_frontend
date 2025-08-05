@@ -7,7 +7,7 @@ import dateUtils from "../common/DateUtils";
 import DatePicker from "../common/DatePicker";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { LucideRefreshCcw } from "lucide-react";
+import { LucideRefreshCcw, Package, TrendingUp } from "lucide-react";
 
 interface ReportItem {
   year: number;
@@ -42,9 +42,10 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   );
   const [endDate, setEndDate] = useState<Date>(currentDate); // Current date
   const [reportData, setReportData] = useState<ReportItem[]>([]);
+  const [reportMetadata, setReportMetadata]: any = useState({});
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [warehouseType, setWarehouseType] = useState("all");
+  const [reportType, setReportType] = useState("fba+seller_flex");
 
   const [downloading, setDownloading] = useState<boolean>(false);
 
@@ -55,6 +56,14 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     key: string | null;
     direction: "asc" | "desc";
   }>({ key: null, direction: "asc" });
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'No data';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   const filteredAndSortedData = useMemo(() => {
     const filteredData = reportData.filter((item) => {
@@ -102,9 +111,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     return filteredData;
   }, [reportData, searchTerm, cityFilter, warehouseFilter, sortConfig]);
 
-  const uniqueWarehouses = useMemo(() => {
-    return [...new Set(reportData.map((item: any) => item.warehouses))].sort();
-  }, [reportData]);
 
   // Sort handler
   const handleSort = (key: string) => {
@@ -190,7 +196,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   // ===== DATA FETCHING =====
   useEffect(() => {
     fetchReportData();
-  }, [startDate, endDate, warehouseType]);
+  }, [startDate, endDate, reportType]);
 
   const fetchReportData = async () => {
     setLoading(true);
@@ -208,9 +214,13 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
 
       // Use the new date range API endpoint
       const r = await axios.get(
-        `${apiUrl}/amazon/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&report_type=${warehouseType}`
+        `${apiUrl}/amazon/get_report_data_by_date_range`, { params: { start_date: startDateStr, end_date: endDateStr, report_type: reportType } }
+      );
+      const resp = await axios.get(
+        `${apiUrl}/amazon/status`, { params: { start_date: startDateStr, end_date: endDateStr, report_type: reportType } }
       );
       setReportData(r.data);
+      setReportMetadata(resp.data)
     } catch (err: any) {
       console.error("Failed to fetch report data:", err);
       toast.error(`Failed to fetch report data: ${err.message}`);
@@ -235,12 +245,12 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
       const startDateStr = dateUtils.format(startDate, "yyyy-MM-dd");
       const endDateStr = dateUtils.format(endDate, "yyyy-MM-dd");
 
-      const response = await fetch(
-        `${apiUrl}/amazon/download_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`
+      const response = await axios.get(
+        `${apiUrl}/amazon/download_report_by_date_range`, { params: { 'start_date': startDateStr, endDate: endDateStr, report_type: reportType } }
       );
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (response.status !== 200) {
+        const errorText = await response.data;
         let errorDetail;
         try {
           const errorJson = JSON.parse(errorText);
@@ -253,7 +263,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
         );
       }
 
-      await processDownload(response);
+      await processDownload(response.data);
     } catch (err: any) {
       console.error("Download failed:", err);
       alert(`Download failed: ${err.message}`);
@@ -273,7 +283,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     let filename = `amazon_sales_inventory_report_${dateUtils.format(
       startDate,
       "yyyy-MM-dd"
-    )}_to_${dateUtils.format(endDate, "yyyy-MM-dd")}.xlsx`;
+    )}_to_${dateUtils.format(endDate, "yyyy-MM-dd")}_${reportType}.xlsx`;
 
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(
@@ -340,24 +350,13 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
             </div>
             {/* Action Buttons Section */}
             <div className="flex flex-col sm:flex-row gap-3">
-              {/* <button
-                className="flex-1 group relative overflow-hidden py-3 px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <LucideRefreshCcw />
-                  Refresh Data
-                </div>
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-              </button> */}
-
               <button
                 onClick={handleDownload}
                 disabled={downloading || reportData.length === 0}
-                className={`flex-1 group relative overflow-hidden py-3 px-6 rounded-xl font-semibold transition-all duration-300 shadow-lg transform ${
-                  downloading || reportData.length === 0
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
-                    : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white hover:shadow-xl hover:-translate-y-0.5"
-                }`}
+                className={`flex-1 group relative overflow-hidden py-3 px-6 rounded-xl font-semibold transition-all duration-300 shadow-lg transform ${downloading || reportData.length === 0
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                  : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white hover:shadow-xl hover:-translate-y-0.5"
+                  }`}
               >
                 <div className="flex items-center justify-center gap-2">
                   {downloading ? (
@@ -509,17 +508,17 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
 
             {/* Filters */}
             <div className="flex flex-wrap gap-3">
-              <div className="min-w-0 flex-1 min-w-[120px]">
+              <div className="min-w-0 flex-1">
                 <select
-                  value={warehouseType}
+                  value={reportType}
                   onChange={async (e) => {
                     console.log(e.target.value);
-                    setWarehouseType(e.target.value);
+                    setReportType(e.target.value);
                   }}
                   className="block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                 >
                   {/* Change this value to 'all' to match the other 'All' option */}
-                  <option value="all">FBA + Seller Flex</option>
+                  <option value="fba+seller_flex">FBA + Seller Flex</option>
                   {[
                     { label: "FBA", value: "fba" },
                     { label: "Seller Flex", value: "seller_flex" },
@@ -532,22 +531,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                 </select>
               </div>
 
-              {/* {warehouseType == "all" ? (
-                <div className="min-w-0 flex-1 min-w-[120px]">
-                  <select
-                    value={warehouseFilter}
-                    onChange={(e) => setWarehouseFilter(e.target.value)}
-                    className="block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                  >
-                    <option value="">All Warehouses</option>
-                    {uniqueWarehouses.map((warehouse, id) => (
-                      <option key={id} value={warehouse}>
-                        {warehouse}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null} */}
 
               {/* Clear Filters Button */}
               {(searchTerm || cityFilter || warehouseFilter) && (
@@ -562,6 +545,21 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                   Clear Filters
                 </button>
               )}
+            </div>
+            <div className="flex flex-wrap flex-row gap-3 mt-4">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
+                <Package className="h-4 w-4 text-blue-600" />
+                <span className="text-sm text-blue-800">
+                  <span className="font-medium">Inventory (Range):</span> {formatDate(reportMetadata.inventory_data.first_inventory_date)} - {formatDate(reportMetadata.inventory_data.last_inventory_date)}
+                </span>
+              </div>
+
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-800">
+                  <span className="font-medium">Sales (Range):</span> {formatDate(reportMetadata.sales_data.first_sales_date)} - {formatDate(reportMetadata.sales_data.last_sales_date)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -601,7 +599,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                       <SortIcon column="asin" />
                     </button>
                   </th>
-                  {warehouseType !== "vendor_central" && (
+                  {reportType !== "vendor_central" && (
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                       <button
                         onClick={() => handleSort("warehouse")}
@@ -639,7 +637,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                       <SortIcon column="closing_stock" />
                     </button>
                   </th>
-                  {warehouseType !== "vendor_central" && (
+                  {reportType !== "vendor_central" && (
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                       <button
                         onClick={() => handleSort("sessions")}
@@ -691,9 +689,8 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                     return (
                       <tr
                         key={itemIdentifier}
-                        className={`${
-                          isItemSelected ? "bg-blue-50" : "hover:bg-gray-50"
-                        } transition-colors`}
+                        className={`${isItemSelected ? "bg-blue-50" : "hover:bg-gray-50"
+                          } transition-colors`}
                       >
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
                           {index + 1}
@@ -709,7 +706,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                           {item.asin}
                         </td>
-                        {warehouseType !== "vendor_central" && (
+                        {reportType !== "vendor_central" && (
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                             {item?.warehouses?.map((w: string) => w).join(",")}
                           </td>
@@ -723,7 +720,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {item.closing_stock}
                         </td>
-                        {warehouseType !== "vendor_central" && (
+                        {reportType !== "vendor_central" && (
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                             {item.sessions}
                           </td>
