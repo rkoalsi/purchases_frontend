@@ -18,6 +18,7 @@ import DatePicker from '../common/DatePicker';
 import UploadModal from '../common/Modal';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { Package, TrendingUp } from 'lucide-react';
 
 // Register Chart.js components
 ChartJS.register(
@@ -63,6 +64,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
   );
   const [endDate, setEndDate] = useState<Date>(currentDate); // Current date
   const [reportData, setReportData] = useState<ReportItem[]>([]);
+  const [reportMetadata, setReportMetadata]:any = useState({});
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -132,13 +134,6 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
     return filteredData;
   }, [reportData, searchTerm, cityFilter, warehouseFilter, sortConfig]);
 
-  // Date formatting helpers
-  const formatDateRange = () => {
-    return `${dateUtils.format(startDate, 'dd MMM yyyy')} - ${dateUtils.format(
-      endDate,
-      'dd MMM yyyy'
-    )}`;
-  };
   const uniqueCities = useMemo(() => {
     return [...new Set(reportData.map((item) => item.city))].sort();
   }, [reportData]);
@@ -157,7 +152,14 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
           : 'asc',
     }));
   };
-
+ const formatDate = (dateString: string) => {
+    if (!dateString) return 'No data';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
   // Sort icon component
   const SortIcon = ({ column }: { column: string }) => {
     if (sortConfig.key !== column) {
@@ -251,8 +253,11 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
       const r = await axios.get(
         `${apiUrl}/blinkit/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`
       );
-      console.log(r.data.data);
+      const re = await axios.get(
+        `${apiUrl}/blinkit/status?start_date=${startDateStr}&end_date=${endDateStr}`
+      );
       setReportData(r.data.data);
+      setReportMetadata(re.data)
     } catch (err: any) {
       console.error('Failed to fetch report data:', err);
       toast.error(`Failed to fetch report data: ${err.message}`);
@@ -765,7 +770,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
 
             {/* Filters */}
             <div className='flex flex-wrap gap-3'>
-              <div className='min-w-0 flex-1 min-w-[120px]'>
+              <div className='min-w-0 flex-1'>
                 <select
                   value={cityFilter}
                   onChange={(e) => setCityFilter(e.target.value)}
@@ -780,7 +785,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
                 </select>
               </div>
 
-              <div className='min-w-0 flex-1 min-w-[120px]'>
+              <div className='min-w-0 flex-1'>
                 <select
                   value={warehouseFilter}
                   onChange={(e) => setWarehouseFilter(e.target.value)}
@@ -810,7 +815,21 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
               )}
             </div>
           </div>
+               <div className="flex flex-wrap flex-row gap-3 mt-4">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
+                <Package className="h-4 w-4 text-blue-600" />
+                <span className="text-sm text-blue-800">
+                  <span className="font-medium">Inventory (Range):</span> {formatDate(reportMetadata.inventory_data.first_inventory_date)} - {formatDate(reportMetadata.inventory_data.last_inventory_date)}
+                </span>
+              </div>
 
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-800">
+                  <span className="font-medium">Sales (Range):</span> {formatDate(reportMetadata.sales_data.first_sales_date)} - {formatDate(reportMetadata.sales_data.last_sales_date)}
+                </span>
+              </div>
+            </div>
           {/* Table Container with Fixed Height and Sticky Header */}
           <div className='relative max-h-[70vh] overflow-auto'>
             <table className='min-w-full divide-y divide-gray-200'>

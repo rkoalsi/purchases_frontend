@@ -45,7 +45,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   const [reportMetadata, setReportMetadata]: any = useState({});
   const [loading, setLoading] = useState<boolean>(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [reportType, setReportType] = useState("fba+seller_flex");
+  const [reportType, setReportType] = useState("all");
 
   const [downloading, setDownloading] = useState<boolean>(false);
 
@@ -174,6 +174,121 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     );
   };
 
+  const renderStatusBadges = () => {
+  if (reportType === "all") {
+    // Render both vendor_central and fba_seller_flex data
+    return (
+      <div className="space-y-4 mt-4 text-black text-sm">
+        {/* Vendor Central Section */}
+        {reportMetadata.vendor_central && (
+          <div className="space-y-2 mt-2">
+            <h4 className="text-sm font-medium text-gray-700">Vendor Central (Last Updated)</h4>
+            <div className="flex flex-wrap flex-row gap-3">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-full border border-purple-100">
+                <Package className="h-4 w-4 text-purple-600" />
+                <span className="text-sm text-purple-800">
+                  <span className="font-medium">Inventory (Range):</span> {
+                    reportMetadata.vendor_central.inventory_data.first_inventory_date && reportMetadata.vendor_central.inventory_data.last_inventory_date
+                      ? `${formatDate(reportMetadata.vendor_central.inventory_data.first_inventory_date)} - ${formatDate(reportMetadata.vendor_central.inventory_data.last_inventory_date)}`
+                      : 'No data'
+                  }
+                </span>
+              </div>
+
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 rounded-full border border-indigo-100">
+                <TrendingUp className="h-4 w-4 text-indigo-600" />
+                <span className="text-sm text-indigo-800">
+                  <span className="font-medium">Sales (Range):</span> {
+                    reportMetadata.vendor_central.sales_data.first_sales_date && reportMetadata.vendor_central.sales_data.last_sales_date
+                      ? `${formatDate(reportMetadata.vendor_central.sales_data.first_sales_date)} - ${formatDate(reportMetadata.vendor_central.sales_data.last_sales_date)}`
+                      : 'No data'
+                  }
+                </span>
+              </div>
+
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
+                <span className="text-sm text-gray-800">
+                  <span className="font-medium">Records:</span> {reportMetadata.vendor_central.sales_data.records_count} sales, {reportMetadata.vendor_central.inventory_data.records_count} inventory
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FBA/Seller Flex Section */}
+        {reportMetadata.fba_seller_flex && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-gray-700">FBA/Seller Flex (Last Updated)</h4>
+            <div className="flex flex-wrap flex-row gap-3">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
+                <Package className="h-4 w-4 text-blue-600" />
+                <span className="text-sm text-blue-800">
+                  <span className="font-medium">Inventory (Range):</span> {
+                    reportMetadata.fba_seller_flex.inventory_data.first_inventory_date && reportMetadata.fba_seller_flex.inventory_data.last_inventory_date
+                      ? `${formatDate(reportMetadata.fba_seller_flex.inventory_data.first_inventory_date)} - ${formatDate(reportMetadata.fba_seller_flex.inventory_data.last_inventory_date)}`
+                      : 'No data'
+                  }
+                </span>
+              </div>
+
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                <span className="text-sm text-green-800">
+                  <span className="font-medium">Sales (Range):</span> {
+                    reportMetadata.fba_seller_flex.sales_data.first_sales_date && reportMetadata.fba_seller_flex.sales_data.last_sales_date
+                      ? `${formatDate(reportMetadata.fba_seller_flex.sales_data.first_sales_date)} - ${formatDate(reportMetadata.fba_seller_flex.sales_data.last_sales_date)}`
+                      : 'No data'
+                  }
+                </span>
+              </div>
+
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
+                <span className="text-sm text-gray-800">
+                  <span className="font-medium">Records:</span> {reportMetadata.fba_seller_flex.sales_data.records_count} sales, {reportMetadata.fba_seller_flex.inventory_data.records_count} inventory
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  } else {
+    // Original single report type rendering
+    return (
+      <div className="flex flex-wrap flex-row gap-3 mt-4">
+        <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
+          <Package className="h-4 w-4 text-blue-600" />
+          <span className="text-sm text-blue-800">
+            <span className="font-medium">Inventory (Range):</span> {
+              reportMetadata.inventory_data?.first_inventory_date && reportMetadata.inventory_data?.last_inventory_date
+                ? `${formatDate(reportMetadata.inventory_data.first_inventory_date)} - ${formatDate(reportMetadata.inventory_data.last_inventory_date)}`
+                : 'No data'
+            }
+          </span>
+        </div>
+
+        <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
+          <TrendingUp className="h-4 w-4 text-green-600" />
+          <span className="text-sm text-green-800">
+            <span className="font-medium">Sales (Range):</span> {
+              reportMetadata.sales_data?.first_sales_date && reportMetadata.sales_data?.last_sales_date
+                ? `${formatDate(reportMetadata.sales_data.first_sales_date)} - ${formatDate(reportMetadata.sales_data.last_sales_date)}`
+                : 'No data'
+            }
+          </span>
+        </div>
+
+        {reportMetadata.sales_data?.records_count !== undefined && reportMetadata.inventory_data?.records_count !== undefined && (
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
+            <span className="text-sm text-gray-800">
+              <span className="font-medium">Records:</span> {reportMetadata.sales_data.records_count} sales, {reportMetadata.inventory_data.records_count} inventory
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+};
   // Handle date changes
   const handleStartDateChange = (date: Date | null) => {
     if (!date) return;
@@ -517,9 +632,9 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                   }}
                   className="block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                 >
-                  {/* Change this value to 'all' to match the other 'All' option */}
-                  <option value="fba+seller_flex">FBA + Seller Flex</option>
+                  <option value="all">FBA + Seller Flex + Vendor Central</option>
                   {[
+                    { label: "FBA + Seller Flex", value: "fba+seller_flex" },
                     { label: "FBA", value: "fba" },
                     { label: "Seller Flex", value: "seller_flex" },
                     { label: "Vendor Central", value: "vendor_central" },
@@ -546,21 +661,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                 </button>
               )}
             </div>
-            <div className="flex flex-wrap flex-row gap-3 mt-4">
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
-                <Package className="h-4 w-4 text-blue-600" />
-                <span className="text-sm text-blue-800">
-                  <span className="font-medium">Inventory (Range):</span> {formatDate(reportMetadata.inventory_data.first_inventory_date)} - {formatDate(reportMetadata.inventory_data.last_inventory_date)}
-                </span>
-              </div>
-
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-green-800">
-                  <span className="font-medium">Sales (Range):</span> {formatDate(reportMetadata.sales_data.first_sales_date)} - {formatDate(reportMetadata.sales_data.last_sales_date)}
-                </span>
-              </div>
-            </div>
+           {renderStatusBadges()}
           </div>
 
           {/* Table Container with Fixed Height and Sticky Header */}
