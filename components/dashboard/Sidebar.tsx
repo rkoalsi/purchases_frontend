@@ -189,12 +189,12 @@ export default function Sidebar({
     if (
       !user?.permissions ||
       !Array.isArray(user.permissions) ||
-      availablePermissions.length === 0
+      availablePermissions?.length === 0
     ) {
       return [];
     }
 
-    return availablePermissions.filter((permission) =>
+    return availablePermissions?.filter((permission) =>
       user.permissions.includes(permission._id)
     );
   }, [user?.permissions, availablePermissions]);
@@ -218,7 +218,7 @@ export default function Sidebar({
     console.log('Available permissions:', availablePermissions);
 
     // Check if user has the required permission with the required action
-    const hasAccess = getUserPermissions.some((permission) => {
+    const hasAccess = getUserPermissions?.some((permission) => {
       const nameMatch = permission.name === requiredPermission.name;
       console.log(`Permission ${permission.name}: nameMatch=${nameMatch}`);
       return nameMatch;
