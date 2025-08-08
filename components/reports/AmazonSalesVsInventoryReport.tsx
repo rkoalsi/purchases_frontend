@@ -344,84 +344,84 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     }
   };
 
-  // ===== DOWNLOAD LOGIC =====
-  const handleDownload = async () => {
-    setDownloading(true);
+  // Fixed download function with proper axios blob handling
+const handleDownload = async () => {
+  setDownloading(true);
 
-    const apiUrl = process.env.api_url;
-    if (!apiUrl) {
-      alert("API URL environment variable is not set.");
-      setDownloading(false);
-      return;
-    }
+  const apiUrl = process.env.api_url;
+  if (!apiUrl) {
+    alert("API URL environment variable is not set.");
+    setDownloading(false);
+    return;
+  }
 
-    try {
-      // Format dates for download API call
-      const startDateStr = dateUtils.format(startDate, "yyyy-MM-dd");
-      const endDateStr = dateUtils.format(endDate, "yyyy-MM-dd");
+  try {
+    // Format dates for download API call
+    const startDateStr = dateUtils.format(startDate, "yyyy-MM-dd");
+    const endDateStr = dateUtils.format(endDate, "yyyy-MM-dd");
 
-      const response = await axios.get(
-        `${apiUrl}/amazon/download_report_by_date_range`, { params: { 'start_date': startDateStr, endDate: endDateStr, report_type: reportType } }
-      );
-
-      if (response.status !== 200) {
-        const errorText = await response.data;
-        let errorDetail;
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorDetail = errorJson.detail || errorText;
-        } catch {
-          errorDetail = errorText;
-        }
-        throw new Error(
-          errorDetail || `Download failed with status: ${response.status}`
-        );
+    const response = await axios.get(
+      `${apiUrl}/amazon/download_report_by_date_range`, 
+      { 
+        params: { 
+          'start_date': startDateStr, 
+          'end_date': endDateStr,
+          'report_type': reportType 
+        },
+        responseType: 'blob' // ← Critical: Tell axios to handle binary data
       }
+    );
 
-      await processDownload(response.data);
-    } catch (err: any) {
-      console.error("Download failed:", err);
-      alert(`Download failed: ${err.message}`);
-    } finally {
-      setDownloading(false);
+    if (response.status !== 200) {
+      throw new Error(`Download failed with status: ${response.status}`);
     }
-  };
 
-  const processDownload = async (response: Response) => {
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
+    await processDownload(response);
+  } catch (err: any) {
+    console.error("Download failed:", err);
+    alert(`Download failed: ${err.message}`);
+  } finally {
+    setDownloading(false);
+  }
+};
 
-    const a = document.createElement("a");
-    a.href = url;
+// Fixed processDownload function for axios response
+const processDownload = async (response: any) => {
+  // response.data is already a Blob when responseType is 'blob'
+  const blob = response.data;
+  const url = window.URL.createObjectURL(blob);
 
-    const contentDisposition = response.headers.get("Content-Disposition");
-    let filename = `amazon_sales_inventory_report_${dateUtils.format(
-      startDate,
-      "yyyy-MM-dd"
-    )}_to_${dateUtils.format(endDate, "yyyy-MM-dd")}_${reportType}.xlsx`;
+  const a = document.createElement("a");
+  a.href = url;
 
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(
-        /filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/
-      );
-      if (filenameMatch && filenameMatch[1]) {
-        try {
-          filename = decodeURIComponent(filenameMatch[1]);
-        } catch {
-          filename = filenameMatch[1];
-        }
+  // Get filename from Content-Disposition header
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = `amazon_sales_inventory_report_${dateUtils.format(
+    startDate,
+    "yyyy-MM-dd"
+  )}_to_${dateUtils.format(endDate, "yyyy-MM-dd")}_${reportType}.xlsx`;
+
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(
+      /filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/
+    );
+    if (filenameMatch && filenameMatch[1]) {
+      try {
+        filename = decodeURIComponent(filenameMatch[1]);
+      } catch {
+        filename = filenameMatch[1];
       }
     }
+  }
 
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 
-    setTimeout(() => window.URL.revokeObjectURL(url), 100);
-    console.log("Report downloaded successfully!");
-  };
-
+  setTimeout(() => window.URL.revokeObjectURL(url), 100);
+  console.log("Report downloaded successfully!");
+};
   // ===== COMPONENT RENDERING =====
   return (
     <div className="container mx-auto p-4 bg-gray-50">
