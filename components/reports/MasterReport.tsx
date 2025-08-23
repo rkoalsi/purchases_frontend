@@ -204,8 +204,8 @@ function MasterReportsPage() {
         setSortConfig({ key, direction });
 
         const sortedData = [...filteredData].sort((a: any, b: any) => {
-            let aVal = key.includes('.') ? getNestedValue(a, key) : a[key];
-            let bVal = key.includes('.') ? getNestedValue(b, key) : b[key];
+            const aVal = key.includes('.') ? getNestedValue(a, key) : a[key];
+            const bVal = key.includes('.') ? getNestedValue(b, key) : b[key];
 
             if (aVal < bVal) return direction === 'asc' ? -1 : 1;
             if (aVal > bVal) return direction === 'asc' ? 1 : -1;
