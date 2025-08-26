@@ -174,19 +174,6 @@ const SalesReport: React.FC = () => {
       // Both uploads successful, generate report
       toast.success('Files uploaded successfully. Generating report...');
 
-      const generateResponse = await fetch(
-        `${apiUrl}/blinkit/generate_report?month=${selectedMonth}&year=${selectedYear}`
-      );
-
-      if (!generateResponse.ok) {
-        const generateError = await generateResponse.json();
-        throw new Error(
-          `Report generation failed: ${
-            generateError.detail || generateResponse.statusText
-          }`
-        );
-      }
-
       // Reset file inputs
       setSalesFile(null);
       setInventoryFile(null);

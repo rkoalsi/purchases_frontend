@@ -26,7 +26,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const bothFilesSelected = salesFile && inventoryFile;
+  const oneFileUploaded = salesFile || inventoryFile;
 
   return (
     <div className='fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 animate-fadeIn'>
@@ -112,7 +112,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
           <div className='w-full bg-gray-200 rounded-full h-2'>
             <div
               className={`h-2 rounded-full transition-all duration-500 ${
-                bothFilesSelected
+                oneFileUploaded
                   ? 'bg-green-500 w-full'
                   : salesFile || inventoryFile
                   ? 'bg-blue-500 w-1/2'
@@ -125,9 +125,9 @@ const UploadModal: React.FC<UploadModalProps> = ({
         {/* Upload Button */}
         <button
           onClick={onUpload}
-          disabled={uploading || !bothFilesSelected}
+          disabled={uploading || !oneFileUploaded}
           className={`w-full py-4 px-6 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg relative overflow-hidden group ${
-            uploading || !bothFilesSelected
+            uploading || !oneFileUploaded
               ? 'bg-gray-300 cursor-not-allowed shadow-none'
               : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 hover:shadow-xl transform hover:-translate-y-0.5'
           }`}
@@ -175,7 +175,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
               </>
             )}
           </div>
-          {!uploading && bothFilesSelected && (
+          {!uploading && oneFileUploaded && (
             <div className='absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300'></div>
           )}
         </button>
