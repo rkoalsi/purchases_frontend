@@ -287,74 +287,81 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
     }
   };
 
-  const handleUpload = async () => {
-    if (!salesFile || !inventoryFile) {
-      alert('Please select both Sales and Inventory files.');
-      return;
-    }
+const handleUpload = async () => {
+  // Check if at least one file is selected
+  if (!salesFile && !inventoryFile) {
+    alert('Please select at least one file (Sales or Inventory).');
+    return;
+  }
 
-    setUploading(true);
+  setUploading(true);
 
-    const apiUrl = process.env.api_url;
-    if (!apiUrl) {
-      alert('API URL environment variable is not set.');
-      setUploading(false);
-      return;
-    }
+  const apiUrl = process.env.api_url;
+  if (!apiUrl) {
+    alert('API URL environment variable is not set.');
+    setUploading(false);
+    return;
+  }
 
-    // Create an AbortController for cancellation
-    const abortController = new AbortController();
+  // Create an AbortController for cancellation
+  const abortController = new AbortController();
 
-    try {
-      // Pre-validate files on the client side
-      const maxFileSize = 50 * 1024 * 1024; // 50MB limit
-      if (salesFile.size > maxFileSize || inventoryFile.size > maxFileSize) {
-        throw new Error(
-          'File size exceeds 50MB limit. Please compress your files.'
-        );
+  try {
+    // Pre-validate files on the client side
+    const maxFileSize = 50 * 1024 * 1024; // 50MB limit
+    const validExtensions = ['.xlsx', '.xls'];
+
+    // Validate sales file if provided
+    if (salesFile) {
+      if (salesFile.size > maxFileSize) {
+        throw new Error('Sales file size exceeds 50MB limit. Please compress your file.');
       }
-
-      // Validate file extensions
-      const validExtensions = ['.xlsx', '.xls'];
+      
       const salesExt = salesFile.name
         .toLowerCase()
         .slice(salesFile.name.lastIndexOf('.'));
+        
+      if (!validExtensions.includes(salesExt)) {
+        throw new Error('Sales file must be an Excel file (.xlsx or .xls)');
+      }
+    }
+
+    // Validate inventory file if provided
+    if (inventoryFile) {
+      if (inventoryFile.size > maxFileSize) {
+        throw new Error('Inventory file size exceeds 50MB limit. Please compress your file.');
+      }
+      
       const inventoryExt = inventoryFile.name
         .toLowerCase()
         .slice(inventoryFile.name.lastIndexOf('.'));
-
-      if (
-        !validExtensions.includes(salesExt) ||
-        !validExtensions.includes(inventoryExt)
-      ) {
-        throw new Error('Please upload only Excel files (.xlsx or .xls)');
+        
+      if (!validExtensions.includes(inventoryExt)) {
+        throw new Error('Inventory file must be an Excel file (.xlsx or .xls)');
       }
+    }
 
-      // Create FormData objects
+    // Set up fetch options with timeout and optimized settings
+    const fetchOptions = {
+      method: 'POST',
+      signal: abortController.signal,
+      // Add timeout after 5 minutes
+      timeout: 300000,
+      // Keep connection alive for better performance
+      keepalive: true,
+    };
+
+    // Upload sales files if provided
+    if (salesFile) {
       const salesFormData = new FormData();
       salesFormData.append('file', salesFile);
 
-      const inventoryFormData = new FormData();
-      inventoryFormData.append('file', inventoryFile);
-
-      // Set up fetch options with timeout and optimized settings
-      const fetchOptions = {
-        method: 'POST',
-        signal: abortController.signal,
-        // Add timeout after 5 minutes
-        timeout: 300000,
-        // Keep connection alive for better performance
-        keepalive: true,
-      };
-
-      // Upload files sequentially for better error handling and memory management
       console.log('Uploading sales data...');
-
       const salesResponse = await fetch(`${apiUrl}/blinkit/upload_sales_data`, {
         ...fetchOptions,
         body: salesFormData,
       });
-
+      
       if (!salesResponse.ok) {
         const salesError = await salesResponse.json();
         throw new Error(
@@ -367,8 +374,32 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
       const salesResult = await salesResponse.json();
       console.log(`Sales data uploaded: ${salesResult.message}`);
 
-      console.log('Uploading inventory data...');
+      // Upload return sales data using the same sales file
+      console.log('Uploading Return Sales data...');
+      const returnSalesResponse = await fetch(`${apiUrl}/blinkit/upload_return_data`, {
+        ...fetchOptions,
+        body: salesFormData,
+      });
 
+      if (!returnSalesResponse.ok) {
+        const returnSalesError = await returnSalesResponse.json();
+        throw new Error(
+          `Return Sales upload failed: ${
+            returnSalesError.detail || returnSalesResponse.statusText
+          }`
+        );
+      }
+
+      const returnSalesResult = await returnSalesResponse.json();
+      console.log(`Return Sales data uploaded: ${returnSalesResult.message}`);
+    }
+
+    // Upload inventory file if provided
+    if (inventoryFile) {
+      const inventoryFormData = new FormData();
+      inventoryFormData.append('file', inventoryFile);
+
+      console.log('Uploading inventory data...');
       const inventoryResponse = await fetch(
         `${apiUrl}/blinkit/upload_inventory_data`,
         {
@@ -385,65 +416,80 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
           }`
         );
       }
+      
       const inventoryResult = await inventoryResponse.json();
       console.log(`Inventory data uploaded: ${inventoryResult.message}`);
-
-      // Generate report with date range parameters instead of month parameters
-      console.log('Generating report...');
-      console.log(startDate, endDate);
-      console.log(dateUtils.format(startDate, 'yyyy-MM-dd'));
-      const startDateStr = dateUtils.format(startDate, 'yyyy-MM-dd');
-      const endDateStr = dateUtils.format(endDate, 'yyyy-MM-dd');
-
-      console.log(
-        'Generating report with dates:',
-        startDateStr,
-        'to',
-        endDateStr
-      );
-
-      const generateResponse = await fetch(
-        `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`,
-        {
-          method: 'GET',
-          signal: abortController.signal,
-        }
-      );
-
-      if (!generateResponse.ok) {
-        const generateError = await generateResponse.json();
-        throw new Error(
-          `Report generation failed: ${
-            generateError.detail || generateResponse.statusText
-          }`
-        );
-      }
-
-      // Reset file inputs
-      setSalesFile(null);
-      setInventoryFile(null);
-      if (salesFileInputRef.current) salesFileInputRef.current.value = '';
-      if (inventoryFileInputRef.current)
-        inventoryFileInputRef.current.value = '';
-
-      console.log('Report generated successfully!');
-      // Fetch the updated report data
-      await fetchReportData();
-      setShowUploadModal(false);
-    } catch (err: any) {
-      // Handle different types of errors
-      if (err.name === 'AbortError') {
-        console.log('Upload was cancelled.');
-      } else if (err.name === 'TimeoutError') {
-        console.error('Upload timed out. Please try again with smaller files.');
-      } else {
-        console.error('Upload process failed:', err);
-        alert(err.message || 'An unexpected error occurred during upload.');
-      }
-    } finally {
-      setUploading(false);
     }
-  };
+
+    // Generate report with date range parameters
+    console.log('Generating report...');
+    const startDateStr = dateUtils.format(startDate, 'yyyy-MM-dd');
+    const endDateStr = dateUtils.format(endDate, 'yyyy-MM-dd');
+
+    console.log(
+      'Generating report with dates:',
+      startDateStr,
+      'to',
+      endDateStr
+    );
+
+    const generateResponse = await fetch(
+      `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`,
+      {
+        method: 'GET',
+        signal: abortController.signal,
+      }
+    );
+
+    if (!generateResponse.ok) {
+      const generateError = await generateResponse.json();
+      throw new Error(
+        `Report generation failed: ${
+          generateError.detail || generateResponse.statusText
+        }`
+      );
+    }
+
+    // Reset file inputs
+    setSalesFile(null);
+    setInventoryFile(null);
+    if (salesFileInputRef.current) salesFileInputRef.current.value = '';
+    if (inventoryFileInputRef.current) inventoryFileInputRef.current.value = '';
+
+    console.log('Report generated successfully!');
+    
+    // Show success message based on what was uploaded
+    let successMessage = 'Report generated successfully!';
+    if (salesFile && inventoryFile) {
+      successMessage = 'Sales and Inventory data uploaded successfully!';
+    } else if (salesFile) {
+      successMessage = 'Sales data uploaded successfully!';
+    } else if (inventoryFile) {
+      successMessage = 'Inventory data uploaded successfully!';
+    }
+    
+    toast.success(successMessage);
+    
+    // Fetch the updated report data
+    await fetchReportData();
+    setShowUploadModal(false);
+    
+  } catch (err: any) {
+    // Handle different types of errors
+    if (err.name === 'AbortError') {
+      console.log('Upload was cancelled.');
+      toast.info('Upload was cancelled.');
+    } else if (err.name === 'TimeoutError') {
+      console.error('Upload timed out. Please try again with smaller files.');
+      toast.error('Upload timed out. Please try again with smaller files.');
+    } else {
+      console.error('Upload process failed:', err);
+      toast.error(err.message || 'An unexpected error occurred during upload.');
+    }
+  } finally {
+    setUploading(false);
+  }
+};
 
   // ===== DOWNLOAD LOGIC =====
   const handleDownload = async () => {
@@ -944,6 +990,17 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
                       <SortIcon column='metrics.total_sales_in_period' />
                     </button>
                   </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[110px]'>
+                    <button
+                      onClick={() =>
+                        handleSort('metrics.total_returns_in_period')
+                      }
+                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                    >
+                      Total Returns
+                      <SortIcon column='metrics.total_returns_in_period' />
+                    </button>
+                  </th>
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]'>
                     <button
                       onClick={() => handleSort('metrics.days_of_coverage')}
@@ -1060,6 +1117,9 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
                         </td>
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
                           {item.metrics?.total_sales_in_period?.toFixed(2)}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                          {item.metrics?.total_returns_in_period?.toFixed(2)}
                         </td>
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
                           {item.metrics.days_of_coverage.toFixed(2)}
