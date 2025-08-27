@@ -4,6 +4,7 @@ import { useAuth } from '@/components/context/AuthContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Package, TrendingUp, TrendingDown } from 'lucide-react';
+import DateRange from '@/components/reports/DateRange';
 
 function Page() {
   const { email, isLoading, accessToken, user } = useAuth();
@@ -316,87 +317,50 @@ function Page() {
         {/* Controls Section */}
         <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-6'>
           <div className='px-6 py-4'>
-            <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4'>
-              {/* Date Range */}
-              <div className='flex flex-col sm:flex-row gap-4'>
-                <div>
-                  <label htmlFor='start-date' className='block text-sm font-medium text-gray-700 mb-1'>
-                    Start Date
-                  </label>
-                  <input
-                    type='date'
-                    id='start-date'
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
-                  />
-                </div>
-                <div>
-                  <label htmlFor='end-date' className='block text-sm font-medium text-gray-700 mb-1'>
-                    End Date
-                  </label>
-                  <input
-                    type='date'
-                    id='end-date'
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
-                  />
-                </div>
-                <div className='flex items-end gap-2'>
-                  <button
-                    onClick={handleGenerateReport}
-                    disabled={loading}
-                    className='px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-                  >
-                    {loading ? 'Loading...' : 'Generate Report'}
-                  </button>
-                  <button
-                    onClick={downloadSalesReport}
-                    disabled={downloadLoading || loading || salesReport.length === 0}
-                    className='px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2'
-                  >
-                    {downloadLoading ? (
-                      <>
-                        <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white'></div>
-                        Downloading...
-                      </>
-                    ) : (
-                      <>
-                        <svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-                          <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' />
-                        </svg>
-                        Download Excel
-                      </>
-                    )}
-                  </button>
-                </div>
+            <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+              {/* Date Range Controls */}
+              <div>
+                <h3 className='text-lg font-medium text-gray-900 mb-4'>Date Range & Actions</h3>
+                <DateRange
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onApplyPreset={handleGenerateReport}
+                  onGenerate={handleGenerateReport}
+                  loading={loading}
+                  downloadReport={downloadSalesReport}
+                  downloadDisabledCondition={downloadLoading || loading || salesReport.length === 0}
+                  downloadLoading={downloadLoading}
+                />
               </div>
 
               {/* Search Bar */}
-              <div className='relative max-w-md w-full'>
-                <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                  <svg
-                    className='h-5 w-5 text-gray-400'
-                    fill='none'
-                    stroke='currentColor'
-                    viewBox='0 0 24 24'
-                  >
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      strokeWidth={2}
-                      d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
-                    />
-                  </svg>
+              <div className='flex flex-col justify-start'>
+                <div className='relative max-w-md w-full'>
+                  <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                    <svg
+                      className='h-5 w-5 text-gray-400'
+                      fill='none'
+                      stroke='currentColor'
+                      viewBox='0 0 24 24'
+                    >
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        strokeWidth={2}
+                        d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
+                      />
+                    </svg>
+                  </div>
+                  <input
+                    type='text'
+                    placeholder='Search by product name or SKU...'
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className='block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
+                  />
                 </div>
-                <input
-                  type='text'
-                  placeholder='Search by product name or SKU...'
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className='block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
-                />
               </div>
             </div>
           </div>

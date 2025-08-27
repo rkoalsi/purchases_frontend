@@ -7,7 +7,7 @@ import dateUtils from "../common/DateUtils";
 import DatePicker from "../common/DatePicker";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { LucideRefreshCcw, Package, TrendingUp } from "lucide-react";
+import { Package, TrendingUp } from "lucide-react";
 
 interface ReportItem {
   year: number;
