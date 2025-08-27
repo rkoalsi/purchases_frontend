@@ -12,38 +12,56 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { TrendingUp, Package, Award, BarChart3, Calendar } from 'lucide-react';
+import { TrendingUp, Package, Award, BarChart3, Calendar, AlertCircle, Loader2 } from 'lucide-react';
 import DatePicker from '../components/common/DatePicker'; // Adjust the import path as needed
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
-// Types for the API response
+// Types for the API response - Updated with safer optional properties
 interface ProductMetrics {
-  avg_daily_on_stock_days: number;
-  avg_weekly_on_stock_days: number;
-  avg_monthly_on_stock_days: number;
-  total_sales_in_period: number;
-  days_of_coverage: number;
-  days_with_inventory: number;
-  closing_stock: number;
+  avg_daily_on_stock_days?: number;
+  avg_weekly_on_stock_days?: number;
+  avg_monthly_on_stock_days?: number;
+  total_sales_in_period?: number;
+  total_returns_in_period?: number;
+  total_amount?: number;
+  days_of_coverage?: number;
+  days_with_inventory?: number;
+  closing_stock?: number;
+  sessions?: number;
+  daily_run_rate?: number;
 }
 
 interface TopProduct {
-  item_id: number;
-  item_name: string;
-  sku_code: string;
-  city: string;
-  metrics: ProductMetrics;
-  year: number;
-  month: number;
-  sources?: string[]; // Added for multi-source support
+  item_id?: number;
+  item_name?: string;
+  sku_code?: string;
+  city?: string;
+  metrics?: ProductMetrics; // Made optional to handle missing metrics
+  year?: number;
+  month?: number;
+  sources?: string[];
 }
 
 interface TopProductsResponse {
-  products: TopProduct[];
-  total_count: number;
-  current_month: number;
-  current_year: number;
+  products?: TopProduct[];
+  total_count?: number;
+  current_month?: number;
+  current_year?: number;
+}
+
+interface SummaryResponse {
+  total_products: number;
+  total_sales: number;
+  avg_sales: number;
+  total_closing_stock: number;
+  total_amount: number;
+  source_counts: Record<string, number>;
+  sources_included: string[];
+  year: number;
+  month: number;
+  start_date: string;
+  end_date: string;
 }
 
 // Custom colors for bars
@@ -60,21 +78,35 @@ const barColors = [
   '#6B7280', // Gray
 ];
 
+// Utility function to safely get numeric values with fallbacks
+const safeNumber = (value: any, fallback: number = 0): number => {
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? fallback : parsed;
+};
+
+// Utility function to safely get string values
+const safeString = (value: any, fallback: string = 'Unknown'): string => {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return fallback;
+};
+
 function Page() {
   const { isLoading, accessToken, user } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<TopProduct[]>([]);
+  const [summaryData, setSummaryData] = useState<SummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [totalUnits, setTotalUnits] = useState(0);
-  const [bestPerformer, setBestPerformer] = useState<TopProduct | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [preset, setPreset] = useState('thisMonth');
   
   // Date filtering state
   const [startDate, setStartDate] = useState<Date>(
     startOfMonth(subMonths(new Date(), 0))
-  ); // Current month start
-  const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date())); // Current month end
+  );
+  const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
   
   // Source filtering state
   const [includeBlinkit, setIncludeBlinkit] = useState(true);
@@ -84,32 +116,110 @@ function Page() {
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
   const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [availableWarehouses, setAvailableWarehouses] = useState<string[]>([]);
 
   // Use ref to track the current request and prevent race conditions
   const currentRequestRef = useRef<number>(0);
 
-  // API Base URL - moved outside component to prevent recreation
+  // API Base URL
   const API_BASE_URL = `${process.env.api_url}/dashboard`;
 
-  // Debounced fetch function to prevent too many API calls
-  const fetchData = useCallback(async () => {
+  // Function to validate and clean product data
+  const validateProductData = (products: TopProduct[]): TopProduct[] => {
+    if (!Array.isArray(products)) return [];
+    
+    return products
+      .filter(product => {
+        // Basic validation - must have at least SKU or item name
+        const hasSku = safeString(product.sku_code, '') !== 'Unknown';
+        const hasName = safeString(product.item_name, '') !== 'Unknown';
+        const hasMetrics = product.metrics && typeof product.metrics === 'object';
+        const hasSales = hasMetrics && safeNumber(product?.metrics?.total_sales_in_period) > 0;
+        
+        if (!hasSales) {
+          console.warn('Product filtered out - no sales:', product);
+        }
+        
+        return (hasSku || hasName) && hasMetrics && hasSales;
+      })
+      .map(product => ({
+        ...product,
+        item_name: safeString(product.item_name),
+        sku_code: safeString(product.sku_code),
+        city: safeString(product.city, 'Multiple'),
+        sources: Array.isArray(product.sources) ? product.sources : [],
+        metrics: product.metrics ? {
+          ...product.metrics,
+          total_sales_in_period: safeNumber(product.metrics.total_sales_in_period),
+          total_returns_in_period: safeNumber(product.metrics.total_returns_in_period),
+          total_amount: safeNumber(product.metrics.total_amount),
+          closing_stock: safeNumber(product.metrics.closing_stock),
+          days_with_inventory: safeNumber(product.metrics.days_with_inventory),
+          days_of_coverage: safeNumber(product.metrics.days_of_coverage),
+          avg_daily_on_stock_days: safeNumber(product.metrics.avg_daily_on_stock_days),
+          avg_weekly_on_stock_days: safeNumber(product.metrics.avg_weekly_on_stock_days),
+          avg_monthly_on_stock_days: safeNumber(product.metrics.avg_monthly_on_stock_days),
+          sessions: safeNumber(product.metrics.sessions),
+          daily_run_rate: safeNumber(product.metrics.daily_run_rate),
+        } : undefined
+      }));
+  };
+
+  // Fetch summary data
+  const fetchSummaryData = useCallback(async (requestId: number) => {
     if (!accessToken) return;
 
-    // Increment request counter to handle race conditions
-    const requestId = ++currentRequestRef.current;
+    setSummaryLoading(true);
+    setSummaryError(null);
+
+    try {
+      const params = new URLSearchParams({
+        start_date: format(startDate, 'yyyy-MM-dd'),
+        end_date: format(endDate, 'yyyy-MM-dd'),
+        include_blinkit: includeBlinkit.toString(),
+        include_amazon: includeAmazon.toString(),
+        include_zoho: includeZoho.toString(),
+      });
+
+      const response = await fetch(`${API_BASE_URL}/top-products/summary?${params}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch summary: ${response.statusText}`);
+      }
+
+      const result: SummaryResponse = await response.json();
+
+      // Only update state if this is still the most recent request
+      if (requestId === currentRequestRef.current) {
+        setSummaryData(result);
+      }
+    } catch (err) {
+      console.error('Error fetching summary:', err);
+      if (requestId === currentRequestRef.current) {
+        setSummaryError(err instanceof Error ? err.message : 'Failed to fetch summary');
+        setSummaryData(null);
+      }
+    } finally {
+      if (requestId === currentRequestRef.current) {
+        setSummaryLoading(false);
+      }
+    }
+  }, [accessToken, startDate, endDate, includeBlinkit, includeAmazon, includeZoho, API_BASE_URL]);
+
+  // Fetch top products data
+  const fetchTopProductsData = useCallback(async (requestId: number) => {
+    if (!accessToken) return;
 
     setLoading(true);
     setError(null);
-    
-    // Clear existing data immediately when starting new fetch
     setData([]);
-    setTotalUnits(0);
-    setBestPerformer(null);
     setAvailableCities([]);
 
     try {
-      // Build query parameters
       const params = new URLSearchParams({
         limit: '10',
         start_date: format(startDate, 'yyyy-MM-dd'),
@@ -141,35 +251,27 @@ function Page() {
 
       // Only update state if this is still the most recent request
       if (requestId === currentRequestRef.current) {
-        setData(result.products || []);
-
-        // Extract unique cities and warehouses for filters
-        const cities = [...new Set(result.products?.map((p) => p.city).filter(Boolean) || [])];
-        setAvailableCities(cities);
-
-        // Calculate totals
-        const total = result.products?.reduce(
-          (sum, item) => sum + (item.metrics?.total_sales_in_period || 0),
-          0
-        ) || 0;
-        setTotalUnits(total);
-
-        // Set best performer
-        if (result.products && result.products.length > 0) {
-          setBestPerformer(result.products[0]);
+        // Validate and clean the data
+        const validatedProducts = validateProductData(result.products || []);
+        
+        if (validatedProducts.length === 0 && result.products && result.products.length > 0) {
+          console.warn('All products were filtered out during validation');
+          setError('No valid product data found. Please check your filters and try again.');
         }
+        
+        setData(validatedProducts);
+
+        // Extract unique cities for filters
+        const cities:any = [...new Set(validatedProducts.map((p) => p.city).filter(Boolean))];
+        setAvailableCities(cities);
       }
     } catch (err) {
       console.error('Error fetching top products:', err);
-      // Only update error if this is still the most recent request
       if (requestId === currentRequestRef.current) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
-        setData([]); // Ensure data is cleared on error
-        setTotalUnits(0);
-        setBestPerformer(null);
+        setData([]);
       }
     } finally {
-      // Only update loading if this is still the most recent request
       if (requestId === currentRequestRef.current) {
         setLoading(false);
       }
@@ -185,6 +287,20 @@ function Page() {
     selectedWarehouse,
     API_BASE_URL,
   ]);
+
+  // Combined fetch function
+  const fetchData = useCallback(async () => {
+    if (!accessToken) return;
+
+    // Increment request counter to handle race conditions
+    const requestId = ++currentRequestRef.current;
+
+    // Fetch both data sets in parallel
+    await Promise.all([
+      fetchTopProductsData(requestId),
+      fetchSummaryData(requestId)
+    ]);
+  }, [fetchTopProductsData, fetchSummaryData, accessToken]);
 
   // Use effect with proper cleanup
   useEffect(() => {
@@ -229,18 +345,25 @@ function Page() {
     }
   }, []);
 
-  // Transform data for the chart
+  // Transform data for the chart with safe access
   const chartData = data.map((product) => ({
     item:
       product.item_name && product.item_name.length > 15
         ? product.item_name.substring(0, 15) + '...'
         : product.item_name || 'Unknown Item',
     fullName: product.item_name || 'Unknown Item',
-    unitsSold: product.metrics?.total_sales_in_period || 0,
+    unitsSold: safeNumber(product.metrics?.total_sales_in_period),
     category: product.city || 'Unknown',
     sku: product.sku_code || 'Unknown',
     sources: product.sources || [],
+    totalAmount: safeNumber(product.metrics?.total_amount),
+    closingStock: safeNumber(product.metrics?.closing_stock),
   }));
+
+  // Calculate derived stats safely
+  const totalUnits = summaryData?.total_sales || 0;
+  const bestPerformer = data.length > 0 ? data[0] : null;
+  const topAverage = data.length > 0 ? Math.round(totalUnits / data.length) : 0;
 
   // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -250,12 +373,15 @@ function Page() {
         <div className='bg-white p-3 border border-gray-200 rounded-lg shadow-lg'>
           <p className='font-semibold text-gray-900'>{data.fullName}</p>
           <p className='text-blue-600'>
-            Units Sold:{' '}
-            <span className='font-bold'>
-              {payload[0].value.toLocaleString()}
-            </span>
+            Units Sold: <span className='font-bold'>{payload[0].value.toLocaleString()}</span>
           </p>
           <p className='text-gray-600 text-sm'>SKU: {data.sku}</p>
+          <p className='text-gray-600 text-sm'>Stock: {data.closingStock.toLocaleString()}</p>
+          {data.totalAmount > 0 && (
+            <p className='text-green-600 text-sm'>
+              Revenue: ${data.totalAmount.toLocaleString()}
+            </p>
+          )}
           {data.sources && data.sources.length > 0 && (
             <p className='text-gray-500 text-xs mt-1'>
               Sources: {data.sources.join(', ')}
@@ -267,17 +393,19 @@ function Page() {
     return null;
   };
 
+  // Loading state
   if (isLoading) {
     return (
       <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
         <div className='text-center'>
-          <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4'></div>
+          <Loader2 className='animate-spin h-12 w-12 text-blue-600 mx-auto mb-4' />
           <p className='text-gray-600'>Loading dashboard data...</p>
         </div>
       </div>
     );
   }
 
+  // Authentication check
   if (!accessToken) {
     setTimeout(() => {
       router.push('/login');
@@ -286,32 +414,28 @@ function Page() {
       <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
         <div className='bg-white p-8 rounded-lg shadow-md text-center'>
           <BarChart3 className='h-16 w-16 text-gray-400 mx-auto mb-4' />
-          <p className='text-xl text-gray-700'>
-            Please log in to see this content.
-          </p>
-          <p className='text-sm text-gray-700'>
-            Redirecting to login page in 3 seconds
-          </p>
+          <p className='text-xl text-gray-700'>Please log in to see this content.</p>
+          <p className='text-sm text-gray-700'>Redirecting to login page in 3 seconds</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  // Error state
+  if (error && !loading) {
     return (
       <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
-        <div className='bg-white p-8 rounded-lg shadow-md text-center'>
-          <div className='text-red-500 mb-4'>
-            <BarChart3 className='h-16 w-16 mx-auto' />
-          </div>
+        <div className='bg-white p-8 rounded-lg shadow-md text-center max-w-md'>
+          <AlertCircle className='h-16 w-16 text-red-500 mx-auto mb-4' />
           <p className='text-xl text-gray-700 mb-2'>Error loading data</p>
-          <p className='text-gray-500'>{error}</p>
+          <p className='text-gray-500 mb-4'>{error}</p>
           <button
             onClick={() => {
               setError(null);
+              setSummaryError(null);
               fetchData();
             }}
-            className='mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
+            className='px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors'
           >
             Retry
           </button>
@@ -372,7 +496,9 @@ function Page() {
                   onChange={(e) => setIncludeBlinkit(e.target.checked)}
                   className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
                 />
-                <span className='ml-2 text-sm text-gray-700'>Blinkit</span>
+                <span className='ml-2 text-sm text-gray-700'>
+                  Blinkit {summaryData?.source_counts?.blinkit && `(${summaryData.source_counts.blinkit})`}
+                </span>
               </label>
               <label className='flex items-center'>
                 <input
@@ -381,7 +507,9 @@ function Page() {
                   onChange={(e) => setIncludeAmazon(e.target.checked)}
                   className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
                 />
-                <span className='ml-2 text-sm text-gray-700'>Amazon</span>
+                <span className='ml-2 text-sm text-gray-700'>
+                  Amazon {summaryData?.source_counts?.amazon && `(${summaryData.source_counts.amazon})`}
+                </span>
               </label>
               <label className='flex items-center'>
                 <input
@@ -390,7 +518,9 @@ function Page() {
                   onChange={(e) => setIncludeZoho(e.target.checked)}
                   className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
                 />
-                <span className='ml-2 text-sm text-gray-700'>Zoho</span>
+                <span className='ml-2 text-sm text-gray-700'>
+                  Zoho {summaryData?.source_counts?.zoho && `(${summaryData.source_counts.zoho})`}
+                </span>
               </label>
             </div>
           </div>
@@ -403,7 +533,7 @@ function Page() {
                 preset === 'thisMonth'
                   ? 'bg-blue-100 text-blue-700'
                   : 'bg-gray-100 text-gray-700'
-              }  rounded-lg hover:bg-blue-200 transition-colors`}
+              } rounded-lg hover:bg-blue-200 transition-colors`}
             >
               This Month
             </button>
@@ -413,7 +543,7 @@ function Page() {
                 preset === 'lastMonth'
                   ? 'bg-blue-100 text-blue-700'
                   : 'bg-gray-100 text-gray-700'
-              }  rounded-lg hover:bg-gray-200 transition-colors`}
+              } rounded-lg hover:bg-gray-200 transition-colors`}
             >
               Last Month
             </button>
@@ -432,61 +562,83 @@ function Page() {
 
         {/* Stats Cards */}
         <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
+          {/* Total Units Sold */}
           <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
             <div className='flex items-center'>
               <div className='p-2 bg-blue-100 rounded-lg'>
                 <Package className='h-6 w-6 text-blue-600' />
               </div>
-              <div className='ml-4'>
-                <p className='text-sm font-medium text-gray-600'>
-                  Total Units Sold
-                </p>
-                <p className='text-2xl font-bold text-gray-900'>
-                  {totalUnits.toLocaleString()}
-                </p>
-                <p className='text-xs text-gray-500 mt-1'>
-                  {format(startDate, 'MMM dd')} -{' '}
-                  {format(endDate, 'MMM dd, yyyy')}
-                </p>
+              <div className='ml-4 flex-1'>
+                <p className='text-sm font-medium text-gray-600'>Total Units Sold</p>
+                {summaryLoading ? (
+                  <div className='animate-pulse'>
+                    <div className='h-8 bg-gray-200 rounded w-24 mb-1'></div>
+                    <div className='h-3 bg-gray-200 rounded w-32'></div>
+                  </div>
+                ) : summaryError ? (
+                  <div className='text-red-500 text-sm'>Error loading</div>
+                ) : (
+                  <>
+                    <p className='text-2xl font-bold text-gray-900'>
+                      {totalUnits.toLocaleString()}
+                    </p>
+                    <p className='text-xs text-gray-500 mt-1'>
+                      {format(startDate, 'MMM dd')} - {format(endDate, 'MMM dd, yyyy')}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
+          {/* Best Performer */}
           <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
             <div className='flex items-center'>
               <div className='p-2 bg-green-100 rounded-lg'>
                 <Award className='h-6 w-6 text-green-600' />
               </div>
-              <div className='ml-4'>
-                <p className='text-sm font-medium text-gray-600'>
-                  Best Performer
-                </p>
-                <p className='text-lg font-bold text-gray-900'>
-                  {bestPerformer?.item_name || 'No data'}
-                </p>
-                <p className='text-xs text-gray-500 mt-1'>
-                  {bestPerformer?.metrics.total_sales_in_period.toLocaleString() || '0'}{' '}
-                  units
-                </p>
+              <div className='ml-4 flex-1'>
+                <p className='text-sm font-medium text-gray-600'>Best Performer</p>
+                {loading ? (
+                  <div className='animate-pulse'>
+                    <div className='h-6 bg-gray-200 rounded w-32 mb-1'></div>
+                    <div className='h-3 bg-gray-200 rounded w-20'></div>
+                  </div>
+                ) : (
+                  <>
+                    <p className='text-lg font-bold text-gray-900 truncate'>
+                      {bestPerformer?.item_name || 'No data'}
+                    </p>
+                    <p className='text-xs text-gray-500 mt-1'>
+                      {safeNumber(bestPerformer?.metrics?.total_sales_in_period).toLocaleString()} units
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
+          {/* Top 10 Average */}
           <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
             <div className='flex items-center'>
               <div className='p-2 bg-purple-100 rounded-lg'>
                 <TrendingUp className='h-6 w-6 text-purple-600' />
               </div>
-              <div className='ml-4'>
-                <p className='text-sm font-medium text-gray-600'>
-                  Top 10 Average
-                </p>
-                <p className='text-2xl font-bold text-gray-900'>
-                  {data.length > 0
-                    ? Math.round(totalUnits / data.length).toLocaleString()
-                    : '0'}
-                </p>
-                <p className='text-xs text-gray-500 mt-1'>Per product</p>
+              <div className='ml-4 flex-1'>
+                <p className='text-sm font-medium text-gray-600'>Top 10 Average</p>
+                {loading ? (
+                  <div className='animate-pulse'>
+                    <div className='h-8 bg-gray-200 rounded w-20 mb-1'></div>
+                    <div className='h-3 bg-gray-200 rounded w-24'></div>
+                  </div>
+                ) : (
+                  <>
+                    <p className='text-2xl font-bold text-gray-900'>
+                      {topAverage.toLocaleString()}
+                    </p>
+                    <p className='text-xs text-gray-500 mt-1'>Per product</p>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -507,20 +659,15 @@ function Page() {
           {loading ? (
             <div className='h-96 flex items-center justify-center'>
               <div className='text-center'>
-                <div className='animate-pulse'>
-                  <div className='h-4 bg-gray-200 rounded w-48 mx-auto mb-4'></div>
-                  <div className='h-4 bg-gray-200 rounded w-32 mx-auto'></div>
-                </div>
-                <p className='text-gray-500 mt-4'>Loading chart data...</p>
+                <Loader2 className='animate-spin h-12 w-12 text-blue-600 mb-4' />
+                <p className='text-gray-500'>Loading chart data...</p>
               </div>
             </div>
           ) : data.length === 0 ? (
             <div className='h-96 flex items-center justify-center'>
               <div className='text-center'>
                 <Package className='h-16 w-16 text-gray-300 mx-auto mb-4' />
-                <p className='text-gray-500'>
-                  No data found for the selected period
-                </p>
+                <p className='text-gray-500'>No data found for the selected period</p>
                 <p className='text-sm text-gray-400 mt-2'>
                   Try adjusting your date range or data source filters
                 </p>
@@ -570,9 +717,7 @@ function Page() {
         {data.length > 0 && (
           <div className='mt-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden'>
             <div className='px-6 py-4 border-b border-gray-200'>
-              <h3 className='text-lg font-semibold text-gray-900'>
-                Detailed Rankings
-              </h3>
+              <h3 className='text-lg font-semibold text-gray-900'>Detailed Rankings</h3>
             </div>
             <div className='overflow-x-auto'>
               <table className='min-w-full divide-y divide-gray-200'>
@@ -591,34 +736,31 @@ function Page() {
                       Units Sold
                     </th>
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Stock
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Sources
                     </th>
                   </tr>
                 </thead>
                 <tbody className='bg-white divide-y divide-gray-200'>
                   {data.map((item, index) => (
-                    <tr
-                      key={`${item.sku_code}-${index}`}
-                      className='hover:bg-gray-50'
-                    >
+                    <tr key={`${item.sku_code}-${index}`} className='hover:bg-gray-50'>
                       <td className='px-6 py-4 whitespace-nowrap'>
-                        <div className='flex items-center'>
-                          <span
-                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${
-                              index === 0
-                                ? 'bg-green-500' // Gold
-                                : index === 1
-                                ? 'bg-blue-500' // Silver
-                                : index === 2
-                                ? 'bg-red-500' // Bronze-like
-                                : 'bg-gray-400' // Neutral
-                            }`}
-                          >
-                            {index + 1}
-                          </span>
-                        </div>
+                        <span
+                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${
+                            index === 0
+                              ? 'bg-green-500'
+                              : index === 1
+                              ? 'bg-blue-500'
+                              : index === 2
+                              ? 'bg-red-500'
+                              : 'bg-gray-400'
+                          }`}
+                        >
+                          {index + 1}
+                        </span>
                       </td>
-
                       <td className='px-6 py-4'>
                         <div className='text-sm font-medium text-gray-900 max-w-xs'>
                           {item.item_name}
@@ -630,10 +772,13 @@ function Page() {
                         </span>
                       </td>
                       <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold'>
-                        {item.metrics.total_sales_in_period.toLocaleString()}
+                        {safeNumber(item.metrics?.total_sales_in_period).toLocaleString()}
                       </td>
                       <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
-                        {item.sources ? item.sources.join(', ') : item.city}
+                        {safeNumber(item.metrics?.closing_stock).toLocaleString()}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                        {item.sources && item.sources.length > 0 ? item.sources.join(', ') : item.city}
                       </td>
                     </tr>
                   ))}
