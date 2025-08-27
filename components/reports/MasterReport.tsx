@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/context/AuthContext';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Package, TrendingUp, ShoppingCart, Warehouse, Globe, BarChart3 } from 'lucide-react';
+import { Package, TrendingUp, TrendingDown, ShoppingCart, Warehouse, Globe, BarChart3 } from 'lucide-react';
 
 interface MasterReportItem {
     sku_code: string;
@@ -11,6 +11,7 @@ interface MasterReportItem {
     sources: string[];
     combined_metrics: {
         total_units_sold: number;
+        total_units_returned: number;
         total_amount: number;
         total_closing_stock: number;
         total_sessions: number;
@@ -19,9 +20,9 @@ interface MasterReportItem {
         total_days_in_stock: number;
     };
     source_breakdown: {
-        blinkit: { units_sold: number; closing_stock: number; amount: number };
-        amazon: { units_sold: number; closing_stock: number; amount: number };
-        zoho: { units_sold: number; closing_stock: number; amount: number };
+        blinkit: { units_sold: number; units_returned: number; closing_stock: number; amount: number };
+        amazon: { units_sold: number; units_returned: number; closing_stock: number; amount: number };
+        zoho: { units_sold: number; units_returned: number; closing_stock: number; amount: number };
     };
 }
 
@@ -330,8 +331,8 @@ function MasterReportsPage() {
                                 <div
                                     key={report.source}
                                     className={`inline-flex items-center gap-2 px-3 py-2 rounded-full border ${report.success
-                                            ? 'bg-green-50 text-green-800 border-green-200'
-                                            : 'bg-red-50 text-red-800 border-red-200'
+                                        ? 'bg-green-50 text-green-800 border-green-200'
+                                        : 'bg-red-50 text-red-800 border-red-200'
                                         }`}
                                 >
                                     {getSourceIcon(report.source)}
@@ -537,7 +538,7 @@ function MasterReportsPage() {
 
                 {/* Summary Cards */}
                 {summary && (
-                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6'>
+                    <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6'>
                         <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
                             <div className='flex items-center'>
                                 <div className='flex-shrink-0'>
@@ -565,6 +566,22 @@ function MasterReportsPage() {
                                     <dl>
                                         <dt className='text-sm font-medium text-gray-500 truncate'>Total Units Sold</dt>
                                         <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_units_sold)}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+                            <div className='flex items-center'>
+                                <div className='flex-shrink-0'>
+                                    <div className='w-8 h-8 bg-red-100 rounded-md flex items-center justify-center'>
+                                        <TrendingDown className='w-5 h-5 text-red-600' />
+                                    </div>
+                                </div>
+                                <div className='ml-5 w-0 flex-1'>
+                                    <dl>
+                                        <dt className='text-sm font-medium text-gray-500 truncate'>Total Units Returned</dt>
+                                        <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_units_returned)}</dd>
                                     </dl>
                                 </div>
                             </div>
@@ -749,6 +766,15 @@ function MasterReportsPage() {
                                         </th>
                                         <th
                                             className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('combined_metrics.total_units_returned')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Total Units Returned</span>
+                                                {getSortIcon('combined_metrics.total_units_returned')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
                                             onClick={() => handleSort('combined_metrics.total_amount')}
                                         >
                                             <div className='flex items-center space-x-1'>
@@ -761,7 +787,7 @@ function MasterReportsPage() {
                                             onClick={() => handleSort('combined_metrics.total_closing_stock')}
                                         >
                                             <div className='flex items-center space-x-1'>
-                                                <span>Total Stock</span>
+                                                <span>Total Closing Stock</span>
                                                 {getSortIcon('combined_metrics.total_closing_stock')}
                                             </div>
                                         </th>
@@ -775,7 +801,10 @@ function MasterReportsPage() {
                                             </div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Breakdown
+                                            Sales Breakdown
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            Returns Breakdown
                                         </th>
                                     </tr>
                                 </thead>
@@ -812,6 +841,11 @@ function MasterReportsPage() {
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900'>
+                                                    {formatNumber(item.combined_metrics.total_units_returned)}
+                                                </div>
+                                            </td>
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>
                                                     {formatCurrency(item.combined_metrics.total_amount)}
                                                 </div>
                                             </td>
@@ -820,11 +854,11 @@ function MasterReportsPage() {
                                                     <div className='text-sm font-medium text-gray-900'>
                                                         {formatNumber(item.combined_metrics.total_closing_stock)}
                                                     </div>
-                                                    {item.combined_metrics.total_closing_stock === 0 && (
+                                                    {/* {item.combined_metrics.total_closing_stock === 0 && (
                                                         <span className='ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800'>
                                                             Out of Stock
                                                         </span>
-                                                    )}
+                                                    )} */}
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
@@ -836,20 +870,42 @@ function MasterReportsPage() {
                                                 <div className='text-xs space-y-1'>
                                                     {item.sources.includes('blinkit') && (
                                                         <div className='flex justify-between'>
-                                                            <span className='text-orange-600'>Blinkit:</span>
+                                                            <span className='text-orange-600'>Blinkit Sales:</span>
                                                             <span className='text-black'>{formatNumber(item.source_breakdown.blinkit.units_sold)} units</span>
                                                         </div>
                                                     )}
                                                     {item.sources.includes('amazon') && (
                                                         <div className='flex justify-between'>
-                                                            <span className='text-yellow-600'>Amazon:</span>
+                                                            <span className='text-yellow-600'>Amazon Sales:</span>
                                                             <span className='text-black'>{formatNumber(item.source_breakdown.amazon.units_sold)} units</span>
                                                         </div>
                                                     )}
                                                     {item.sources.includes('zoho') && (
                                                         <div className='flex justify-between'>
-                                                            <span className='text-blue-600'>Zoho:</span>
+                                                            <span className='text-blue-600'>Zoho Sales:</span>
                                                             <span className='text-black'>{formatNumber(item.source_breakdown.zoho.units_sold)} units</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className='px-6 py-4'>
+                                                <div className='text-xs space-y-1'>
+                                                    {item.sources.includes('blinkit') && (
+                                                        <div className='flex justify-between'>
+                                                            <span className='text-orange-600'>Blinkit Returns:</span>
+                                                            <span className='text-black'>{formatNumber(item.source_breakdown.blinkit.units_returned)} units</span>
+                                                        </div>
+                                                    )}
+                                                    {item.sources.includes('amazon') && (
+                                                        <div className='flex justify-between'>
+                                                            <span className='text-yellow-600'>Amazon Returns:</span>
+                                                            <span className='text-black'>{formatNumber(item.source_breakdown.amazon.units_returned)} units</span>
+                                                        </div>
+                                                    )}
+                                                    {item.sources.includes('zoho') && (
+                                                        <div className='flex justify-between'>
+                                                            <span className='text-blue-600'>Zoho Returns:</span>
+                                                            <span className='text-black'>{formatNumber(item.source_breakdown.zoho.units_returned)} units</span>
                                                         </div>
                                                     )}
                                                 </div>

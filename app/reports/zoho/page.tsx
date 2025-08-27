@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/context/AuthContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Package, TrendingUp } from 'lucide-react';
+import { Package, TrendingUp, TrendingDown } from 'lucide-react';
 
 function Page() {
   const { email, isLoading, accessToken, user } = useAuth();
@@ -404,7 +404,7 @@ function Page() {
 
         {/* Summary Cards */}
         {summary && (
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6'>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6'>
             <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
               <div className='flex items-center'>
                 <div className='flex-shrink-0'>
@@ -434,8 +434,26 @@ function Page() {
                 </div>
                 <div className='ml-5 w-0 flex-1'>
                   <dl>
-                    <dt className='text-sm font-medium text-gray-500 truncate'>Units Sold</dt>
+                    <dt className='text-sm font-medium text-gray-500 truncate'>Total Units Sold</dt>
                     <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_units_sold)}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          
+            <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+              <div className='flex items-center'>
+                <div className='flex-shrink-0'>
+                  <div className='w-8 h-8 bg-green-100 rounded-md flex items-center justify-center'>
+                    <svg className='w-5 h-5 text-green-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                      <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' />
+                    </svg>
+                  </div>
+                </div>
+                <div className='ml-5 w-0 flex-1'>
+                  <dl>
+                    <dt className='text-sm font-medium text-gray-500'>Total Returns</dt>
+                    <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_units_returned)}</dd>
                   </dl>
                 </div>
               </div>
@@ -617,6 +635,15 @@ function Page() {
                     </th>
                     <th
                       className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                      onClick={() => handleSort('units_returned')}
+                    >
+                      <div className='flex items-center space-x-1'>
+                        <span>Units Returned</span>
+                        {getSortIcon('units_returned')}
+                      </div>
+                    </th>
+                    <th
+                      className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
                       onClick={() => handleSort('total_amount')}
                     >
                       <div className='flex items-center space-x-1'>
@@ -672,6 +699,11 @@ function Page() {
                       <td className='px-6 py-4 whitespace-nowrap'>
                         <div className='text-sm font-medium text-gray-900'>
                           {formatNumber(item.units_sold)}
+                        </div>
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        <div className='text-sm font-medium text-gray-900'>
+                          {formatNumber(item.units_returned)}
                         </div>
                       </td>
                       <td className='px-6 py-4 whitespace-nowrap'>
