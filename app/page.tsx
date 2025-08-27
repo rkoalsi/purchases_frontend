@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/components/context/AuthContext';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BarChart,
   Bar,
@@ -16,6 +16,7 @@ import { TrendingUp, Package, Award, BarChart3, Calendar } from 'lucide-react';
 import DatePicker from '../components/common/DatePicker'; // Adjust the import path as needed
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useRouter } from 'next/navigation';
+
 // Types for the API response
 interface ProductMetrics {
   avg_daily_on_stock_days: number;
@@ -35,6 +36,7 @@ interface TopProduct {
   metrics: ProductMetrics;
   year: number;
   month: number;
+  sources?: string[]; // Added for multi-source support
 }
 
 interface TopProductsResponse {
@@ -65,96 +67,145 @@ function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalUnits, setTotalUnits] = useState(0);
-  const [bestPerformer, setBestPerformer]: any = useState<TopProduct | null>(
-    null
-  );
+  const [bestPerformer, setBestPerformer] = useState<TopProduct | null>(null);
   const [preset, setPreset] = useState('thisMonth');
+  
   // Date filtering state
   const [startDate, setStartDate] = useState<Date>(
     startOfMonth(subMonths(new Date(), 0))
   ); // Current month start
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date())); // Current month end
+  
+  // Source filtering state
+  const [includeBlinkit, setIncludeBlinkit] = useState(true);
+  const [includeAmazon, setIncludeAmazon] = useState(true);
+  const [includeZoho, setIncludeZoho] = useState(true);
+  
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [availableWarehouses, setAvailableWarehouses] = useState<string[]>([]);
 
-  // API Base URL - adjust according to your setup
+  // Use ref to track the current request and prevent race conditions
+  const currentRequestRef = useRef<number>(0);
+
+  // API Base URL - moved outside component to prevent recreation
   const API_BASE_URL = `${process.env.api_url}/dashboard`;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!accessToken) return;
+  // Debounced fetch function to prevent too many API calls
+  const fetchData = useCallback(async () => {
+    if (!accessToken) return;
 
-      setLoading(true);
-      setError(null);
+    // Increment request counter to handle race conditions
+    const requestId = ++currentRequestRef.current;
 
-      try {
-        // Build query parameters
-        const params = new URLSearchParams({
-          limit: '10',
-          start_date: format(startDate, 'yyyy-MM-dd'),
-          end_date: format(endDate, 'yyyy-MM-dd'),
-        });
+    setLoading(true);
+    setError(null);
+    
+    // Clear existing data immediately when starting new fetch
+    setData([]);
+    setTotalUnits(0);
+    setBestPerformer(null);
+    setAvailableCities([]);
 
-        if (selectedCity) {
-          params.append('city', selectedCity);
-        }
-        if (selectedWarehouse) {
-          params.append('warehouse', selectedWarehouse);
-        }
+    try {
+      // Build query parameters
+      const params = new URLSearchParams({
+        limit: '10',
+        start_date: format(startDate, 'yyyy-MM-dd'),
+        end_date: format(endDate, 'yyyy-MM-dd'),
+        include_blinkit: includeBlinkit.toString(),
+        include_amazon: includeAmazon.toString(),
+        include_zoho: includeZoho.toString(),
+      });
 
-        const response = await fetch(`${API_BASE_URL}/top-products?${params}`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
+      if (selectedCity) {
+        params.append('city', selectedCity);
+      }
+      if (selectedWarehouse) {
+        params.append('warehouse', selectedWarehouse);
+      }
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch data: ${response.statusText}`);
-        }
+      const response = await fetch(`${API_BASE_URL}/top-products?${params}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-        const result: TopProductsResponse = await response.json();
+      if (!response.ok) {
+        throw new Error(`Failed to fetch data: ${response.statusText}`);
+      }
 
-        setData(result.products);
+      const result: TopProductsResponse = await response.json();
+
+      // Only update state if this is still the most recent request
+      if (requestId === currentRequestRef.current) {
+        setData(result.products || []);
 
         // Extract unique cities and warehouses for filters
-        const cities = [...new Set(result.products.map((p) => p.city))];
-
+        const cities = [...new Set(result.products?.map((p) => p.city).filter(Boolean) || [])];
         setAvailableCities(cities);
 
         // Calculate totals
-        const total = result.products.reduce(
-          (sum, item) => sum + item.metrics.total_sales_in_period,
+        const total = result.products?.reduce(
+          (sum, item) => sum + (item.metrics?.total_sales_in_period || 0),
           0
-        );
+        ) || 0;
         setTotalUnits(total);
 
         // Set best performer
-        if (result.products.length > 0) {
+        if (result.products && result.products.length > 0) {
           setBestPerformer(result.products[0]);
         }
-      } catch (err) {
-        console.error('Error fetching top products:', err);
+      }
+    } catch (err) {
+      console.error('Error fetching top products:', err);
+      // Only update error if this is still the most recent request
+      if (requestId === currentRequestRef.current) {
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      } finally {
+        setData([]); // Ensure data is cleared on error
+        setTotalUnits(0);
+        setBestPerformer(null);
+      }
+    } finally {
+      // Only update loading if this is still the most recent request
+      if (requestId === currentRequestRef.current) {
         setLoading(false);
       }
-    };
-
-    fetchData();
+    }
   }, [
     accessToken,
     startDate,
     endDate,
+    includeBlinkit,
+    includeAmazon,
+    includeZoho,
     selectedCity,
     selectedWarehouse,
     API_BASE_URL,
   ]);
 
+  // Use effect with proper cleanup
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    // Debounce the API call to prevent too many requests
+    if (accessToken) {
+      timeoutId = setTimeout(() => {
+        fetchData();
+      }, 300); // 300ms debounce
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [fetchData, accessToken]);
+
   // Handle preset date ranges
-  const handlePresetRange = (range: string) => {
+  const handlePresetRange = useCallback((range: string) => {
     const now = new Date();
     switch (range) {
       case 'thisMonth':
@@ -176,18 +227,19 @@ function Page() {
       default:
         break;
     }
-  };
+  }, []);
 
   // Transform data for the chart
   const chartData = data.map((product) => ({
     item:
-      product.item_name.length > 15
+      product.item_name && product.item_name.length > 15
         ? product.item_name.substring(0, 15) + '...'
-        : product.item_name,
-    fullName: product.item_name,
-    unitsSold: product.metrics.total_sales_in_period,
-    category: product.city,
-    sku: product.sku_code,
+        : product.item_name || 'Unknown Item',
+    fullName: product.item_name || 'Unknown Item',
+    unitsSold: product.metrics?.total_sales_in_period || 0,
+    category: product.city || 'Unknown',
+    sku: product.sku_code || 'Unknown',
+    sources: product.sources || [],
   }));
 
   // Custom tooltip component
@@ -204,6 +256,11 @@ function Page() {
             </span>
           </p>
           <p className='text-gray-600 text-sm'>SKU: {data.sku}</p>
+          {data.sources && data.sources.length > 0 && (
+            <p className='text-gray-500 text-xs mt-1'>
+              Sources: {data.sources.join(', ')}
+            </p>
+          )}
         </div>
       );
     }
@@ -250,7 +307,10 @@ function Page() {
           <p className='text-xl text-gray-700 mb-2'>Error loading data</p>
           <p className='text-gray-500'>{error}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              setError(null);
+              fetchData();
+            }}
             className='mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
           >
             Retry
@@ -269,8 +329,7 @@ function Page() {
             Welcome back, {user?.name}!
           </h1>
           <p className='text-gray-600'>
-            Here's an overview of your top performing items for the selected
-            period
+            Here's an overview of your top performing items across all platforms for the selected period
           </p>
         </div>
 
@@ -300,6 +359,42 @@ function Page() {
             />
           </div>
 
+          {/* Data Source Toggles */}
+          <div className='mb-4'>
+            <label className='block text-sm font-medium text-gray-700 mb-2'>
+              Data Sources
+            </label>
+            <div className='flex flex-wrap gap-4'>
+              <label className='flex items-center'>
+                <input
+                  type='checkbox'
+                  checked={includeBlinkit}
+                  onChange={(e) => setIncludeBlinkit(e.target.checked)}
+                  className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                />
+                <span className='ml-2 text-sm text-gray-700'>Blinkit</span>
+              </label>
+              <label className='flex items-center'>
+                <input
+                  type='checkbox'
+                  checked={includeAmazon}
+                  onChange={(e) => setIncludeAmazon(e.target.checked)}
+                  className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                />
+                <span className='ml-2 text-sm text-gray-700'>Amazon</span>
+              </label>
+              <label className='flex items-center'>
+                <input
+                  type='checkbox'
+                  checked={includeZoho}
+                  onChange={(e) => setIncludeZoho(e.target.checked)}
+                  className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                />
+                <span className='ml-2 text-sm text-gray-700'>Zoho</span>
+              </label>
+            </div>
+          </div>
+
           {/* Quick Date Range Buttons */}
           <div className='flex flex-wrap gap-2'>
             <button
@@ -313,7 +408,7 @@ function Page() {
               This Month
             </button>
             <button
-              onClick={() => handlePresetRange(`lastMonth`)}
+              onClick={() => handlePresetRange('lastMonth')}
               className={`px-3 py-1.5 text-sm ${
                 preset === 'lastMonth'
                   ? 'bg-blue-100 text-blue-700'
@@ -323,7 +418,7 @@ function Page() {
               Last Month
             </button>
             <button
-              onClick={() => handlePresetRange(`last3Months`)}
+              onClick={() => handlePresetRange('last3Months')}
               className={`px-3 py-1.5 text-sm ${
                 preset === 'last3Months'
                   ? 'bg-blue-100 text-blue-700'
@@ -367,10 +462,10 @@ function Page() {
                   Best Performer
                 </p>
                 <p className='text-lg font-bold text-gray-900'>
-                  {bestPerformer?.item_name}
+                  {bestPerformer?.item_name || 'No data'}
                 </p>
                 <p className='text-xs text-gray-500 mt-1'>
-                  {bestPerformer?.metrics.total_sales_in_period.toLocaleString()}{' '}
+                  {bestPerformer?.metrics.total_sales_in_period.toLocaleString() || '0'}{' '}
                   units
                 </p>
               </div>
@@ -427,7 +522,7 @@ function Page() {
                   No data found for the selected period
                 </p>
                 <p className='text-sm text-gray-400 mt-2'>
-                  Try adjusting your date range or filters
+                  Try adjusting your date range or data source filters
                 </p>
               </div>
             </div>
@@ -495,12 +590,15 @@ function Page() {
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Units Sold
                     </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Sources
+                    </th>
                   </tr>
                 </thead>
                 <tbody className='bg-white divide-y divide-gray-200'>
                   {data.map((item, index) => (
                     <tr
-                      key={`${item.item_id} ${item.city}`}
+                      key={`${item.sku_code}-${index}`}
                       className='hover:bg-gray-50'
                     >
                       <td className='px-6 py-4 whitespace-nowrap'>
@@ -533,6 +631,9 @@ function Page() {
                       </td>
                       <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold'>
                         {item.metrics.total_sales_in_period.toLocaleString()}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                        {item.sources ? item.sources.join(', ') : item.city}
                       </td>
                     </tr>
                   ))}
