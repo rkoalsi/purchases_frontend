@@ -394,7 +394,7 @@ function MasterReportsPage() {
                                     loading={loading}
                                     downloadDisabledCondition={downloadLoading || loading || masterReport.length === 0}
                                     downloadLoading={downloadLoading}
-                                    downloadReport={handleGenerateReport}
+                                    downloadReport={downloadMasterReport}
                                 />
                             </div>
 
