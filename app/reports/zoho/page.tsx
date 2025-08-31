@@ -26,6 +26,17 @@ function Page() {
   const [endDate, setEndDate] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
+  const [shouldGenerateReport, setShouldGenerateReport] = useState(false);
+
+  // Add this useEffect to trigger report generation when dates change after preset click
+  useEffect(() => {
+    if (shouldGenerateReport && startDate && endDate) {
+      fetchSalesReport();
+      setShouldGenerateReport(false); // Reset the flag
+    }
+  }, [startDate, endDate, shouldGenerateReport]);
+
+  // Modify your handleGenerateReport to work with this pattern
 
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,18 +115,20 @@ function Page() {
     }
   };
 
-  const handleGenerateReport = async () => {
+
+  const handleGenerateReport = useCallback(async () => {
     if (!startDate || !endDate) {
       setError('Please select both start and end dates');
       return;
     }
+    setShouldGenerateReport(true);
 
     // Call sales report first
     await fetchSalesReport();
-    
+
     // Then update metadata with current date range (don't wait for it)
     fetchDataMetadata(true);
-  };
+  }, []);
 
   const downloadSalesReport = async () => {
     try {
@@ -404,7 +417,7 @@ function Page() {
                 </div>
               </div>
             </div>
-          
+
             <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
               <div className='flex items-center'>
                 <div className='flex-shrink-0'>
