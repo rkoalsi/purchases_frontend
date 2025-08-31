@@ -722,6 +722,15 @@ const processDownload = async (response: any) => {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                     <button
+                      onClick={() => handleSort("total_returns")}
+                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                    >
+                      Total Returns
+                      <SortIcon column="total_returns" />
+                    </button>
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    <button
                       onClick={() => handleSort("total_amount")}
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
@@ -814,6 +823,9 @@ const processDownload = async (response: any) => {
                         )}
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {item.units_sold}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                          {item.total_returns}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {item.total_amount}

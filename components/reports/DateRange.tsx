@@ -6,14 +6,14 @@ interface DateRangeProps {
     endDate: string;
     onStartDateChange: (date: string) => void;
     onEndDateChange: (date: string) => void;
-    onApplyPreset?: () => void; // Optional callback to trigger report generation
-    showGenerateButton?: boolean; // Whether to show generate button
-    onGenerate?: () => void; // Generate report callback
-    loading?: boolean; // Loading state for generate button
-    className?: string; // Additional CSS classes
-    downloadReport?: () => {}; // Additional CSS classes
-    downloadDisabledCondition?: boolean; // Additional CSS classes
-    downloadLoading?: boolean; // Additional CSS classes
+    onApplyPreset?: any; // Modified to accept dates
+    showGenerateButton?: boolean;
+    onGenerate?: () => void;
+    loading?: boolean;
+    className?: string;
+    downloadReport?: () => {};
+    downloadDisabledCondition?: boolean;
+    downloadLoading?: boolean;
 }
 
 interface DateRangePreset {
@@ -39,7 +39,6 @@ const DateRange: React.FC<DateRangeProps> = ({
     const getDatePresets = (): DateRangePreset[] => {
         const today = new Date();
 
-        // Helper function to format date as YYYY-MM-DD
         const formatDate = (date: Date): string => {
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -47,28 +46,11 @@ const DateRange: React.FC<DateRangeProps> = ({
             return `${year}-${month}-${day}`;
         };
 
-        // This Month (1st of current month to today)
         const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-
-        // Last Month (1st to last day of previous month)
         const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of previous month
-
-        // Last 3 Completed Months (1st of 3 months ago to last day of last month)
+        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
         const threeMonthsAgoStart = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-        const threeMonthsAgoEnd = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of previous month
-
-        // Last 7 Days
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 6); // -6 to include today as the 7th day
-
-        // Last 30 Days  
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(today.getDate() - 29); // -29 to include today as the 30th day
-
-        // Last 90 Days
-        const ninetyDaysAgo = new Date(today);
-        ninetyDaysAgo.setDate(today.getDate() - 89); // -89 to include today as the 90th day
+        const threeMonthsAgoEnd = new Date(today.getFullYear(), today.getMonth(), 0);
 
         return [
             {
@@ -88,26 +70,25 @@ const DateRange: React.FC<DateRangeProps> = ({
             },
         ];
     };
+const handlePresetClick = (preset: DateRangePreset) => {
+    // Update the state first
+    onStartDateChange(preset.startDate);
+    onEndDateChange(preset.endDate);
 
-    const handlePresetClick = (preset: DateRangePreset) => {
-        onStartDateChange(preset.startDate);
-        onEndDateChange(preset.endDate);
-
-        // If onApplyPreset callback is provided, call it after setting dates
-        if (onApplyPreset) {
-            // Use setTimeout to ensure the state updates are processed first
-            setTimeout(() => {
-                onApplyPreset();
-            }, 0);
-        }
-    };
+    // Then trigger the report generation flag
+    if (onApplyPreset) {
+        setTimeout(() => {
+            onApplyPreset(); // This calls handlePresetGenerateReport which sets shouldGenerateReport=true
+        }, 0);
+    }
+};
+   
 
     const presets = getDatePresets();
 
     return (
         <div className={className}>
             <div className="flex flex-col lg:flex-col gap-6">
-                {/* Date Range Inputs */}
                 <div className="flex flex-row sm:flex-row gap-4">
                     <div>
                         <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
@@ -135,7 +116,6 @@ const DateRange: React.FC<DateRangeProps> = ({
                     </div>
                 </div>
 
-                {/* Date Range Presets */}
                 <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Quick Presets
@@ -155,7 +135,6 @@ const DateRange: React.FC<DateRangeProps> = ({
                 </div>
             </div>
 
-            {/* Generate Button */}
             <div className="flex flex-row items-center gap-2 mt-4">
                 <button
                     onClick={onGenerate}
