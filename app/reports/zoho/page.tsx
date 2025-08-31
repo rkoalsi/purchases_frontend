@@ -45,10 +45,8 @@ function Page() {
 
   // Load initial metadata without date filter when component mounts
   useEffect(() => {
-    if (accessToken) {
-      fetchDataMetadata(false); // Load overall metadata without date filter
-    }
-  }, [accessToken]);
+      fetchDataMetadata(); // Load overall metadata without date filter
+  }, []);
 
   useEffect(() => {
     // Filter data based on search term
@@ -63,18 +61,15 @@ function Page() {
     }
   }, [salesReport, searchTerm]);
 
-  const fetchDataMetadata = async (useCurrentDateRange = false) => {
+  const fetchDataMetadata = async () => {
     try {
       setMetadataLoading(true);
 
-      const params: any = {};
-      if (useCurrentDateRange && startDate && endDate) {
-        params.start_date = startDate;
-        params.end_date = endDate;
-      }
-
       const response = await axios.get(`${process.env.api_url}/zoho/data-metadata`, {
-        params,
+         params: {
+          start_date: startDate,
+          end_date: endDate,
+        },
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -127,7 +122,7 @@ function Page() {
     await fetchSalesReport();
 
     // Then update metadata with current date range (don't wait for it)
-    fetchDataMetadata(true);
+    fetchDataMetadata();
   }, []);
 
   const downloadSalesReport = async () => {
