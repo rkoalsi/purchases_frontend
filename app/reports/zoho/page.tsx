@@ -26,17 +26,6 @@ function Page() {
   const [endDate, setEndDate] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
-  const [shouldGenerateReport, setShouldGenerateReport] = useState(false);
-
-  // Add this useEffect to trigger report generation when dates change after preset click
-  useEffect(() => {
-    if (shouldGenerateReport && startDate && endDate) {
-      fetchSalesReport();
-      setShouldGenerateReport(false); // Reset the flag
-    }
-  }, [startDate, endDate, shouldGenerateReport]);
-
-  // Modify your handleGenerateReport to work with this pattern
 
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,14 +50,14 @@ function Page() {
     }
   }, [salesReport, searchTerm]);
 
-  const fetchDataMetadata = async () => {
+  const fetchDataMetadata = async (customStartDate?: string, customEndDate?: string) => {
     try {
       setMetadataLoading(true);
 
       const response = await axios.get(`${process.env.api_url}/zoho/data-metadata`, {
          params: {
-          start_date: startDate,
-          end_date: endDate,
+          start_date: customStartDate || startDate,
+          end_date: customEndDate || endDate,
         },
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -84,15 +73,15 @@ function Page() {
     }
   };
 
-  const fetchSalesReport = async () => {
+  const fetchSalesReport = async (customStartDate?: string, customEndDate?: string) => {
     try {
       setLoading(true);
       setError(null);
 
       const response = await axios.get(`${process.env.api_url}/zoho/sales-report`, {
         params: {
-          start_date: startDate,
-          end_date: endDate,
+          start_date: customStartDate || startDate,
+          end_date: customEndDate || endDate,
         },
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -110,20 +99,32 @@ function Page() {
     }
   };
 
-
   const handleGenerateReport = useCallback(async () => {
     if (!startDate || !endDate) {
       setError('Please select both start and end dates');
       return;
     }
-    setShouldGenerateReport(true);
 
     // Call sales report first
     await fetchSalesReport();
 
     // Then update metadata with current date range (don't wait for it)
     fetchDataMetadata();
-  }, []);
+  }, [startDate, endDate]);
+
+  // New handler for preset clicks that uses the passed dates directly
+  const handlePresetApply = async (newStartDate: string, newEndDate: string) => {
+    if (!newStartDate || !newEndDate) {
+      setError('Please select both start and end dates');
+      return;
+    }
+
+    // Call sales report with the new dates directly
+    await fetchSalesReport(newStartDate, newEndDate);
+
+    // Then update metadata with new date range (don't wait for it)
+    fetchDataMetadata(newStartDate, newEndDate);
+  };
 
   const downloadSalesReport = async () => {
     try {
@@ -334,7 +335,7 @@ function Page() {
                   endDate={endDate}
                   onStartDateChange={setStartDate}
                   onEndDateChange={setEndDate}
-                  onApplyPreset={handleGenerateReport}
+                  onApplyPreset={handlePresetApply}
                   onGenerate={handleGenerateReport}
                   loading={loading}
                   downloadReport={downloadSalesReport}

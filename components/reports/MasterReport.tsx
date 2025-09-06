@@ -280,7 +280,40 @@ function MasterReportsPage() {
                 return 'bg-gray-100 text-gray-800 border-gray-200';
         }
     };
+    const handlePresetApply = async (newStartDate: string, newEndDate: string) => {
+        try {
+            setLoading(true);
+            setError(null);
+            setReportErrors([]);
 
+            const response = await axios.get(`${process.env.api_url}/master/master-report`, {
+                params: {
+                    start_date: newStartDate,  // Use the passed dates directly
+                    end_date: newEndDate,      // Use the passed dates directly
+                    include_blinkit: includeBlinkit,
+                    include_amazon: includeAmazon,
+                    include_zoho: includeZoho,
+                    amazon_report_type: amazonReportType,
+                },
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            });
+
+            const data: MasterReportResponse = response.data;
+
+            setMasterReport(data.combined_data || []);
+            setSummary(data.summary || {});
+            setMeta(data.meta || {});
+            setIndividualReports(data.individual_reports || {});
+            setReportErrors(data.errors || []);
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Failed to fetch master report data');
+            console.error('Error fetching master report:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
     if (isLoading) {
         return (
             <div className='flex items-center justify-center min-h-screen'>
@@ -388,7 +421,7 @@ function MasterReportsPage() {
                                     endDate={endDate}
                                     onStartDateChange={setStartDate}
                                     onEndDateChange={setEndDate}
-                                    onApplyPreset={handleGenerateReport}
+                                    onApplyPreset={handlePresetApply}
                                     showGenerateButton={true}
                                     onGenerate={handleGenerateReport}
                                     loading={loading}

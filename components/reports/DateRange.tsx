@@ -6,7 +6,7 @@ interface DateRangeProps {
     endDate: string;
     onStartDateChange: (date: string) => void;
     onEndDateChange: (date: string) => void;
-    onApplyPreset?: any; // Modified to accept dates
+    onApplyPreset?: (startDate: string, endDate: string) => void; // Modified to accept dates
     showGenerateButton?: boolean;
     onGenerate?: () => void;
     loading?: boolean;
@@ -70,20 +70,18 @@ const DateRange: React.FC<DateRangeProps> = ({
             },
         ];
     };
-const handlePresetClick = (preset: DateRangePreset) => {
-    // Update the state first
-    onStartDateChange(preset.startDate);
-    onEndDateChange(preset.endDate);
 
-    // Then trigger the report generation flag
-    if (onApplyPreset) {
-        setTimeout(() => {
-            onApplyPreset(); // This calls handlePresetGenerateReport which sets shouldGenerateReport=true
-        }, 0);
-    }
-};
+    const handlePresetClick = (preset: DateRangePreset) => {
+        // Update the state first
+        onStartDateChange(preset.startDate);
+        onEndDateChange(preset.endDate);
+
+        // Pass the new dates directly to the preset handler
+        if (onApplyPreset) {
+            onApplyPreset(preset.startDate, preset.endDate);
+        }
+    };
    
-
     const presets = getDatePresets();
 
     return (
