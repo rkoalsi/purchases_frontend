@@ -19,6 +19,7 @@ import {
   User,
   WorkflowIcon,
   SquareKanban,
+  ZapIcon,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -53,6 +54,7 @@ const PERMISSION_REQUIREMENTS = {
   // Report-specific permissions
   AMAZON_REPORTS: { name: 'reports' },
   BLINKIT_REPORTS: { name: 'reports' },
+  BLINKIT_ADS_REPORTS: { name: 'reports' },
   ZOHO_REPORTS: { name: 'reports' },
   MASTER_REPORTS: { name: 'reports' },
   SALES_REPORTS: { name: 'reports' },
@@ -110,6 +112,12 @@ const navigation = [
         href: '/reports/blinkit',
         icon: Zap,
         requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_REPORTS,
+      },
+      {
+        name: 'Blinkit Ads',
+        href: '/reports/blinkit_ads',
+        icon: ZapIcon,
+        requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_ADS_REPORTS,
       },
       {
         name: 'Zoho',
