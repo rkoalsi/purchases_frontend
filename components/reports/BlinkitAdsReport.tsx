@@ -158,7 +158,7 @@ const BlinkitAdsReport: React.FC = () => {
     if (!campaignsData?.length) return [];
 
     // Filter campaigns
-    let filtered = campaignsData.filter((campaign) => {
+    const filtered = campaignsData.filter((campaign) => {
       if (!campaign) return false;
 
       const searchMatch = !searchTerm || 
