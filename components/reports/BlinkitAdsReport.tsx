@@ -6,21 +6,24 @@ import dateUtils from '../common/DateUtils';
 import DatePicker from '../common/DatePicker';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { TrendingUp, Users, DollarSign, Eye, Package, Search, Filter, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrendingUp, Users, DollarSign, Eye, Package, Search, Filter, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react';
 import AdsUploadModal from '../common/AdsUploadModal';
 
-// Type definitions
+// Type definitions - UPDATED
 interface CampaignMetrics {
   total_impressions: number;
   total_direct_atc: number;
   total_indirect_atc: number;
+  total_atc: number; // NEW
   total_direct_quantities_sold: number;
   total_indirect_quantities_sold: number;
+  total_units: number; // NEW
   total_direct_sales: number;
   total_indirect_sales: number;
+  total_sales: number; // NEW
   total_new_users_acquired: number;
   total_budget_consumed: number;
-  avg_cpm: number;
+  calculated_cpm: number; // UPDATED from avg_cpm
   avg_direct_roas: number;
   avg_total_roas: number;
   record_count: number;
@@ -54,6 +57,9 @@ interface SummaryData {
   total_indirect_sales: number;
   total_sales: number;
   total_budget_consumed: number;
+  total_units: number; // NEW
+  total_atc: number; // NEW
+  calculated_cpm: number; // NEW
   sheet_types: string[];
 }
 
@@ -134,6 +140,14 @@ const BlinkitAdsReport: React.FC = () => {
 
   const calculateTotalSales = (directSales: number = 0, indirectSales: number = 0): number => {
     return (directSales || 0) + (indirectSales || 0);
+  };
+
+  const calculateTotalUnits = (directUnits: number = 0, indirectUnits: number = 0): number => {
+    return (directUnits || 0) + (indirectUnits || 0);
+  };
+
+  const calculateTotalAtc = (directAtc: number = 0, indirectAtc: number = 0): number => {
+    return (directAtc || 0) + (indirectAtc || 0);
   };
 
   // Date handlers
@@ -414,7 +428,7 @@ const BlinkitAdsReport: React.FC = () => {
             </p>
           </div>
 
-          {/* Summary Cards */}
+          {/* Summary Cards - UPDATED */}
           {summaryData && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
@@ -450,10 +464,10 @@ const BlinkitAdsReport: React.FC = () => {
               <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-orange-100 text-sm font-medium">Budget Consumed</p>
-                    <p className="text-3xl font-bold mt-1">{formatCurrency(summaryData.total_budget_consumed)}</p>
+                    <p className="text-orange-100 text-sm font-medium">Total Ad Units</p>
+                    <p className="text-3xl font-bold mt-1">{formatNumber(summaryData.total_units)}</p>
                   </div>
-                  <TrendingUp className="h-12 w-12 text-orange-200" />
+                  <ShoppingCart className="h-12 w-12 text-orange-200" />
                 </div>
               </div>
             </div>
@@ -648,7 +662,7 @@ const BlinkitAdsReport: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Campaign Metrics */}
+                  {/* Campaign Metrics - UPDATED */}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
                     <div className="bg-blue-50 rounded-lg p-4">
                       <p className="text-blue-600 text-sm font-medium">Impressions</p>
@@ -660,10 +674,7 @@ const BlinkitAdsReport: React.FC = () => {
                     <div className="bg-green-50 rounded-lg p-4">
                       <p className="text-green-600 text-sm font-medium">Total Sales</p>
                       <p className="text-2xl font-bold text-green-900 mt-1">
-                        {formatCurrency(calculateTotalSales(
-                          campaign.campaign_totals?.total_direct_sales,
-                          campaign.campaign_totals?.total_indirect_sales
-                        ))}
+                        {formatCurrency(campaign.campaign_totals?.total_sales)}
                       </p>
                     </div>
                     
@@ -675,16 +686,16 @@ const BlinkitAdsReport: React.FC = () => {
                     </div>
                     
                     <div className="bg-orange-50 rounded-lg p-4">
-                      <p className="text-orange-600 text-sm font-medium">Avg CPM</p>
+                      <p className="text-orange-600 text-sm font-medium">CPM</p>
                       <p className="text-2xl font-bold text-orange-900 mt-1">
-                        {formatCurrency(campaign.campaign_totals?.avg_cpm)}
+                        {formatCurrency(campaign.campaign_totals?.calculated_cpm)}
                       </p>
                     </div>
                     
                     <div className="bg-indigo-50 rounded-lg p-4">
-                      <p className="text-indigo-600 text-sm font-medium">Direct ROAS</p>
+                      <p className="text-indigo-600 text-sm font-medium">Total Units</p>
                       <p className="text-2xl font-bold text-indigo-900 mt-1">
-                        {(campaign.campaign_totals?.avg_direct_roas || 0).toFixed(2)}x
+                        {formatNumber(campaign.campaign_totals?.total_units)}
                       </p>
                     </div>
                     
@@ -723,10 +734,13 @@ const BlinkitAdsReport: React.FC = () => {
                                 Impressions
                               </th>
                               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Direct Sales
+                                Total Sales
                               </th>
                               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Indirect Sales
+                                Total Units
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Total ATC
                               </th>
                               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Budget Used
@@ -767,16 +781,19 @@ const BlinkitAdsReport: React.FC = () => {
                                   {formatNumber(targetingGroup?.metrics?.total_impressions)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                  {formatCurrency(targetingGroup?.metrics?.total_direct_sales)}
+                                  {formatCurrency(targetingGroup?.metrics?.total_sales)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                  {formatCurrency(targetingGroup?.metrics?.total_indirect_sales)}
+                                  {formatNumber(targetingGroup?.metrics?.total_units)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                  {formatNumber(targetingGroup?.metrics?.total_atc)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                                   {formatCurrency(targetingGroup?.metrics?.total_budget_consumed)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                  {formatCurrency(targetingGroup?.metrics?.avg_cpm)}
+                                  {formatCurrency(targetingGroup?.metrics?.calculated_cpm)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                                   <div className="text-right">
