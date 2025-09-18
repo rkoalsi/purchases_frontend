@@ -431,15 +431,16 @@ const BlinkitAdsReport: React.FC = () => {
           {/* Summary Cards - UPDATED */}
           {summaryData && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+              <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-blue-100 text-sm font-medium">Total Campaigns</p>
-                    <p className="text-3xl font-bold mt-1">{summaryData.total_campaigns}</p>
+                    <p className="text-red-100 text-sm font-medium">Total Budget Consumed</p>
+                    <p className="text-3xl font-bold mt-1">{formatCurrency(summaryData.total_budget_consumed)}</p>
                   </div>
-                  <Package className="h-12 w-12 text-blue-200" />
+                  <DollarSign className="h-12 w-12 text-red-200" />
                 </div>
               </div>
+
 
               <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
                 <div className="flex items-center justify-between">
