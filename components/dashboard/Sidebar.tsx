@@ -53,6 +53,7 @@ const PERMISSION_REQUIREMENTS = {
   ZOHO_ITEMS: { name: 'items' },
   // Report-specific permissions
   AMAZON_REPORTS: { name: 'reports' },
+  AMAZON_SETTLEMENTS: { name: 'reports' },
   BLINKIT_REPORTS: { name: 'reports' },
   BLINKIT_ADS_REPORTS: { name: 'reports' },
   ZOHO_REPORTS: { name: 'reports' },
@@ -108,6 +109,12 @@ const navigation = [
         requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_REPORTS,
       },
       {
+        name: 'Amazon Settlements',
+        href: '/reports/amazon_settlements',
+        icon: SquareKanban,
+        requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_SETTLEMENTS,
+      },
+      {
         name: 'Blinkit',
         href: '/reports/blinkit',
         icon: Zap,
@@ -131,6 +138,7 @@ const navigation = [
         icon: SquareKanban,
         requiredPermission: PERMISSION_REQUIREMENTS.MASTER_REPORTS,
       },
+
       {
         name: 'Sales By Customer',
         href: '/reports/sales_by_customer',
@@ -376,10 +384,9 @@ export default function Sidebar({
                 onClick={() => toggleSubmenu(item.name)}
                 className={`
                   group w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out
-                  ${
-                    isItemActive
-                      ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg'
-                      : isExpanded
+                  ${isItemActive
+                    ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg'
+                    : isExpanded
                       ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
                   }
@@ -389,13 +396,11 @@ export default function Sidebar({
                 <div className='flex items-center min-w-0'>
                   {IconComponent && (
                     <IconComponent
-                      className={`flex-shrink-0 w-5 h-5 ${
-                        isCollapsed ? 'mr-0' : 'mr-3'
-                      } ${
-                        isItemActive
+                      className={`flex-shrink-0 w-5 h-5 ${isCollapsed ? 'mr-0' : 'mr-3'
+                        } ${isItemActive
                           ? 'text-white'
                           : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
-                      }`}
+                        }`}
                     />
                   )}
                   {!isCollapsed && (
@@ -404,13 +409,11 @@ export default function Sidebar({
                 </div>
                 {!isCollapsed && (
                   <ChevronRight
-                    className={`flex-shrink-0 w-4 h-4 transition-transform duration-200 ${
-                      isExpanded ? 'rotate-90' : ''
-                    } ${
-                      isItemActive
+                    className={`flex-shrink-0 w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''
+                      } ${isItemActive
                         ? 'text-white'
                         : 'text-gray-400 dark:text-gray-500'
-                    }`}
+                      }`}
                   />
                 )}
               </button>
@@ -420,10 +423,9 @@ export default function Sidebar({
                 <div
                   className={`
                     transition-all duration-300 ease-in-out overflow-hidden
-                    ${
-                      isExpanded
-                        ? 'max-h-96 opacity-100 mt-1'
-                        : 'max-h-0 opacity-0'
+                    ${isExpanded
+                      ? 'max-h-96 opacity-100 mt-1'
+                      : 'max-h-0 opacity-0'
                     }
                   `}
                 >
@@ -438,10 +440,9 @@ export default function Sidebar({
               href={item.href}
               className={`
                 group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out
-                ${
-                  isItemActive
-                    ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg transform scale-[1.02]'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
+                ${isItemActive
+                  ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg transform scale-[1.02]'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
                 }
               `}
               onClick={() => isMobile && setIsOpen(false)}
@@ -449,13 +450,11 @@ export default function Sidebar({
             >
               {IconComponent && (
                 <IconComponent
-                  className={`flex-shrink-0 w-5 h-5 ${
-                    isCollapsed ? 'mr-0' : 'mr-3'
-                  } ${
-                    isItemActive
+                  className={`flex-shrink-0 w-5 h-5 ${isCollapsed ? 'mr-0' : 'mr-3'
+                    } ${isItemActive
                       ? 'text-white'
                       : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
-                  }`}
+                    }`}
                 />
               )}
               {!isCollapsed && <span className='truncate'>{item.name}</span>}
@@ -472,11 +471,10 @@ export default function Sidebar({
   return (
     <div
       ref={sidebarRef}
-      className={`${
-        isMobile
-          ? 'fixed inset-0 z-40 flex'
-          : 'relative inset-y-0 flex flex-col min-h-screen'
-      }`}
+      className={`${isMobile
+        ? 'fixed inset-0 z-40 flex'
+        : 'relative inset-y-0 flex flex-col min-h-screen'
+        }`}
     >
       {/* Overlay */}
       {isMobile && (
@@ -489,12 +487,10 @@ export default function Sidebar({
       {/* Sidebar */}
       <div
         className={`
-          ${
-            isMobile
-              ? 'relative flex-1 flex flex-col max-w-xs w-full transform transition-transform duration-300'
-              : `flex-1 flex flex-col transition-all duration-300 ease-in-out ${
-                  isCollapsed ? 'w-16' : 'w-64'
-                }`
+          ${isMobile
+            ? 'relative flex-1 flex flex-col max-w-xs w-full transform transition-transform duration-300'
+            : `flex-1 flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-64'
+            }`
           }
           bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 h-full shadow-xl
         `}
