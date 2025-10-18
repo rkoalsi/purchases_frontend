@@ -304,7 +304,7 @@ function AmazonSettlementsPage() {
     const uniqueSkusList = Array.from(new Set(settlements.map(item => item.sku))).sort();
 
     // Core columns that should always be visible
-    const coreColumns = ['order_id', 'posted_date', 'sku'];
+    const coreColumns = ['order_id', 'posted_date', 'sku', 'quantity_purchased'];
     
     // Dynamic charge columns
     const chargeColumns = availableColumns.filter(col => !coreColumns.includes(col));
@@ -599,6 +599,15 @@ function AmazonSettlementsPage() {
                                                 {getSortIcon('sku')}
                                             </div>
                                         </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('quantity_purchased')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Quantity</span>
+                                                {getSortIcon('quantity_purchased')}
+                                            </div>
+                                        </th>
 
                                         {/* Dynamic Charge Columns */}
                                         {chargeColumns.map((column) => 
@@ -645,6 +654,11 @@ function AmazonSettlementsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900'>
                                                     {item.sku || 'N/A'}
+                                                </div>
+                                            </td>
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>
+                                                    {item.quantity_purchased || 'N/A'}
                                                 </div>
                                             </td>
 
