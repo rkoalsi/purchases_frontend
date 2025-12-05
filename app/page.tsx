@@ -450,7 +450,7 @@ function Page() {
         {/* Header */}
         <div className='mb-8'>
           <h1 className='text-3xl font-bold text-gray-900 mb-2'>
-            Welcome back, {user?.name}!
+            {new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'}, {user?.name}!
           </h1>
           <p className='text-gray-600'>
             Here's an overview of your top performing items across all platforms for the selected period
