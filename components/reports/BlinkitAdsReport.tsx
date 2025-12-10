@@ -231,7 +231,7 @@ const BlinkitAdsReport: React.FC = () => {
     setError(null);
     
     try {
-      const apiUrl = process.env.api_url;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
         throw new Error('API URL not configured');
       }
@@ -302,7 +302,7 @@ const BlinkitAdsReport: React.FC = () => {
     setUploading(true);
     
     try {
-      const apiUrl = process.env.api_url;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
         throw new Error('API URL not configured');
       }
@@ -342,7 +342,7 @@ const BlinkitAdsReport: React.FC = () => {
     setDownloading(true);
     
     try {
-      const apiUrl = process.env.api_url;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
         throw new Error('API URL not configured');
       }

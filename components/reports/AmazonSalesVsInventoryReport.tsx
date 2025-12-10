@@ -318,7 +318,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     setReportData([]);
     setSelectedItems([]);
     try {
-      const apiUrl = process.env.api_url;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
         throw new Error("api_url environment variable is not set.");
       }
@@ -348,7 +348,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
 const handleDownload = async () => {
   setDownloading(true);
 
-  const apiUrl = process.env.api_url;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) {
     alert("API URL environment variable is not set.");
     setDownloading(false);

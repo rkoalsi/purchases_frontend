@@ -240,7 +240,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
     setReportData([]);
     setSelectedItems([]);
     try {
-      const apiUrl = process.env.api_url;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
         throw new Error('api_url environment variable is not set.');
       }
@@ -296,7 +296,7 @@ const handleUpload = async () => {
 
   setUploading(true);
 
-  const apiUrl = process.env.api_url;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (!apiUrl) {
     alert('API URL environment variable is not set.');
     setUploading(false);
@@ -495,7 +495,7 @@ const handleUpload = async () => {
   const handleDownload = async () => {
     setDownloading(true);
 
-    const apiUrl = process.env.api_url;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
       alert('API URL environment variable is not set.');
       setDownloading(false);

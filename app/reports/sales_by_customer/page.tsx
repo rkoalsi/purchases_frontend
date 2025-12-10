@@ -23,7 +23,7 @@ const InvoiceReportGenerator = () => {
 
   const getBrands = async () => {
     try {
-      const { data } = await axios.get(`${process.env.api_url}/zoho/brands`);
+      const { data } = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/brands`);
       setBrands(data.brands);
     } catch (error) {
       console.log(error);
@@ -75,7 +75,7 @@ const InvoiceReportGenerator = () => {
 
     try {
       const response = await fetch(
-        `${process.env.api_url}/zoho/generate-invoice-report`,
+        `${process.env.NEXT_PUBLIC_API_URL}/zoho/generate-invoice-report`,
         {
           method: "POST",
           headers: {

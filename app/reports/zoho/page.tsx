@@ -54,7 +54,7 @@ function Page() {
     try {
       setMetadataLoading(true);
 
-      const response = await axios.get(`${process.env.api_url}/zoho/data-metadata`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/data-metadata`, {
          params: {
           start_date: customStartDate || startDate,
           end_date: customEndDate || endDate,
@@ -78,7 +78,7 @@ function Page() {
       setLoading(true);
       setError(null);
 
-      const response = await axios.get(`${process.env.api_url}/zoho/sales-report`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/sales-report`, {
         params: {
           start_date: customStartDate || startDate,
           end_date: customEndDate || endDate,
@@ -131,7 +131,7 @@ function Page() {
       setDownloadLoading(true);
       setError(null);
 
-      const response = await axios.get(`${process.env.api_url}/zoho/sales-report/download`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/sales-report/download`, {
         params: {
           start_date: startDate,
           end_date: endDate,

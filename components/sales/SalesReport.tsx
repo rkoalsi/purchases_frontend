@@ -57,7 +57,7 @@ const SalesReport: React.FC = () => {
     }
 
     try {
-      const apiUrl = process.env.api_url;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
         throw new Error('api_url environment variable is not set.');
       }
@@ -125,7 +125,7 @@ const SalesReport: React.FC = () => {
 
     setUploading(true);
 
-    const apiUrl = process.env.api_url;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
       toast.error('API URL environment variable is not set.');
       setUploading(false);
@@ -197,7 +197,7 @@ const SalesReport: React.FC = () => {
   const handleDownload = async () => {
     setDownloading(true);
 
-    const apiUrl = process.env.api_url;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
       toast.error('API URL environment variable is not set.');
       setDownloading(false);
