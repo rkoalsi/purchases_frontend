@@ -63,7 +63,7 @@ const BlinkitItemsTable: React.FC = () => {
     }
 
     try {
-      const apiUrl = process.env.api_url;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) {
         throw new Error('api_url environment variable is not set.');
       }
@@ -102,7 +102,7 @@ const BlinkitItemsTable: React.FC = () => {
   const deleteItem = async (item: any) => {
     try {
       const response = await axios.delete(
-        `${process.env.api_url}/blinkit/delete_item/${item._id}`
+        `${process.env.NEXT_PUBLIC_API_URL}/blinkit/delete_item/${item._id}`
       );
       if (response.status == 200) {
         toast.success(`Item Deleted Successfully`);

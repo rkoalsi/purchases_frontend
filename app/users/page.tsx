@@ -29,7 +29,7 @@ export default function UserManagementPage() {
   const getPermissions = async () => {
     try {
       const response = await axios.get(
-        `${process.env.api_url}/users/permissions`
+        `${process.env.NEXT_PUBLIC_API_URL}/users/permissions`
       );
       const { data = [] } = response;
       setAvailablePermissions(data);
@@ -41,7 +41,7 @@ export default function UserManagementPage() {
 
   const getUsers = async () => {
     try {
-      const response = await axios.get(`${process.env.api_url}/users`);
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users`);
       const { data = [] } = response;
       setUsers(data);
     } catch (error: any) {

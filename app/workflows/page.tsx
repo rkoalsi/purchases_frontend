@@ -21,7 +21,7 @@ export default function Workflows() {
 
   const getWorkflows = async () => {
     try {
-      const response = await axios.get(`${process.env.api_url}/workflows`);
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/workflows`);
       const { data = {} } = response;
       const { workflows: workflowResponse = [] } = data;
       setWorkflows(workflowResponse);

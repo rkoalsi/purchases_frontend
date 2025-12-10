@@ -24,6 +24,7 @@ import {
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import capitalize from '@/util/capitalize';
+import { useAuth } from '@/components/context/AuthContext';
 
 const AmazonIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox='0 0 24 24' fill='currentColor'>
@@ -179,6 +180,7 @@ export default function Sidebar({
   isMobile,
   user,
 }: SidebarProps) {
+  const { accessToken } = useAuth();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [availablePermissions, setAvailablePermissions] = useState<any[]>([]);
@@ -188,10 +190,21 @@ export default function Sidebar({
 
   // Fetch permissions from API
   const getPermissions = async () => {
+    if (!accessToken) {
+      console.warn('No access token available for permissions request');
+      setPermissionsLoading(false);
+      return;
+    }
+
     try {
       setPermissionsLoading(true);
       const response = await axios.get(
-        `${process.env.api_url}/users/permissions`
+        `${process.env.NEXT_PUBLIC_API_URL}/users/permissions`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
       const { data = [] } = response;
       setAvailablePermissions(data);
@@ -203,10 +216,10 @@ export default function Sidebar({
     }
   };
 
-  // Load permissions on component mount
+  // Load permissions when accessToken is available
   useEffect(() => {
     getPermissions();
-  }, []);
+  }, [accessToken]);
 
   // Get user's permission details from their permission IDs
   const getUserPermissions = useMemo(() => {

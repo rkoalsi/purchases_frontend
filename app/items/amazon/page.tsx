@@ -21,7 +21,7 @@ const SkuMappingComponent = () => {
   });
   const [formErrors, setFormErrors]: any = useState({});
 
-  const API_BASE_URL = `${process.env.api_url}/amazon`;
+  const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/amazon`;
 
   // Fetch SKU mapping data on component mount
   useEffect(() => {

@@ -120,7 +120,7 @@ function AmazonSettlementsPage() {
     const fetchAvailableColumns = async () => {
         try {
             const response = await axios.get(
-                `${process.env.api_url}/amazon/settlements/pivot/columns`,
+                `${process.env.NEXT_PUBLIC_API_URL}/amazon/settlements/pivot/columns`,
                 {
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
@@ -145,7 +145,7 @@ function AmazonSettlementsPage() {
             setError(null);
 
             const response = await axios.get(
-                `${process.env.api_url}/amazon/settlements/pivot`,
+                `${process.env.NEXT_PUBLIC_API_URL}/amazon/settlements/pivot`,
                 {
                     params: {
                         start_date: startDate,
@@ -171,7 +171,7 @@ function AmazonSettlementsPage() {
     const fetchSummary = async () => {
         try {
             const response = await axios.get(
-                `${process.env.api_url}/amazon/settlements/summary`,
+                `${process.env.NEXT_PUBLIC_API_URL}/amazon/settlements/summary`,
                 {
                     params: {
                         start_date: startDate,
@@ -205,7 +205,7 @@ function AmazonSettlementsPage() {
             setDownloadLoading(true);
 
             const response = await axios.get(
-                `${process.env.api_url}/amazon/settlements/pivot`,
+                `${process.env.NEXT_PUBLIC_API_URL}/amazon/settlements/pivot`,
                 {
                     params: {
                         start_date: startDate,

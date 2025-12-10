@@ -81,7 +81,7 @@ const FileUploader = ({
       setError('');
 
       const response = await apiCall(
-        `${process.env.api_url}/util/download_template`,
+        `${process.env.NEXT_PUBLIC_API_URL}/util/download_template`,
         {
           method: 'GET',
           headers: {
@@ -184,7 +184,7 @@ const FileUploader = ({
 
     try {
       const response = await fetch(
-        `${process.env.api_url}/util/upload_template`,
+        `${process.env.NEXT_PUBLIC_API_URL}/util/upload_template`,
         {
           method: 'POST',
           body: formData,

@@ -109,7 +109,7 @@ function MasterReportsPage() {
             setError(null);
             setReportErrors([]);
 
-            const response = await axios.get(`${process.env.api_url}/master/master-report`, {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/master-report`, {
                 params: {
                     start_date: startDate,
                     end_date: endDate,
@@ -157,7 +157,7 @@ function MasterReportsPage() {
             setDownloadLoading(true);
             setError(null);
 
-            const response = await axios.get(`${process.env.api_url}/master/master-report/download`, {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/master-report/download`, {
                 params: {
                     start_date: startDate,
                     end_date: endDate,
@@ -286,7 +286,7 @@ function MasterReportsPage() {
             setError(null);
             setReportErrors([]);
 
-            const response = await axios.get(`${process.env.api_url}/master/master-report`, {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/master-report`, {
                 params: {
                     start_date: newStartDate,  // Use the passed dates directly
                     end_date: newEndDate,      // Use the passed dates directly

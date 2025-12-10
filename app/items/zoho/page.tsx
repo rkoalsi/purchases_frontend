@@ -23,7 +23,7 @@ function Page() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${process.env.api_url}/zoho/products`, {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/products`, {
         params: {
           page: currentPage,
           limit: limit,

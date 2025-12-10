@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { TrendingUp, Package, Award, BarChart3, Calendar, AlertCircle, Loader2 } from 'lucide-react';
+import { Package, BarChart3, Calendar, AlertCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import DatePicker from '../components/common/DatePicker'; // Adjust the import path as needed
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -50,20 +50,6 @@ interface TopProductsResponse {
   current_year?: number;
 }
 
-interface SummaryResponse {
-  total_products: number;
-  total_sales: number;
-  avg_sales: number;
-  total_closing_stock: number;
-  total_amount: number;
-  source_counts: Record<string, number>;
-  sources_included: string[];
-  year: number;
-  month: number;
-  start_date: string;
-  end_date: string;
-}
-
 // Custom colors for bars
 const barColors = [
   '#3B82F6', // Blue
@@ -95,11 +81,8 @@ function Page() {
   const { isLoading, accessToken, user } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<TopProduct[]>([]);
-  const [summaryData, setSummaryData] = useState<SummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [summaryLoading, setSummaryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [preset, setPreset] = useState('thisMonth');
   
   // Date filtering state
@@ -117,11 +100,15 @@ function Page() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
   const [availableCities, setAvailableCities] = useState<string[]>([]);
 
+  // State for collapsible top products section
+  const [isTopProductsExpanded, setIsTopProductsExpanded] = useState(false);
+  const [hasLoadedTopProducts, setHasLoadedTopProducts] = useState(false);
+
   // Use ref to track the current request and prevent race conditions
   const currentRequestRef = useRef<number>(0);
 
   // API Base URL
-  const API_BASE_URL = `${process.env.api_url}/dashboard`;
+  const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/dashboard`;
 
   // Function to validate and clean product data
   const validateProductData = (products: TopProduct[]): TopProduct[] => {
@@ -164,51 +151,6 @@ function Page() {
       }));
   };
 
-  // Fetch summary data
-  const fetchSummaryData = useCallback(async (requestId: number) => {
-    if (!accessToken) return;
-
-    setSummaryLoading(true);
-    setSummaryError(null);
-
-    try {
-      const params = new URLSearchParams({
-        start_date: format(startDate, 'yyyy-MM-dd'),
-        end_date: format(endDate, 'yyyy-MM-dd'),
-        include_blinkit: includeBlinkit.toString(),
-        include_amazon: includeAmazon.toString(),
-        include_zoho: includeZoho.toString(),
-      });
-
-      const response = await fetch(`${API_BASE_URL}/top-products/summary?${params}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch summary: ${response.statusText}`);
-      }
-
-      const result: SummaryResponse = await response.json();
-
-      // Only update state if this is still the most recent request
-      if (requestId === currentRequestRef.current) {
-        setSummaryData(result);
-      }
-    } catch (err) {
-      console.error('Error fetching summary:', err);
-      if (requestId === currentRequestRef.current) {
-        setSummaryError(err instanceof Error ? err.message : 'Failed to fetch summary');
-        setSummaryData(null);
-      }
-    } finally {
-      if (requestId === currentRequestRef.current) {
-        setSummaryLoading(false);
-      }
-    }
-  }, [accessToken, startDate, endDate, includeBlinkit, includeAmazon, includeZoho, API_BASE_URL]);
 
   // Fetch top products data
   const fetchTopProductsData = useCallback(async (requestId: number) => {
@@ -288,37 +230,18 @@ function Page() {
     API_BASE_URL,
   ]);
 
-  // Combined fetch function
-  const fetchData = useCallback(async () => {
-    if (!accessToken) return;
 
-    // Increment request counter to handle race conditions
-    const requestId = ++currentRequestRef.current;
-
-    // Fetch both data sets in parallel
-    await Promise.all([
-      fetchTopProductsData(requestId),
-      fetchSummaryData(requestId)
-    ]);
-  }, [fetchTopProductsData, fetchSummaryData, accessToken]);
-
-  // Use effect with proper cleanup
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    // Debounce the API call to prevent too many requests
-    if (accessToken) {
-      timeoutId = setTimeout(() => {
-        fetchData();
-      }, 300); // 300ms debounce
+  // Function to handle expanding top products section
+  const handleExpandTopProducts = useCallback(async () => {
+    if (!isTopProductsExpanded && !hasLoadedTopProducts) {
+      // First time expanding - load the data
+      const requestId = ++currentRequestRef.current;
+      await fetchTopProductsData(requestId);
+      setHasLoadedTopProducts(true);
     }
+    setIsTopProductsExpanded(!isTopProductsExpanded);
+  }, [isTopProductsExpanded, hasLoadedTopProducts, fetchTopProductsData]);
 
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [fetchData, accessToken]);
 
   // Handle preset date ranges
   const handlePresetRange = useCallback((range: string) => {
@@ -360,10 +283,6 @@ function Page() {
     closingStock: safeNumber(product.metrics?.closing_stock),
   }));
 
-  // Calculate derived stats safely
-  const totalUnits = summaryData?.total_sales || 0;
-  const bestPerformer = data.length > 0 ? data[0] : null;
-  const topAverage = data.length > 0 ? Math.round(totalUnits / data.length) : 0;
 
   // Custom tooltip component
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -497,7 +416,7 @@ function Page() {
                   className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
                 />
                 <span className='ml-2 text-sm text-gray-700'>
-                  Blinkit {summaryData?.source_counts?.blinkit && `(${summaryData.source_counts.blinkit})`}
+                  Blinkit
                 </span>
               </label>
               <label className='flex items-center'>
@@ -508,7 +427,7 @@ function Page() {
                   className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
                 />
                 <span className='ml-2 text-sm text-gray-700'>
-                  Amazon {summaryData?.source_counts?.amazon && `(${summaryData.source_counts.amazon})`}
+                  Amazon
                 </span>
               </label>
               <label className='flex items-center'>
@@ -519,7 +438,7 @@ function Page() {
                   className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
                 />
                 <span className='ml-2 text-sm text-gray-700'>
-                  Zoho {summaryData?.source_counts?.zoho && `(${summaryData.source_counts.zoho})`}
+                  Zoho
                 </span>
               </label>
             </div>
@@ -560,101 +479,32 @@ function Page() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className='grid grid-cols-1 md:grid-cols-3 gap-6 mb-8'>
-          {/* Total Units Sold */}
-          <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
-            <div className='flex items-center'>
-              <div className='p-2 bg-blue-100 rounded-lg'>
-                <Package className='h-6 w-6 text-blue-600' />
-              </div>
-              <div className='ml-4 flex-1'>
-                <p className='text-sm font-medium text-gray-600'>Total Units Sold</p>
-                {summaryLoading ? (
-                  <div className='animate-pulse'>
-                    <div className='h-8 bg-gray-200 rounded w-24 mb-1'></div>
-                    <div className='h-3 bg-gray-200 rounded w-32'></div>
-                  </div>
-                ) : summaryError ? (
-                  <div className='text-red-500 text-sm'>Error loading</div>
-                ) : (
-                  <>
-                    <p className='text-2xl font-bold text-gray-900'>
-                      {totalUnits.toLocaleString()}
-                    </p>
-                    <p className='text-xs text-gray-500 mt-1'>
-                      {format(startDate, 'MMM dd')} - {format(endDate, 'MMM dd, yyyy')}
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Best Performer */}
-          <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
-            <div className='flex items-center'>
-              <div className='p-2 bg-green-100 rounded-lg'>
-                <Award className='h-6 w-6 text-green-600' />
-              </div>
-              <div className='ml-4 flex-1'>
-                <p className='text-sm font-medium text-gray-600'>Best Performer</p>
-                {loading ? (
-                  <div className='animate-pulse'>
-                    <div className='h-6 bg-gray-200 rounded w-32 mb-1'></div>
-                    <div className='h-3 bg-gray-200 rounded w-20'></div>
-                  </div>
-                ) : (
-                  <>
-                    <p className='text-lg font-bold text-gray-900 truncate'>
-                      {bestPerformer?.item_name || 'No data'}
-                    </p>
-                    <p className='text-xs text-gray-500 mt-1'>
-                      {safeNumber(bestPerformer?.metrics?.total_sales_in_period).toLocaleString()} units
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Top 10 Average */}
-          <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
-            <div className='flex items-center'>
-              <div className='p-2 bg-purple-100 rounded-lg'>
-                <TrendingUp className='h-6 w-6 text-purple-600' />
-              </div>
-              <div className='ml-4 flex-1'>
-                <p className='text-sm font-medium text-gray-600'>Top 10 Average</p>
-                {loading ? (
-                  <div className='animate-pulse'>
-                    <div className='h-8 bg-gray-200 rounded w-20 mb-1'></div>
-                    <div className='h-3 bg-gray-200 rounded w-24'></div>
-                  </div>
-                ) : (
-                  <>
-                    <p className='text-2xl font-bold text-gray-900'>
-                      {topAverage.toLocaleString()}
-                    </p>
-                    <p className='text-xs text-gray-500 mt-1'>Per product</p>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Chart Section */}
+        {/* Chart Section - Collapsible */}
         <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
-          <div className='mb-6'>
-            <h2 className='text-xl font-bold text-gray-900 mb-2'>
-              Top 10 Performing Items
-            </h2>
-            <p className='text-gray-600'>
-              Units sold by product for {format(startDate, 'MMM dd')} -{' '}
-              {format(endDate, 'MMM dd, yyyy')}
-            </p>
-          </div>
+          <button
+            onClick={handleExpandTopProducts}
+            className='w-full flex items-center justify-between mb-6 hover:bg-gray-50 -mx-6 -mt-6 px-6 pt-6 pb-2 rounded-t-lg transition-colors'
+          >
+            <div className='text-left'>
+              <h2 className='text-xl font-bold text-gray-900 mb-2 flex items-center gap-2'>
+                Top 10 Performing Items
+                {isTopProductsExpanded ? (
+                  <ChevronUp className='h-5 w-5 text-gray-500' />
+                ) : (
+                  <ChevronDown className='h-5 w-5 text-gray-500' />
+                )}
+              </h2>
+              <p className='text-gray-600 text-sm'>
+                {isTopProductsExpanded
+                  ? `Units sold by product for ${format(startDate, 'MMM dd')} - ${format(endDate, 'MMM dd, yyyy')}`
+                  : 'Click to view top performing items (loads data on demand)'
+                }
+              </p>
+            </div>
+          </button>
+
+          {isTopProductsExpanded && (
+            <div className='mt-4'>
 
           {loading ? (
             <div className='h-96 flex items-center justify-center'>
@@ -711,11 +561,10 @@ function Page() {
               </ResponsiveContainer>
             </div>
           )}
-        </div>
 
-        {/* Data Table */}
-        {data.length > 0 && (
-          <div className='mt-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden'>
+          {/* Data Table - inside collapsible section */}
+          {isTopProductsExpanded && data.length > 0 && (
+          <div className='mt-8 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden'>
             <div className='px-6 py-4 border-b border-gray-200'>
               <h3 className='text-lg font-semibold text-gray-900'>Detailed Rankings</h3>
             </div>
@@ -786,7 +635,11 @@ function Page() {
               </table>
             </div>
           </div>
-        )}
+          )}
+
+          </div>
+          )}
+        </div>
       </div>
     </div>
   );
