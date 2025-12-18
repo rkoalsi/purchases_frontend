@@ -8,6 +8,14 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { TrendingUp, Users, DollarSign, Eye, Package, Search, Filter, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react';
 import AdsUploadModal from '../common/AdsUploadModal';
+import {
+  SortIcon as StandardSortIcon,
+  TABLE_CLASSES,
+  LoadingState,
+  SearchBar,
+  formatCurrency,
+  formatNumber,
+} from './TableStyles';
 
 // Type definitions - UPDATED
 interface CampaignMetrics {

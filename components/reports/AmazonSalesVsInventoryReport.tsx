@@ -8,6 +8,15 @@ import DatePicker from "../common/DatePicker";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { Package, TrendingUp } from "lucide-react";
+import {
+  SortIcon as StandardSortIcon,
+  TABLE_CLASSES,
+  CONTROLS_CLASSES,
+  LoadingState,
+  SearchBar,
+  formatNumber as standardFormatNumber,
+} from './TableStyles';
+import DateRangeComponent from '@/components/reports/DateRange';
 
 interface ReportItem {
   year: number;
@@ -36,11 +45,14 @@ interface ReportItem {
 
 const AmazonSalesVSInventoryReport: React.FC = () => {
   // ===== STATE MANAGEMENT =====
-  const currentDate = new Date();
-  const [startDate, setStartDate] = useState<Date>(
-    new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
-  );
-  const [endDate, setEndDate] = useState<Date>(currentDate); // Current date
+  const [startDate, setStartDate] = useState<string>(() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 1);
+    return date.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
   const [reportData, setReportData] = useState<ReportItem[]>([]);
   const [reportMetadata, setReportMetadata]: any = useState({});
   const [loading, setLoading] = useState<boolean>(false);
@@ -121,57 +133,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
           ? "desc"
           : "asc",
     }));
-  };
-
-  // Sort icon component
-  const SortIcon = ({ column }: { column: string }) => {
-    if (sortConfig.key !== column) {
-      return (
-        <svg
-          className="w-4 h-4 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M8 9l4-4 4 4m0 6l-4 4-4-4"
-          />
-        </svg>
-      );
-    }
-
-    return sortConfig.direction === "asc" ? (
-      <svg
-        className="w-4 h-4 text-blue-600"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M5 15l7-7 7 7"
-        />
-      </svg>
-    ) : (
-      <svg
-        className="w-4 h-4 text-blue-600"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M19 9l-7 7-7-7"
-        />
-      </svg>
-    );
   };
 
   const renderStatusBadges = () => {
@@ -289,25 +250,6 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     );
   }
 };
-  // Handle date changes
-  const handleStartDateChange = (date: Date | null) => {
-    if (!date) return;
-    // If selected start date is after current end date, set end date to start date
-    if (dateUtils.isAfter(date, endDate)) {
-      setEndDate(date);
-    }
-    setStartDate(date);
-  };
-
-  const handleEndDateChange = (date: Date | null) => {
-    if (!date) return;
-    // If selected end date is before current start date, set start date to end date
-    if (dateUtils.isBefore(date, startDate)) {
-      setStartDate(date);
-    }
-    setEndDate(date);
-  };
-
   // ===== DATA FETCHING =====
   useEffect(() => {
     fetchReportData();
@@ -323,16 +265,12 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
         throw new Error("api_url environment variable is not set.");
       }
 
-      // Format dates for API call (YYYY-MM-DD)
-      const startDateStr = format(startDate, "yyyy-MM-dd");
-      const endDateStr = format(endDate, "yyyy-MM-dd");
-
       // Use the new date range API endpoint
       const r = await axios.get(
-        `${apiUrl}/amazon/get_report_data_by_date_range`, { params: { start_date: startDateStr, end_date: endDateStr, report_type: reportType } }
+        `${apiUrl}/amazon/get_report_data_by_date_range`, { params: { start_date: startDate, end_date: endDate, report_type: reportType } }
       );
       const resp = await axios.get(
-        `${apiUrl}/amazon/status`, { params: { start_date: startDateStr, end_date: endDateStr, report_type: reportType } }
+        `${apiUrl}/amazon/status`, { params: { start_date: startDate, end_date: endDate, report_type: reportType } }
       );
       setReportData(r.data);
       setReportMetadata(resp.data)
@@ -356,17 +294,13 @@ const handleDownload = async () => {
   }
 
   try {
-    // Format dates for download API call
-    const startDateStr = dateUtils.format(startDate, "yyyy-MM-dd");
-    const endDateStr = dateUtils.format(endDate, "yyyy-MM-dd");
-
     const response = await axios.get(
-      `${apiUrl}/amazon/download_report_by_date_range`, 
-      { 
-        params: { 
-          'start_date': startDateStr, 
-          'end_date': endDateStr,
-          'report_type': reportType 
+      `${apiUrl}/amazon/download_report_by_date_range`,
+      {
+        params: {
+          'start_date': startDate,
+          'end_date': endDate,
+          'report_type': reportType
         },
         responseType: 'blob' // ← Critical: Tell axios to handle binary data
       }
@@ -396,10 +330,7 @@ const processDownload = async (response: any) => {
 
   // Get filename from Content-Disposition header
   const contentDisposition = response.headers['content-disposition'];
-  let filename = `amazon_sales_inventory_report_${dateUtils.format(
-    startDate,
-    "yyyy-MM-dd"
-  )}_to_${dateUtils.format(endDate, "yyyy-MM-dd")}_${reportType}.xlsx`;
+  let filename = `amazon_sales_inventory_report_${startDate}_to_${endDate}_${reportType}.xlsx`;
 
   if (contentDisposition) {
     const filenameMatch = contentDisposition.match(
@@ -429,97 +360,33 @@ const processDownload = async (response: any) => {
         <h1 className="text-2xl font-bold text-gray-800 mb-6">
           Amazon Sales vs Inventory Report
         </h1>
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 lg:p-8 mb-6 lg:mb-8 hover:shadow-xl transition-shadow duration-300">
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-end">
-            {/* Date Pickers Section - UPDATED */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <label className="text-sm font-semibold text-gray-800 uppercase tracking-wide">
-                  Report Period
-                </label>
+        <div className={CONTROLS_CLASSES.container}>
+          <div className={CONTROLS_CLASSES.inner}>
+            <div className={CONTROLS_CLASSES.grid}>
+              {/* Date Range Controls */}
+              <div className={CONTROLS_CLASSES.section}>
+                <h3 className={CONTROLS_CLASSES.sectionTitle}>Date Range & Actions</h3>
+                <DateRangeComponent
+                  startDate={startDate}
+                  endDate={endDate}
+                  onStartDateChange={setStartDate}
+                  onEndDateChange={setEndDate}
+                  onGenerate={fetchReportData}
+                  loading={loading}
+                  downloadReport={handleDownload}
+                  downloadDisabledCondition={downloading || reportData.length === 0}
+                  downloadLoading={downloading}
+                />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="relative group">
-                  <DatePicker
-                    selected={startDate}
-                    onChange={handleStartDateChange}
-                    maxDate={endDate} // Prevent selecting start date after end date
-                    label="From"
-                    placeholder="Select start date"
-                    className="group-hover:border-gray-300"
-                  />
-                </div>
-                <div className="relative group">
-                  <DatePicker
-                    selected={endDate}
-                    onChange={handleEndDateChange}
-                    minDate={startDate} // Prevent selecting end date before start date
-                    maxDate={new Date()} // Prevent selecting future dates
-                    label="To"
-                    placeholder="Select end date"
-                    className="group-hover:border-gray-300"
-                  />
-                </div>
+
+              {/* Search Bar */}
+              <div className={CONTROLS_CLASSES.section}>
+                <SearchBar
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="Search items"
+                />
               </div>
-            </div>
-            {/* Action Buttons Section */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={handleDownload}
-                disabled={downloading || reportData.length === 0}
-                className={`flex-1 group relative overflow-hidden py-3 px-6 rounded-xl font-semibold transition-all duration-300 shadow-lg transform ${downloading || reportData.length === 0
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
-                  : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white hover:shadow-xl hover:-translate-y-0.5"
-                  }`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  {downloading ? (
-                    <>
-                      <svg
-                        className="w-4 h-4 animate-spin"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-4 h-4 transition-transform group-hover:scale-110"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                      Download Report
-                    </>
-                  )}
-                </div>
-                {!downloading && reportData.length > 0 && (
-                  <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -540,12 +407,7 @@ const processDownload = async (response: any) => {
         )}
 
         {/* Loading State */}
-        {loading && (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="ml-3 text-blue-600">Loading report data...</span>
-          </div>
-        )}
+        {loading && <LoadingState message="Loading report data..." />}
 
         {/* No Data State */}
         {!loading && reportData.length === 0 && (
@@ -575,50 +437,12 @@ const processDownload = async (response: any) => {
               </div>
 
               {/* Search Bar */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg
-                    className="h-5 w-5 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search items"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full text-black pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm("")}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <svg
-                      className="h-4 w-4 text-gray-400 hover:text-gray-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                )}
-              </div>
+              <SearchBar
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Search items"
+                className="flex-1 max-w-md"
+              />
             </div>
 
             {/* Filters */}
@@ -679,7 +503,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       Item Name
-                      <SortIcon column="item_name" />
+                      <StandardSortIcon column="item_name" sortConfig={sortConfig} />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
@@ -688,7 +512,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       SKU Code
-                      <SortIcon column="sku_code" />
+                      <StandardSortIcon column="sku_code" sortConfig={sortConfig} />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
@@ -697,7 +521,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       ASIN
-                      <SortIcon column="asin" />
+                      <StandardSortIcon column="asin" sortConfig={sortConfig} />
                     </button>
                   </th>
                   {reportType !== "vendor_central" && (
@@ -707,7 +531,7 @@ const processDownload = async (response: any) => {
                         className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                       >
                         Warehouse
-                        <SortIcon column="warehouse" />
+                        <StandardSortIcon column="warehouse" sortConfig={sortConfig} />
                       </button>
                     </th>
                   )}
@@ -717,7 +541,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       Units Sold
-                      <SortIcon column="units_sold" />
+                      <StandardSortIcon column="units_sold" sortConfig={sortConfig} />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
@@ -726,7 +550,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       Total Returns
-                      <SortIcon column="total_returns" />
+                      <StandardSortIcon column="total_returns" sortConfig={sortConfig} />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
@@ -735,7 +559,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       Total Amount
-                      <SortIcon column="total_amount" />
+                      <StandardSortIcon column="total_amount" sortConfig={sortConfig} />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
@@ -744,7 +568,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       Closing Stock
-                      <SortIcon column="closing_stock" />
+                      <StandardSortIcon column="closing_stock" sortConfig={sortConfig} />
                     </button>
                   </th>
                   {reportType !== "vendor_central" && (
@@ -754,7 +578,7 @@ const processDownload = async (response: any) => {
                         className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                       >
                         Sessions
-                        <SortIcon column="sessions" />
+                        <StandardSortIcon column="sessions" sortConfig={sortConfig} />
                       </button>
                     </th>
                   )}
@@ -764,7 +588,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       Total Days in Stock
-                      <SortIcon column="total_days_in_stock" />
+                      <StandardSortIcon column="total_days_in_stock" sortConfig={sortConfig} />
                     </button>
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
@@ -773,7 +597,7 @@ const processDownload = async (response: any) => {
                       className="flex items-center gap-1 hover:text-gray-700 transition-colors"
                     >
                       DRR
-                      <SortIcon column="drr" />
+                      <StandardSortIcon column="drr" sortConfig={sortConfig} />
                     </button>
                   </th>
                 </tr>
