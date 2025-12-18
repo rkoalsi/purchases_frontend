@@ -5,6 +5,16 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Package, TrendingUp, TrendingDown, ShoppingCart, Warehouse, Globe, BarChart3 } from 'lucide-react';
 import DateRangePresets from './DateRange';
+import {
+  SortIcon,
+  TABLE_CLASSES,
+  LoadingState,
+  ErrorState,
+  EmptyState,
+  SearchBar,
+  formatCurrency,
+  formatNumber,
+} from './TableStyles';
 
 interface MasterReportItem {
     sku_code: string;

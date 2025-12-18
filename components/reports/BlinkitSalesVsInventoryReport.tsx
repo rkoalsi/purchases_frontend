@@ -19,6 +19,13 @@ import UploadModal from '../common/Modal';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { Package, TrendingUp } from 'lucide-react';
+import {
+  SortIcon as StandardSortIcon,
+  TABLE_CLASSES,
+  LoadingState,
+  SearchBar,
+  formatDate as standardFormatDate,
+} from './TableStyles';
 
 // Register Chart.js components
 ChartJS.register(
