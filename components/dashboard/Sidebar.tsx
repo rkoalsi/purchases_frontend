@@ -20,6 +20,9 @@ import {
   WorkflowIcon,
   SquareKanban,
   ZapIcon,
+  FileText,
+  CheckSquare,
+  ShoppingCart,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -61,6 +64,7 @@ const PERMISSION_REQUIREMENTS = {
   MASTER_REPORTS: { name: 'reports' },
   SALES_REPORTS: { name: 'reports' },
   PI_CL_REPORTS: { name: 'reports' },
+  ESTIMATES_VS_INVOICES: { name: 'reports' },
 };
 
 // Navigation items with required permissions
@@ -104,53 +108,86 @@ const navigation = [
     requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
     children: [
       {
-        name: 'Amazon',
-        href: '/reports/amazon',
+        name: 'Amazon Reports',
         icon: AmazonIcon,
-        requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_REPORTS,
+        requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+        children: [
+          {
+            name: 'Amazon',
+            href: '/reports/amazon',
+            icon: AmazonIcon,
+            requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_REPORTS,
+          },
+          {
+            name: 'Amazon Settlements',
+            href: '/reports/amazon_settlements',
+            icon: SquareKanban,
+            requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_SETTLEMENTS,
+          },
+        ],
       },
       {
-        name: 'Amazon Settlements',
-        href: '/reports/amazon_settlements',
-        icon: SquareKanban,
-        requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_SETTLEMENTS,
-      },
-      {
-        name: 'Blinkit',
-        href: '/reports/blinkit',
+        name: 'Blinkit Reports',
         icon: Zap,
-        requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_REPORTS,
+        requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+        children: [
+          {
+            name: 'Blinkit',
+            href: '/reports/blinkit',
+            icon: Zap,
+            requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_REPORTS,
+          },
+          {
+            name: 'Blinkit Ads',
+            href: '/reports/blinkit_ads',
+            icon: ZapIcon,
+            requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_ADS_REPORTS,
+          },
+        ],
       },
       {
-        name: 'Blinkit Ads',
-        href: '/reports/blinkit_ads',
-        icon: ZapIcon,
-        requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_ADS_REPORTS,
+        name: 'Retail Reports',
+        icon: ShoppingCart,
+        requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+        children: [
+          {
+            name: 'Retail',
+            href: '/reports/zoho',
+            icon: Building2,
+            requiredPermission: PERMISSION_REQUIREMENTS.ZOHO_REPORTS,
+          },
+          {
+            name: 'Master',
+            href: '/reports/master',
+            icon: SquareKanban,
+            requiredPermission: PERMISSION_REQUIREMENTS.MASTER_REPORTS,
+          },
+          {
+            name: 'Estimates vs Invoices',
+            href: '/reports/estimates_vs_invoices',
+            icon: FileText,
+            requiredPermission: PERMISSION_REQUIREMENTS.ESTIMATES_VS_INVOICES,
+          },
+        ],
       },
       {
-        name: 'Zoho',
-        href: '/reports/zoho',
-        icon: Building2,
-        requiredPermission: PERMISSION_REQUIREMENTS.ZOHO_REPORTS,
-      },
-      {
-        name: 'Master',
-        href: '/reports/master',
-        icon: SquareKanban,
-        requiredPermission: PERMISSION_REQUIREMENTS.MASTER_REPORTS,
-      },
-
-      {
-        name: 'Sales By Customer',
-        href: '/reports/sales_by_customer',
-        icon: Store,
-        requiredPermission: PERMISSION_REQUIREMENTS.SALES_REPORTS,
-      },
-      {
-        name: 'PI vs CL',
-        href: '/reports/PI_vs_CL',
-        icon: Import,
-        requiredPermission: PERMISSION_REQUIREMENTS.PI_CL_REPORTS,
+        name: 'Verification Reports',
+        icon: CheckSquare,
+        requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+        children: [
+          {
+            name: 'Sales By Customer',
+            href: '/reports/sales_by_customer',
+            icon: Store,
+            requiredPermission: PERMISSION_REQUIREMENTS.SALES_REPORTS,
+          },
+          {
+            name: 'PI vs CL',
+            href: '/reports/PI_vs_CL',
+            icon: Import,
+            requiredPermission: PERMISSION_REQUIREMENTS.PI_CL_REPORTS,
+          },
+        ],
       },
     ],
   },
@@ -384,24 +421,29 @@ export default function Sidebar({
 
   // Recursive function to render navigation items
   const renderNavItems = (items: any[], level = 0) => {
-    return items.map((item) => {
+    return items.map((item, index) => {
       const isItemActive = item.href && isActive(item.href);
       const isExpanded = expandedItems.includes(item.name);
       const IconComponent = item.icon;
+      const isGroup = level === 1 && item.children && item.children.length > 0;
 
       return (
-        <div key={item.name} className={level > 0 ? 'ml-4' : ''}>
+        <div key={item.name} className={level > 0 ? 'ml-2' : ''}>
           {item.children && item.children.length > 0 ? (
-            <div>
+            <div className={isGroup ? 'mb-3' : ''}>
               <button
                 onClick={() => toggleSubmenu(item.name)}
                 className={`
-                  group w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out
-                  ${isItemActive
-                    ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg'
-                    : isExpanded
-                      ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
+                  group w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out
+                  ${isGroup
+                    ? isExpanded
+                      ? 'bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 text-gray-900 dark:text-white border-l-2 border-indigo-500'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'
+                    : isItemActive
+                      ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg'
+                      : isExpanded
+                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
                   }
                 `}
                 title={isCollapsed ? item.name : ''}
@@ -409,15 +451,19 @@ export default function Sidebar({
                 <div className='flex items-center min-w-0'>
                   {IconComponent && (
                     <IconComponent
-                      className={`flex-shrink-0 w-5 h-5 ${isCollapsed ? 'mr-0' : 'mr-3'
+                      className={`flex-shrink-0 ${isGroup ? 'w-4 h-4' : 'w-5 h-5'} ${isCollapsed ? 'mr-0' : 'mr-3'
                         } ${isItemActive
                           ? 'text-white'
-                          : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                          : isGroup && isExpanded
+                            ? 'text-indigo-600 dark:text-indigo-400'
+                            : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
                         }`}
                     />
                   )}
                   {!isCollapsed && (
-                    <span className='truncate'>{item.name}</span>
+                    <span className={`truncate ${isGroup ? 'text-xs font-semibold uppercase tracking-wider' : ''}`}>
+                      {item.name}
+                    </span>
                   )}
                 </div>
                 {!isCollapsed && (
@@ -425,7 +471,9 @@ export default function Sidebar({
                     className={`flex-shrink-0 w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''
                       } ${isItemActive
                         ? 'text-white'
-                        : 'text-gray-400 dark:text-gray-500'
+                        : isGroup && isExpanded
+                          ? 'text-indigo-500 dark:text-indigo-400'
+                          : 'text-gray-400 dark:text-gray-500'
                       }`}
                   />
                 )}
@@ -437,12 +485,12 @@ export default function Sidebar({
                   className={`
                     transition-all duration-300 ease-in-out overflow-hidden
                     ${isExpanded
-                      ? 'max-h-96 opacity-100 mt-1'
+                      ? 'max-h-[500px] opacity-100 mt-1'
                       : 'max-h-0 opacity-0'
                     }
                   `}
                 >
-                  <div className='space-y-1'>
+                  <div className={`space-y-0.5 ${isGroup ? 'pl-2 border-l border-gray-200 dark:border-gray-700' : ''}`}>
                     {renderNavItems(item.children, level + 1)}
                   </div>
                 </div>
@@ -452,10 +500,10 @@ export default function Sidebar({
             <Link
               href={item.href}
               className={`
-                group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out
+                group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out
                 ${isItemActive
                   ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg transform scale-[1.02]'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white hover:transform hover:scale-[1.01]'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-gray-700/50 hover:text-indigo-700 dark:hover:text-white hover:transform hover:translate-x-0.5'
                 }
               `}
               onClick={() => isMobile && setIsOpen(false)}
@@ -463,16 +511,16 @@ export default function Sidebar({
             >
               {IconComponent && (
                 <IconComponent
-                  className={`flex-shrink-0 w-5 h-5 ${isCollapsed ? 'mr-0' : 'mr-3'
+                  className={`flex-shrink-0 w-4 h-4 ${isCollapsed ? 'mr-0' : 'mr-3'
                     } ${isItemActive
                       ? 'text-white'
-                      : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                      : 'text-gray-400 dark:text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
                     }`}
                 />
               )}
-              {!isCollapsed && <span className='truncate'>{item.name}</span>}
+              {!isCollapsed && <span className='truncate text-sm'>{item.name}</span>}
               {isItemActive && !isCollapsed && (
-                <div className='ml-auto w-2 h-2 bg-white rounded-full'></div>
+                <div className='ml-auto w-1.5 h-1.5 bg-white rounded-full'></div>
               )}
             </Link>
           )}

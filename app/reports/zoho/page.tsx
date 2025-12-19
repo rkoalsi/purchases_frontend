@@ -44,10 +44,7 @@ function Page() {
   const [filteredData, setFilteredData] = useState([]);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
-  // Load initial metadata without date filter when component mounts
-  useEffect(() => {
-      fetchDataMetadata(); // Load overall metadata without date filter
-  }, []);
+  // Don't load metadata on initial mount - only show after report is generated
 
   useEffect(() => {
     // Filter data based on search term
@@ -225,15 +222,15 @@ function Page() {
             View detailed sales analytics with inventory insights
           </p>
 
-          {/* Data Availability Chips - Show overall data availability */}
+          {/* Data Availability Chips - Show data for selected date range */}
           {reportMetadata && (
             <div className="flex flex-wrap flex-row gap-3 mt-4">
               {reportMetadata.inventory_data && (
                 <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
                   <Package className="h-4 w-4 text-blue-600" />
                   <span className="text-sm text-blue-800">
-                    <span className="font-medium">Inventory Available:</span> {formatDate(reportMetadata.inventory_data.first_inventory_date)} - {formatDate(reportMetadata.inventory_data.last_inventory_date)}
-                    <span className="ml-1 text-blue-600">({formatNumber(reportMetadata.inventory_data.total_stock_records)} records)</span>
+                    <span className="font-medium">Inventory Records:</span> {formatNumber(reportMetadata.inventory_data.total_stock_records)} records
+                    <span className="ml-1 text-blue-600">({reportMetadata.inventory_data.first_inventory_date} to {reportMetadata.inventory_data.last_inventory_date})</span>
                   </span>
                 </div>
               )}
@@ -242,19 +239,8 @@ function Page() {
                 <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
                   <TrendingUp className="h-4 w-4 text-green-600" />
                   <span className="text-sm text-green-800">
-                    <span className="font-medium">Sales Available:</span> {formatDate(reportMetadata.sales_data.first_sales_date)} - {formatDate(reportMetadata.sales_data.last_sales_date)}
-                    <span className="ml-1 text-green-600">({formatNumber(reportMetadata.sales_data.valid_invoices)} invoices)</span>
-                  </span>
-                </div>
-              )}
-
-              {reportMetadata.date_range && reportMetadata.date_range.filtered && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
-                  <svg className="h-4 w-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  <span className="text-sm text-orange-800">
-                    <span className="font-medium">Filtered:</span> {reportMetadata.date_range.start_date} to {reportMetadata.date_range.end_date}
+                    <span className="font-medium">Invoices:</span> {formatNumber(reportMetadata.sales_data.valid_invoices)} invoices
+                    <span className="ml-1 text-green-600">({reportMetadata.sales_data.first_sales_date} to {reportMetadata.sales_data.last_sales_date})</span>
                   </span>
                 </div>
               )}
