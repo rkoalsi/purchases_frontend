@@ -18,6 +18,7 @@ const InvoiceReportGenerator = () => {
     exclude_customers: false,
   });
   const [brands, setBrands] = useState([]);
+  const [excludedCustomers, setExcludedCustomers] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
@@ -29,14 +30,25 @@ const InvoiceReportGenerator = () => {
       console.log(error);
     }
   };
+
+  const getExcludedCustomers = async () => {
+    try {
+      const { data } = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/excluded-customers`);
+      setExcludedCustomers(data.excluded_customers);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   useEffect(() => {
     getBrands();
+    getExcludedCustomers();
   }, []);
   const handleInputChange = (e: any) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
     // Clear messages when user starts typing
     if (message.text) {
@@ -324,6 +336,14 @@ const InvoiceReportGenerator = () => {
               <li>
                 • File includes Invoice ID, Customer, Item, Quantity, and Date
                 information
+              </li>
+              <li>
+                • The Exclude Customers Checkbox above, once checked removes the following customers from the generated report:
+                <ul className="ml-6 mt-2 space-y-1">
+                  {excludedCustomers.map((customer, index) => (
+                    <li key={index}>{index + 1}. {customer}</li>
+                  ))}
+                </ul>
               </li>
             </ul>
           </div>

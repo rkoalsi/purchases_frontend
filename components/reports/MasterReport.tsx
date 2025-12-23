@@ -31,9 +31,9 @@ interface MasterReportItem {
         total_days_in_stock: number;
     };
     source_breakdown: {
-        blinkit: { units_sold: number; units_returned: number; closing_stock: number; amount: number };
-        amazon: { units_sold: number; units_returned: number; closing_stock: number; amount: number };
-        zoho: { units_sold: number; units_returned: number; closing_stock: number; amount: number };
+        blinkit: { units_sold: number; units_returned: number; closing_stock: number; amount: number; last_90_days_dates?: string };
+        amazon: { units_sold: number; units_returned: number; closing_stock: number; amount: number; last_90_days_dates?: string };
+        zoho: { units_sold: number; units_returned: number; closing_stock: number; amount: number; last_90_days_dates?: string };
     };
 }
 
@@ -94,6 +94,7 @@ function MasterReportsPage() {
     const [includeAmazon, setIncludeAmazon] = useState(true);
     const [includeZoho, setIncludeZoho] = useState(true);
     const [amazonReportType, setAmazonReportType] = useState('all');
+    const [anyLast90Days, setAnyLast90Days] = useState(false);
 
     // Search and filter state
     const [searchTerm, setSearchTerm] = useState('');
@@ -113,6 +114,52 @@ function MasterReportsPage() {
         }
     }, [masterReport, searchTerm]);
 
+    // Auto-regenerate report when anyLast90Days checkbox changes (if a report already exists)
+    useEffect(() => {
+        // Only auto-regenerate if we already have data and dates are set
+        if (masterReport.length > 0 && startDate && endDate) {
+            // Directly call the API instead of using fetchMasterReport to avoid dependency issues
+            const regenerateReport = async () => {
+                try {
+                    setLoading(true);
+                    setError(null);
+                    setReportErrors([]);
+
+                    const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/master-report`, {
+                        params: {
+                            start_date: startDate,
+                            end_date: endDate,
+                            include_blinkit: includeBlinkit,
+                            include_amazon: includeAmazon,
+                            include_zoho: includeZoho,
+                            amazon_report_type: amazonReportType,
+                            any_last_90_days: anyLast90Days,
+                        },
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                    });
+
+                    const data: MasterReportResponse = response.data;
+
+                    setMasterReport(data.combined_data || []);
+                    setSummary(data.summary || {});
+                    setMeta(data.meta || {});
+                    setIndividualReports(data.individual_reports || {});
+                    setReportErrors(data.errors || []);
+                } catch (err: any) {
+                    setError(err.response?.data?.detail || 'Failed to fetch master report data');
+                    console.error('Error fetching master report:', err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            regenerateReport();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [anyLast90Days]);
+
     const fetchMasterReport = async () => {
         try {
             setLoading(true);
@@ -127,6 +174,7 @@ function MasterReportsPage() {
                     include_amazon: includeAmazon,
                     include_zoho: includeZoho,
                     amazon_report_type: amazonReportType,
+                    any_last_90_days: anyLast90Days,
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -175,6 +223,7 @@ function MasterReportsPage() {
                     include_amazon: includeAmazon,
                     include_zoho: includeZoho,
                     amazon_report_type: amazonReportType,
+                    any_last_90_days: anyLast90Days,
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -304,6 +353,7 @@ function MasterReportsPage() {
                     include_amazon: includeAmazon,
                     include_zoho: includeZoho,
                     amazon_report_type: amazonReportType,
+                    any_last_90_days: anyLast90Days,
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -505,6 +555,22 @@ function MasterReportsPage() {
                                             </select>
                                         </div>
                                     )}
+
+                                    {/* Any Last 90 Days Checkbox */}
+                                    <div className="mt-4">
+                                        <label className='flex items-center'>
+                                            <input
+                                                type='checkbox'
+                                                checked={anyLast90Days}
+                                                onChange={(e) => setAnyLast90Days(e.target.checked)}
+                                                className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer'
+                                            />
+                                            <span className='ml-2 text-sm text-gray-700 cursor-pointer'>
+                                                Any Last 90 days in stock
+                                                <span className='ml-1 text-xs text-gray-500'>(Show last 90 days item was in stock, regardless of when)</span>
+                                            </span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -809,6 +875,19 @@ function MasterReportsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                                             Returns Breakdown
                                         </th>
+                                        {anyLast90Days && (
+                                            <>
+                                                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]'>
+                                                    Blinkit Last 90 Days
+                                                </th>
+                                                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]'>
+                                                    Amazon Last 90 Days
+                                                </th>
+                                                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]'>
+                                                    Zoho Last 90 Days
+                                                </th>
+                                            </>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className='bg-white divide-y divide-gray-200'>
@@ -908,6 +987,25 @@ function MasterReportsPage() {
                                                     )}
                                                 </div>
                                             </td>
+                                            {anyLast90Days && (
+                                                <>
+                                                    <td className='px-6 py-4'>
+                                                        <div className='text-sm text-gray-900'>
+                                                            {item.source_breakdown.blinkit.last_90_days_dates || 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td className='px-6 py-4'>
+                                                        <div className='text-sm text-gray-900'>
+                                                            {item.source_breakdown.amazon.last_90_days_dates || 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                    <td className='px-6 py-4'>
+                                                        <div className='text-sm text-gray-900'>
+                                                            {item.source_breakdown.zoho.last_90_days_dates || 'N/A'}
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>

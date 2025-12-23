@@ -47,6 +47,7 @@ interface ReportItem {
   item_name: string;
   item_id: number;
   warehouse: string;
+  last_90_days_dates?: string;
   metrics: {
     avg_daily_on_stock_days: number;
     avg_weekly_on_stock_days: number;
@@ -88,6 +89,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [cityFilter, setCityFilter] = useState<string>('');
   const [warehouseFilter, setWarehouseFilter] = useState<string>('');
+  const [anyLast90Days, setAnyLast90Days] = useState<boolean>(false);
   const [sortConfig, setSortConfig] = useState<{
     key: string | null;
     direction: 'asc' | 'desc';
@@ -240,7 +242,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
   // ===== DATA FETCHING =====
   useEffect(() => {
     fetchReportData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, anyLast90Days]);
 
   const fetchReportData = async () => {
     setLoading(true);
@@ -258,7 +260,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
 
       // Use the new date range API endpoint
       const r = await axios.get(
-        `${apiUrl}/blinkit/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`
+        `${apiUrl}/blinkit/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=${anyLast90Days}`
       );
       const re = await axios.get(
         `${apiUrl}/blinkit/status?start_date=${startDateStr}&end_date=${endDateStr}`
@@ -441,7 +443,7 @@ const handleUpload = async () => {
     );
 
     const generateResponse = await fetch(
-      `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`,
+      `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=${anyLast90Days}`,
       {
         method: 'GET',
         signal: abortController.signal,
@@ -515,7 +517,7 @@ const handleUpload = async () => {
       const endDateStr = dateUtils.format(endDate, 'yyyy-MM-dd');
 
       const response = await fetch(
-        `${apiUrl}/blinkit/download_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}`
+        `${apiUrl}/blinkit/download_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=${anyLast90Days}`
       );
 
       if (!response.ok) {
@@ -627,6 +629,21 @@ const handleUpload = async () => {
                     className='group-hover:border-gray-300'
                   />
                 </div>
+              </div>
+
+              {/* Any Last 90 Days Checkbox */}
+              <div className="mt-4 flex items-center">
+                <input
+                  type="checkbox"
+                  id="anyLast90Days"
+                  checked={anyLast90Days}
+                  onChange={(e) => setAnyLast90Days(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                />
+                <label htmlFor="anyLast90Days" className="ml-2 text-sm text-gray-700 cursor-pointer">
+                  Any Last 90 days in stock
+                  <span className="ml-1 text-xs text-gray-500">(Show last 90 days item was in stock, regardless of when)</span>
+                </label>
               </div>
             </div>
             {/* Action Buttons Section */}
@@ -1035,6 +1052,11 @@ const handleUpload = async () => {
                       <SortIcon column='metrics.closing_stock' />
                     </button>
                   </th>
+                  {anyLast90Days && (
+                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]'>
+                      Last 90 Days In Stock
+                    </th>
+                  )}
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]'>
                     Past 7 day Sales
                   </th>
@@ -1067,7 +1089,7 @@ const handleUpload = async () => {
                 {filteredAndSortedData.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={21}
+                      colSpan={anyLast90Days ? 22 : 21}
                       className='px-4 py-8 text-center text-sm text-gray-500'
                     >
                       No items match your search criteria
@@ -1137,6 +1159,11 @@ const handleUpload = async () => {
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
                           {item.metrics.closing_stock?.toFixed(2)}
                         </td>
+                        {anyLast90Days && (
+                          <td className='px-4 py-3 text-sm text-gray-900 max-w-md'>
+                            {item.last_90_days_dates || 'N/A'}
+                          </td>
+                        )}
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
                           {item.metrics?.sales_last_7_days_ending_lcd?.toFixed(
                             2

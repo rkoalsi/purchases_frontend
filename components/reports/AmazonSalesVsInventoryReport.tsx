@@ -27,6 +27,7 @@ interface ReportItem {
   item_name: string;
   item_id: number;
   warehouse: string;
+  last_90_days_dates?: string;
   metrics: {
     avg_daily_on_stock_days: number;
     avg_weekly_on_stock_days: number;
@@ -64,6 +65,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [cityFilter, setCityFilter] = useState<string>("");
   const [warehouseFilter, setWarehouseFilter] = useState<string>("");
+  const [anyLast90Days, setAnyLast90Days] = useState<boolean>(false);
   const [sortConfig, setSortConfig] = useState<{
     key: string | null;
     direction: "asc" | "desc";
@@ -79,9 +81,11 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
 
   const filteredAndSortedData = useMemo(() => {
     const filteredData = reportData.filter((item) => {
-      const matchesSearch = item.item_name
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        !searchTerm ||
+        (item.item_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.sku_code?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.asin?.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesCity = !cityFilter || item.city === cityFilter;
       const matchesWarehouse =
@@ -253,7 +257,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   // ===== DATA FETCHING =====
   useEffect(() => {
     fetchReportData();
-  }, [startDate, endDate, reportType]);
+  }, [startDate, endDate, reportType, anyLast90Days]);
 
   const fetchReportData = async () => {
     setLoading(true);
@@ -267,7 +271,7 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
 
       // Use the new date range API endpoint
       const r = await axios.get(
-        `${apiUrl}/amazon/get_report_data_by_date_range`, { params: { start_date: startDate, end_date: endDate, report_type: reportType } }
+        `${apiUrl}/amazon/get_report_data_by_date_range`, { params: { start_date: startDate, end_date: endDate, report_type: reportType, any_last_90_days: anyLast90Days } }
       );
       const resp = await axios.get(
         `${apiUrl}/amazon/status`, { params: { start_date: startDate, end_date: endDate, report_type: reportType } }
@@ -300,7 +304,8 @@ const handleDownload = async () => {
         params: {
           'start_date': startDate,
           'end_date': endDate,
-          'report_type': reportType
+          'report_type': reportType,
+          'any_last_90_days': anyLast90Days
         },
         responseType: 'blob' // ← Critical: Tell axios to handle binary data
       }
@@ -377,6 +382,21 @@ const processDownload = async (response: any) => {
                   downloadDisabledCondition={downloading || reportData.length === 0}
                   downloadLoading={downloading}
                 />
+
+                {/* Any Last 90 Days Checkbox */}
+                <div className="mt-4 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="anyLast90Days"
+                    checked={anyLast90Days}
+                    onChange={(e) => setAnyLast90Days(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                  />
+                  <label htmlFor="anyLast90Days" className="ml-2 text-sm text-gray-700 cursor-pointer">
+                    Any Last 90 days in stock
+                    <span className="ml-1 text-xs text-gray-500">(Show last 90 days item was in stock, regardless of when)</span>
+                  </label>
+                </div>
               </div>
 
               {/* Search Bar */}
@@ -600,6 +620,11 @@ const processDownload = async (response: any) => {
                       <StandardSortIcon column="drr" sortConfig={sortConfig} />
                     </button>
                   </th>
+                  {anyLast90Days && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
+                      Last 90 Days In Stock
+                    </th>
+                  )}
                 </tr>
               </thead>
 
@@ -668,6 +693,11 @@ const processDownload = async (response: any) => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {item.drr}
                         </td>
+                        {anyLast90Days && (
+                          <td className="px-4 py-3 text-sm text-gray-900 max-w-md">
+                            {item.last_90_days_dates || 'N/A'}
+                          </td>
+                        )}
                       </tr>
                     );
                   })
