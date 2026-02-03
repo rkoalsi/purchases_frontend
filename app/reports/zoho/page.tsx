@@ -248,6 +248,24 @@ function Page() {
                 </div>
               )}
 
+              {reportMetadata.inventory_data?.missing_dates && reportMetadata.inventory_data.missing_dates.length > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
+                  <TrendingDown className="h-4 w-4 text-orange-600" />
+                  <span className="text-sm text-orange-800">
+                    <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.inventory_data.missing_dates.join(', ')}
+                  </span>
+                </div>
+              )}
+
+              {reportMetadata.sales_data?.missing_dates && reportMetadata.sales_data.missing_dates.length > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100">
+                  <TrendingDown className="h-4 w-4 text-red-600" />
+                  <span className="text-sm text-red-800">
+                    <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.sales_data.missing_dates.join(', ')}
+                  </span>
+                </div>
+              )}
+
               {metadataLoading && !reportMetadata && (
                 <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
