@@ -27,6 +27,7 @@ interface ReportItem {
   item_name: string;
   item_id: number;
   warehouse: string;
+  asin?: string;
   last_90_days_dates?: string;
   metrics: {
     avg_daily_on_stock_days: number;
