@@ -7,7 +7,7 @@ import dateUtils from "../common/DateUtils";
 import DatePicker from "../common/DatePicker";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { Package, TrendingUp } from "lucide-react";
+import { Package, TrendingUp, TrendingDown } from "lucide-react";
 import {
   SortIcon as StandardSortIcon,
   TABLE_CLASSES,
@@ -177,6 +177,24 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                   <span className="font-medium">Records:</span> {reportMetadata.vendor_central.sales_data.records_count} sales, {reportMetadata.vendor_central.inventory_data.records_count} inventory
                 </span>
               </div>
+
+              {reportMetadata.vendor_central.inventory_data?.missing_dates && reportMetadata.vendor_central.inventory_data.missing_dates.length > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
+                  <TrendingDown className="h-4 w-4 text-orange-600" />
+                  <span className="text-sm text-orange-800">
+                    <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.vendor_central.inventory_data.missing_dates.join(', ')}
+                  </span>
+                </div>
+              )}
+
+              {reportMetadata.vendor_central.sales_data?.missing_dates && reportMetadata.vendor_central.sales_data.missing_dates.length > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100">
+                  <TrendingDown className="h-4 w-4 text-red-600" />
+                  <span className="text-sm text-red-800">
+                    <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.vendor_central.sales_data.missing_dates.join(', ')}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -213,6 +231,24 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                   <span className="font-medium">Records:</span> {reportMetadata.fba_seller_flex.sales_data.records_count} sales, {reportMetadata.fba_seller_flex.inventory_data.records_count} inventory
                 </span>
               </div>
+
+              {reportMetadata.fba_seller_flex.inventory_data?.missing_dates && reportMetadata.fba_seller_flex.inventory_data.missing_dates.length > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
+                  <TrendingDown className="h-4 w-4 text-orange-600" />
+                  <span className="text-sm text-orange-800">
+                    <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.fba_seller_flex.inventory_data.missing_dates.join(', ')}
+                  </span>
+                </div>
+              )}
+
+              {reportMetadata.fba_seller_flex.sales_data?.missing_dates && reportMetadata.fba_seller_flex.sales_data.missing_dates.length > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100">
+                  <TrendingDown className="h-4 w-4 text-red-600" />
+                  <span className="text-sm text-red-800">
+                    <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.fba_seller_flex.sales_data.missing_dates.join(', ')}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -248,6 +284,24 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
             <span className="text-sm text-gray-800">
               <span className="font-medium">Records:</span> {reportMetadata.sales_data.records_count} sales, {reportMetadata.inventory_data.records_count} inventory
+            </span>
+          </div>
+        )}
+
+        {reportMetadata.inventory_data?.missing_dates && reportMetadata.inventory_data.missing_dates.length > 0 && (
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
+            <TrendingDown className="h-4 w-4 text-orange-600" />
+            <span className="text-sm text-orange-800">
+              <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.inventory_data.missing_dates.join(', ')}
+            </span>
+          </div>
+        )}
+
+        {reportMetadata.sales_data?.missing_dates && reportMetadata.sales_data.missing_dates.length > 0 && (
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100">
+            <TrendingDown className="h-4 w-4 text-red-600" />
+            <span className="text-sm text-red-800">
+              <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.sales_data.missing_dates.join(', ')}
             </span>
           </div>
         )}
