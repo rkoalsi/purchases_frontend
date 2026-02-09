@@ -23,6 +23,7 @@ interface MasterReportItem {
     combined_metrics: {
         total_units_sold: number;
         total_units_returned: number;
+        total_credit_notes: number;
         total_amount: number;
         total_closing_stock: number;
         total_sessions: number;
@@ -31,9 +32,9 @@ interface MasterReportItem {
         total_days_in_stock: number;
     };
     source_breakdown: {
-        blinkit: { units_sold: number; units_returned: number; closing_stock: number; amount: number; last_90_days_dates?: string };
-        amazon: { units_sold: number; units_returned: number; closing_stock: number; amount: number; last_90_days_dates?: string };
-        zoho: { units_sold: number; units_returned: number; closing_stock: number; amount: number; last_90_days_dates?: string };
+        blinkit: { units_sold: number; units_returned: number; credit_notes: number; closing_stock: number; amount: number; last_90_days_dates?: string };
+        amazon: { units_sold: number; units_returned: number; credit_notes: number; closing_stock: number; amount: number; last_90_days_dates?: string };
+        zoho: { units_sold: number; units_returned: number; credit_notes: number; closing_stock: number; amount: number; last_90_days_dates?: string };
     };
 }
 
@@ -46,6 +47,9 @@ interface MasterReportResponse {
     summary: {
         total_unique_skus: number;
         total_units_sold: number;
+        total_units_returned: number;
+        total_credit_notes: number;
+        total_net_units_sold: number;
         total_amount: number;
         total_closing_stock: number;
         sources_included: string[];
@@ -659,6 +663,38 @@ function MasterReportsPage() {
                         <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
                             <div className='flex items-center'>
                                 <div className='flex-shrink-0'>
+                                    <div className='w-8 h-8 bg-orange-100 rounded-md flex items-center justify-center'>
+                                        <TrendingDown className='w-5 h-5 text-orange-600' />
+                                    </div>
+                                </div>
+                                <div className='ml-5 w-0 flex-1'>
+                                    <dl>
+                                        <dt className='text-sm font-medium text-gray-500 truncate'>Credit Notes</dt>
+                                        <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_credit_notes)}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+                            <div className='flex items-center'>
+                                <div className='flex-shrink-0'>
+                                    <div className='w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center'>
+                                        <TrendingUp className='w-5 h-5 text-blue-600' />
+                                    </div>
+                                </div>
+                                <div className='ml-5 w-0 flex-1'>
+                                    <dl>
+                                        <dt className='text-sm font-medium text-gray-500 truncate'>Net Units Sold</dt>
+                                        <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_net_units_sold)}</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+                            <div className='flex items-center'>
+                                <div className='flex-shrink-0'>
                                     <div className='w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center'>
                                         <svg className='w-5 h-5 text-yellow-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                                             <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1' />
@@ -844,6 +880,24 @@ function MasterReportsPage() {
                                         </th>
                                         <th
                                             className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('combined_metrics.total_credit_notes')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Credit Notes</span>
+                                                {getSortIcon('combined_metrics.total_credit_notes')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('combined_metrics.total_units_sold')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Net Units Sold</span>
+                                                {getSortIcon('combined_metrics.total_units_sold')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
                                             onClick={() => handleSort('combined_metrics.total_amount')}
                                         >
                                             <div className='flex items-center space-x-1'>
@@ -927,6 +981,16 @@ function MasterReportsPage() {
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-orange-600'>
+                                                    {formatNumber(item.combined_metrics.total_credit_notes)}
+                                                </div>
+                                            </td>
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-blue-600'>
+                                                    {formatNumber(item.combined_metrics.total_units_sold - item.combined_metrics.total_credit_notes)}
+                                                </div>
+                                            </td>
+                                            <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900'>
                                                     {formatCurrency(item.combined_metrics.total_amount)}
                                                 </div>
@@ -951,7 +1015,7 @@ function MasterReportsPage() {
                                                             <span className='text-black'>{formatNumber(item.source_breakdown.blinkit.units_sold)} units</span>
                                                         </div>
                                                     )}
-                                                    {item.sources.includes('amazon') && (
+                                                    {item.sources.some(s => s === 'amazon' || s.startsWith('amazon_')) && (
                                                         <div className='flex justify-between'>
                                                             <span className='text-yellow-600'>Amazon Sales:</span>
                                                             <span className='text-black'>{formatNumber(item.source_breakdown.amazon.units_sold)} units</span>
@@ -973,7 +1037,7 @@ function MasterReportsPage() {
                                                             <span className='text-black'>{formatNumber(item.source_breakdown.blinkit.units_returned)} units</span>
                                                         </div>
                                                     )}
-                                                    {item.sources.includes('amazon') && (
+                                                    {item.sources.some(s => s === 'amazon' || s.startsWith('amazon_')) && (
                                                         <div className='flex justify-between'>
                                                             <span className='text-yellow-600'>Amazon Returns:</span>
                                                             <span className='text-black'>{formatNumber(item.source_breakdown.amazon.units_returned)} units</span>
