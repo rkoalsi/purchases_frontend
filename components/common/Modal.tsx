@@ -196,9 +196,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
             </svg>
             <div className='text-sm text-blue-800'>
               <p className='font-medium mb-1'>Supported formats:</p>
-              <p>
-                Excel files (.xlsx, .xls) with properly formatted data headers
-              </p>
+              <ul className='space-y-1 text-xs'>
+                <li>• Excel files (.xlsx, .xls) with properly formatted data headers</li>
+                <li>• Inventory: Both legacy format and new Blinkit format (with timestamp) are supported</li>
+                <li>• Files are automatically detected and processed accordingly</li>
+              </ul>
             </div>
           </div>
         </div>
