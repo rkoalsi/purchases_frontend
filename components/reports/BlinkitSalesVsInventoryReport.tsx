@@ -385,9 +385,11 @@ const handleUpload = async () => {
 
       // Upload return sales data using the same sales file
       console.log('Uploading Return Sales data...');
+      const returnSalesFormData = new FormData();
+      returnSalesFormData.append('file', salesFile);
       const returnSalesResponse = await fetch(`${apiUrl}/blinkit/upload_return_data`, {
         ...fetchOptions,
-        body: salesFormData,
+        body: returnSalesFormData,
       });
 
       if (!returnSalesResponse.ok) {
