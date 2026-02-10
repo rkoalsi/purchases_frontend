@@ -36,6 +36,26 @@ interface MasterReportItem {
         amazon: { units_sold: number; units_returned: number; credit_notes: number; closing_stock: number; amount: number; last_90_days_dates?: string };
         zoho: { units_sold: number; units_returned: number; credit_notes: number; closing_stock: number; amount: number; last_90_days_dates?: string };
     };
+    // Movement & Order Calculation fields
+    movement?: string;
+    mover_class?: number;
+    safety_days?: number;
+    lead_time?: number;
+    on_hand_days_coverage?: number;
+    stock_in_transit_1?: number;
+    stock_in_transit_2?: number;
+    stock_in_transit_3?: number;
+    total_stock_in_transit?: number;
+    current_days_coverage?: number;
+    target_days?: number;
+    excess_or_order?: string;
+    order_qty?: number;
+    cbm?: number;
+    case_pack?: number;
+    order_qty_rounded?: number;
+    total_cbm?: number;
+    days_current_order_lasts?: number;
+    days_total_inventory_lasts?: number;
 }
 
 interface MasterReportResponse {
@@ -663,38 +683,6 @@ function MasterReportsPage() {
                         <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
                             <div className='flex items-center'>
                                 <div className='flex-shrink-0'>
-                                    <div className='w-8 h-8 bg-orange-100 rounded-md flex items-center justify-center'>
-                                        <TrendingDown className='w-5 h-5 text-orange-600' />
-                                    </div>
-                                </div>
-                                <div className='ml-5 w-0 flex-1'>
-                                    <dl>
-                                        <dt className='text-sm font-medium text-gray-500 truncate'>Credit Notes</dt>
-                                        <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_credit_notes)}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
-                            <div className='flex items-center'>
-                                <div className='flex-shrink-0'>
-                                    <div className='w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center'>
-                                        <TrendingUp className='w-5 h-5 text-blue-600' />
-                                    </div>
-                                </div>
-                                <div className='ml-5 w-0 flex-1'>
-                                    <dl>
-                                        <dt className='text-sm font-medium text-gray-500 truncate'>Net Units Sold</dt>
-                                        <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_net_units_sold)}</dd>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
-                            <div className='flex items-center'>
-                                <div className='flex-shrink-0'>
                                     <div className='w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center'>
                                         <svg className='w-5 h-5 text-yellow-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                                             <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1' />
@@ -880,24 +868,6 @@ function MasterReportsPage() {
                                         </th>
                                         <th
                                             className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.total_credit_notes')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Credit Notes</span>
-                                                {getSortIcon('combined_metrics.total_credit_notes')}
-                                            </div>
-                                        </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.total_units_sold')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Net Units Sold</span>
-                                                {getSortIcon('combined_metrics.total_units_sold')}
-                                            </div>
-                                        </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
                                             onClick={() => handleSort('combined_metrics.total_amount')}
                                         >
                                             <div className='flex items-center space-x-1'>
@@ -928,6 +898,93 @@ function MasterReportsPage() {
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                                             Returns Breakdown
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('mover_class')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Movement</span>
+                                                {getSortIcon('mover_class')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('on_hand_days_coverage')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>On-Hand Days</span>
+                                                {getSortIcon('on_hand_days_coverage')}
+                                            </div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            Stock in Transit
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('current_days_coverage')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Current Days Coverage</span>
+                                                {getSortIcon('current_days_coverage')}
+                                            </div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            Target Days
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('excess_or_order')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Excess / Order</span>
+                                                {getSortIcon('excess_or_order')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('order_qty')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Order Qty</span>
+                                                {getSortIcon('order_qty')}
+                                            </div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            CBM
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            Case Pack
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('order_qty_rounded')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Order Qty (Rounded)</span>
+                                                {getSortIcon('order_qty_rounded')}
+                                            </div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            Total CBM
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('days_current_order_lasts')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Days Order Lasts</span>
+                                                {getSortIcon('days_current_order_lasts')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('days_total_inventory_lasts')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Days Total Inv. Lasts</span>
+                                                {getSortIcon('days_total_inventory_lasts')}
+                                            </div>
                                         </th>
                                         {anyLast90Days && (
                                             <>
@@ -978,16 +1035,6 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900'>
                                                     {formatNumber(item.combined_metrics.total_units_returned)}
-                                                </div>
-                                            </td>
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-orange-600'>
-                                                    {formatNumber(item.combined_metrics.total_credit_notes)}
-                                                </div>
-                                            </td>
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-blue-600'>
-                                                    {formatNumber(item.combined_metrics.total_units_sold - item.combined_metrics.total_credit_notes)}
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
@@ -1050,6 +1097,79 @@ function MasterReportsPage() {
                                                         </div>
                                                     )}
                                                 </div>
+                                            </td>
+                                            {/* Movement */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                    item.mover_class === 1 ? 'bg-green-100 text-green-800' :
+                                                    item.mover_class === 2 ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-red-100 text-red-800'
+                                                }`}>
+                                                    {item.movement || 'N/A'}
+                                                </span>
+                                            </td>
+                                            {/* On-Hand Days Coverage */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.on_hand_days_coverage?.toFixed(1) || '0'}</div>
+                                            </td>
+                                            {/* Stock in Transit */}
+                                            <td className='px-6 py-4'>
+                                                <div className='text-xs space-y-1'>
+                                                    {(item.stock_in_transit_1 || 0) > 0 && (
+                                                        <div className='text-gray-700'>T1: {formatNumber(item.stock_in_transit_1 || 0)}</div>
+                                                    )}
+                                                    {(item.stock_in_transit_2 || 0) > 0 && (
+                                                        <div className='text-gray-700'>T2: {formatNumber(item.stock_in_transit_2 || 0)}</div>
+                                                    )}
+                                                    {(item.stock_in_transit_3 || 0) > 0 && (
+                                                        <div className='text-gray-700'>T3: {formatNumber(item.stock_in_transit_3 || 0)}</div>
+                                                    )}
+                                                    <div className='font-medium text-gray-900'>Total: {formatNumber(item.total_stock_in_transit || 0)}</div>
+                                                </div>
+                                            </td>
+                                            {/* Current Days Coverage */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.current_days_coverage?.toFixed(1) || '0'}</div>
+                                            </td>
+                                            {/* Target Days */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.target_days || 0}</div>
+                                            </td>
+                                            {/* Excess / Order */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                    item.excess_or_order === 'ORDER' ? 'bg-red-100 text-red-800' : item.excess_or_order === 'NO MOVEMENT' ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
+                                                }`}>
+                                                    {item.excess_or_order || 'N/A'}
+                                                </span>
+                                            </td>
+                                            {/* Order Qty */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.order_qty || 0)}</div>
+                                            </td>
+                                            {/* CBM */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.cbm || 0}</div>
+                                            </td>
+                                            {/* Case Pack */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.case_pack || 0}</div>
+                                            </td>
+                                            {/* Order Qty (Rounded) */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.order_qty_rounded || 0)}</div>
+                                            </td>
+                                            {/* Total CBM */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{(item.total_cbm || 0).toFixed(4)}</div>
+                                            </td>
+                                            {/* Days Current Order Lasts */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.days_current_order_lasts?.toFixed(1) || '0'}</div>
+                                            </td>
+                                            {/* Days Total Inventory Lasts */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.days_total_inventory_lasts?.toFixed(1) || '0'}</div>
                                             </td>
                                             {anyLast90Days && (
                                                 <>

@@ -23,6 +23,8 @@ import {
   FileText,
   CheckSquare,
   ShoppingCart,
+  Truck,
+  Box,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -208,6 +210,20 @@ const navigation = [
     href: '/settings',
     icon: Settings,
     requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS, // null - always visible
+    children: [
+      {
+        name: 'Brand Logistics',
+        href: '/settings/brand-logistics',
+        icon: Truck,
+        requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS,
+      },
+      {
+        name: 'Product Logistics',
+        href: '/settings/product-logistics',
+        icon: Box,
+        requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS,
+      },
+    ],
   },
 ];
 
