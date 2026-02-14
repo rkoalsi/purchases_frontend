@@ -17,7 +17,6 @@ import {
   Store,
   Import,
   User,
-  WorkflowIcon,
   SquareKanban,
   ZapIcon,
   FileText,
@@ -51,7 +50,6 @@ const PERMISSION_REQUIREMENTS = {
   INVENTORY: { name: 'items' },
   REPORTS: { name: 'reports' },
   USERS: { name: 'users' },
-  WORKFLOWS: { name: 'workflows' },
   SETTINGS: null, // null means always visible
   // Item-specific permissions
   AMAZON_ITEMS: { name: 'items' },
@@ -200,12 +198,6 @@ const navigation = [
     requiredPermission: PERMISSION_REQUIREMENTS.USERS,
   },
   {
-    name: 'Workflows',
-    href: '/workflows',
-    icon: WorkflowIcon,
-    requiredPermission: PERMISSION_REQUIREMENTS.WORKFLOWS,
-  },
-  {
     name: 'Settings',
     href: '/settings',
     icon: Settings,
@@ -302,19 +294,9 @@ export default function Sidebar({
     // If user has no permissions array, deny access
     if (!user?.permissions || !Array.isArray(user.permissions)) return false;
 
-    // Debug logging
-    console.log('Checking permission:', requiredPermission);
-    console.log('User permissions:', getUserPermissions);
-    console.log('Available permissions:', availablePermissions);
-
-    // Check if user has the required permission with the required action
     const hasAccess = getUserPermissions?.some((permission) => {
-      const nameMatch = permission.name === requiredPermission.name;
-      console.log(`Permission ${permission.name}: nameMatch=${nameMatch}`);
-      return nameMatch;
+      return permission.name === requiredPermission.name;
     });
-
-    console.log('Has access:', hasAccess);
     return hasAccess;
   };
 
@@ -437,7 +419,7 @@ export default function Sidebar({
 
   // Recursive function to render navigation items
   const renderNavItems = (items: any[], level = 0) => {
-    return items.map((item, index) => {
+    return items.map((item) => {
       const isItemActive = item.href && isActive(item.href);
       const isExpanded = expandedItems.includes(item.name);
       const IconComponent = item.icon;
