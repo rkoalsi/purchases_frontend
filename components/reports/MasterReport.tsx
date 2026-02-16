@@ -6,14 +6,14 @@ import axios from 'axios';
 import { Package, TrendingUp, TrendingDown, ShoppingCart, Warehouse, Globe, BarChart3 } from 'lucide-react';
 import DateRangePresets from './DateRange';
 import {
-  SortIcon,
-  TABLE_CLASSES,
-  LoadingState,
-  ErrorState,
-  EmptyState,
-  SearchBar,
-  formatCurrency,
-  formatNumber,
+    SortIcon,
+    TABLE_CLASSES,
+    LoadingState,
+    ErrorState,
+    EmptyState,
+    SearchBar,
+    formatCurrency,
+    formatNumber,
 } from './TableStyles';
 
 interface MasterReportItem {
@@ -516,7 +516,7 @@ function MasterReportsPage() {
                             </div>
 
                             {/* Data Source Controls */}
-                            <div>
+                            {/* <div>
                                 <h3 className='text-lg font-medium text-gray-900 mb-4'>Data Sources</h3>
                                 <div className='space-y-4'>
                                     <div className='flex items-center space-x-4'>
@@ -579,24 +579,8 @@ function MasterReportsPage() {
                                             </select>
                                         </div>
                                     )}
-
-                                    {/* Any Last 90 Days Checkbox */}
-                                    <div className="mt-4">
-                                        <label className='flex items-center'>
-                                            <input
-                                                type='checkbox'
-                                                checked={anyLast90Days}
-                                                onChange={(e) => setAnyLast90Days(e.target.checked)}
-                                                className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer'
-                                            />
-                                            <span className='ml-2 text-sm text-gray-700 cursor-pointer'>
-                                                Any Last 90 days in stock
-                                                <span className='ml-1 text-xs text-gray-500'>(Show last 90 days item was in stock, regardless of when)</span>
-                                            </span>
-                                        </label>
-                                    </div>
                                 </div>
-                            </div>
+                            </div> */}
 
                             {/* Search Bar */}
                             <div className='lg:col-span-2'>
@@ -1100,11 +1084,10 @@ function MasterReportsPage() {
                                             </td>
                                             {/* Movement */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                    item.mover_class === 1 ? 'bg-green-100 text-green-800' :
-                                                    item.mover_class === 2 ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.mover_class === 1 ? 'bg-green-100 text-green-800' :
+                                                        item.mover_class === 2 ? 'bg-yellow-100 text-yellow-800' :
+                                                            'bg-red-100 text-red-800'
+                                                    }`}>
                                                     {item.movement || 'N/A'}
                                                 </span>
                                             </td>
@@ -1137,9 +1120,8 @@ function MasterReportsPage() {
                                             </td>
                                             {/* Excess / Order */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                    item.excess_or_order === 'ORDER' ? 'bg-red-100 text-red-800' : item.excess_or_order === 'NO MOVEMENT' ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
-                                                }`}>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.excess_or_order === 'ORDER' ? 'bg-red-100 text-red-800' : item.excess_or_order === 'NO MOVEMENT' ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
+                                                    }`}>
                                                     {item.excess_or_order || 'N/A'}
                                                 </span>
                                             </td>
