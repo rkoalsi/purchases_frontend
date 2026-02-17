@@ -738,9 +738,6 @@ function MasterReportsPage() {
                                                 {getSortIcon('sku_code')}
                                             </div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Sources
-                                        </th>
                                         <th
                                             className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
                                             onClick={() => handleSort('combined_metrics.total_units_sold')}
@@ -938,19 +935,6 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-mono text-gray-900'>
                                                     {item.sku_code || 'N/A'}
-                                                </div>
-                                            </td>
-                                            <td className='px-6 py-4'>
-                                                <div className='flex flex-wrap gap-1'>
-                                                    {item.sources.map((source) => (
-                                                        <span
-                                                            key={source}
-                                                            className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full border ${getSourceColor(source)}`}
-                                                        >
-                                                            {getSourceIcon(source)}
-                                                            {source}
-                                                        </span>
-                                                    ))}
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
