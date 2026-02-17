@@ -16,6 +16,7 @@ const InvoiceReportGenerator = () => {
     endDate: "",
     brand: "",
     exclude_customers: false,
+    min_quantity: "",
   });
   const [brands, setBrands] = useState([]);
   const [excludedCustomers, setExcludedCustomers] = useState<string[]>([]);
@@ -98,6 +99,7 @@ const InvoiceReportGenerator = () => {
             end_date: formData.endDate,
             brand: formData.brand,
             exclude_customers: formData.exclude_customers,
+            ...(formData.min_quantity ? { min_quantity: parseFloat(formData.min_quantity) } : {}),
           }),
         }
       );
@@ -252,6 +254,29 @@ const InvoiceReportGenerator = () => {
                 ))}
               </select>
             </div>
+            {/* Min Quantity Filter */}
+            <div>
+              <label
+                htmlFor="min_quantity"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Minimum Quantity (optional)
+              </label>
+              <input
+                type="number"
+                id="min_quantity"
+                name="min_quantity"
+                value={formData.min_quantity}
+                onChange={handleInputChange}
+                placeholder="Leave blank for all customers"
+                min="0"
+                className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Only include customers with individual item quantity greater than or equal to this value
+              </p>
+            </div>
+
             <div
               className="flex items-center mb-4"
               data-tooltip-target="tooltip-default"
