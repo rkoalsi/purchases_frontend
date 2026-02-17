@@ -26,16 +26,18 @@ interface MasterReportItem {
         total_credit_notes: number;
         total_amount: number;
         total_closing_stock: number;
-        total_sessions: number;
         avg_daily_run_rate: number;
         avg_days_of_coverage: number;
         total_days_in_stock: number;
+        pupscribe_wh_stock: number;
+        fba_closing_stock: number;
+        transfer_orders: number;
+        total_sales: number;
     };
-    source_breakdown: {
-        blinkit: { units_sold: number; units_returned: number; credit_notes: number; closing_stock: number; amount: number; last_90_days_dates?: string };
-        amazon: { units_sold: number; units_returned: number; credit_notes: number; closing_stock: number; amount: number; last_90_days_dates?: string };
-        zoho: { units_sold: number; units_returned: number; credit_notes: number; closing_stock: number; amount: number; last_90_days_dates?: string };
-    };
+    in_stock: boolean;
+    drr_source?: string;
+    drr_lookback_period?: string;
+    highlight?: string | null;
     // Movement & Order Calculation fields
     movement?: string;
     mover_class?: number;
@@ -78,8 +80,8 @@ interface MasterReportResponse {
     individual_reports: {
         [key: string]: {
             source: string;
-            data: any[];
             success: boolean;
+            record_count?: number;
             error?: string;
         };
     };
@@ -114,11 +116,11 @@ function MasterReportsPage() {
     });
 
     // Source inclusion controls
-    const [includeBlinkit, setIncludeBlinkit] = useState(true);
-    const [includeAmazon, setIncludeAmazon] = useState(true);
     const [includeZoho, setIncludeZoho] = useState(true);
-    const [amazonReportType, setAmazonReportType] = useState('all');
-    const [anyLast90Days, setAnyLast90Days] = useState(false);
+
+    // Brand filter
+    const [brands, setBrands] = useState<{ value: string; label: string }[]>([]);
+    const [selectedBrand, setSelectedBrand] = useState('');
 
     // Search and filter state
     const [searchTerm, setSearchTerm] = useState('');
@@ -138,51 +140,20 @@ function MasterReportsPage() {
         }
     }, [masterReport, searchTerm]);
 
-    // Auto-regenerate report when anyLast90Days checkbox changes (if a report already exists)
+    // Fetch available brands on mount
     useEffect(() => {
-        // Only auto-regenerate if we already have data and dates are set
-        if (masterReport.length > 0 && startDate && endDate) {
-            // Directly call the API instead of using fetchMasterReport to avoid dependency issues
-            const regenerateReport = async () => {
-                try {
-                    setLoading(true);
-                    setError(null);
-                    setReportErrors([]);
-
-                    const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/master-report`, {
-                        params: {
-                            start_date: startDate,
-                            end_date: endDate,
-                            include_blinkit: includeBlinkit,
-                            include_amazon: includeAmazon,
-                            include_zoho: includeZoho,
-                            amazon_report_type: amazonReportType,
-                            any_last_90_days: anyLast90Days,
-                        },
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                        },
-                    });
-
-                    const data: MasterReportResponse = response.data;
-
-                    setMasterReport(data.combined_data || []);
-                    setSummary(data.summary || {});
-                    setMeta(data.meta || {});
-                    setIndividualReports(data.individual_reports || {});
-                    setReportErrors(data.errors || []);
-                } catch (err: any) {
-                    setError(err.response?.data?.detail || 'Failed to fetch master report data');
-                    console.error('Error fetching master report:', err);
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            regenerateReport();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [anyLast90Days]);
+        const fetchBrands = async () => {
+            try {
+                const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/brands`, {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                setBrands(response.data.brands || []);
+            } catch (err) {
+                console.error('Error fetching brands:', err);
+            }
+        };
+        if (accessToken) fetchBrands();
+    }, [accessToken]);
 
     const fetchMasterReport = async () => {
         try {
@@ -194,11 +165,8 @@ function MasterReportsPage() {
                 params: {
                     start_date: startDate,
                     end_date: endDate,
-                    include_blinkit: includeBlinkit,
-                    include_amazon: includeAmazon,
                     include_zoho: includeZoho,
-                    amazon_report_type: amazonReportType,
-                    any_last_90_days: anyLast90Days,
+                    ...(selectedBrand ? { brand: selectedBrand } : {}),
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -226,11 +194,6 @@ function MasterReportsPage() {
             return;
         }
 
-        if (!includeBlinkit && !includeAmazon && !includeZoho) {
-            setError('Please select at least one data source');
-            return;
-        }
-
         await fetchMasterReport();
     };
 
@@ -243,11 +206,8 @@ function MasterReportsPage() {
                 params: {
                     start_date: startDate,
                     end_date: endDate,
-                    include_blinkit: includeBlinkit,
-                    include_amazon: includeAmazon,
                     include_zoho: includeZoho,
-                    amazon_report_type: amazonReportType,
-                    any_last_90_days: anyLast90Days,
+                    ...(selectedBrand ? { brand: selectedBrand } : {}),
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -371,13 +331,10 @@ function MasterReportsPage() {
 
             const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/master-report`, {
                 params: {
-                    start_date: newStartDate,  // Use the passed dates directly
-                    end_date: newEndDate,      // Use the passed dates directly
-                    include_blinkit: includeBlinkit,
-                    include_amazon: includeAmazon,
+                    start_date: newStartDate,
+                    end_date: newEndDate,
                     include_zoho: includeZoho,
-                    amazon_report_type: amazonReportType,
-                    any_last_90_days: anyLast90Days,
+                    ...(selectedBrand ? { brand: selectedBrand } : {}),
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -439,7 +396,7 @@ function MasterReportsPage() {
                 <div className='mb-8'>
                     <h1 className='text-3xl font-bold text-white'>Master Sales Report</h1>
                     <p className='mt-2 text-white'>
-                        Combined sales analytics from Blinkit, Amazon, and Zoho
+                        Combined sales analytics from Zoho
                     </p>
 
                     {/* Data Source Status */}
@@ -459,7 +416,7 @@ function MasterReportsPage() {
                                     </span>
                                     {report.success ? (
                                         <span className="text-xs bg-green-100 px-2 py-1 rounded">
-                                            {formatNumber(report.data?.length || 0)} items
+                                            {formatNumber(report.record_count || 0)} items
                                         </span>
                                     ) : (
                                         <span className="text-xs bg-red-100 px-2 py-1 rounded">
@@ -515,98 +472,47 @@ function MasterReportsPage() {
                                 />
                             </div>
 
-                            {/* Data Source Controls */}
-                            {/* <div>
-                                <h3 className='text-lg font-medium text-gray-900 mb-4'>Data Sources</h3>
-                                <div className='space-y-4'>
-                                    <div className='flex items-center space-x-4'>
-                                        <label className='flex items-center'>
-                                            <input
-                                                type='checkbox'
-                                                checked={includeBlinkit}
-                                                onChange={(e) => setIncludeBlinkit(e.target.checked)}
-                                                className='rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50'
-                                            />
-                                            <span className='ml-2 flex items-center gap-2 text-sm font-medium text-gray-700'>
-                                                <ShoppingCart className='h-4 w-4 text-orange-600' />
-                                                Blinkit
-                                            </span>
-                                        </label>
-
-                                        <label className='flex items-center'>
-                                            <input
-                                                type='checkbox'
-                                                checked={includeAmazon}
-                                                onChange={(e) => setIncludeAmazon(e.target.checked)}
-                                                className='rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50'
-                                            />
-                                            <span className='ml-2 flex items-center gap-2 text-sm font-medium text-gray-700'>
-                                                <Package className='h-4 w-4 text-yellow-600' />
-                                                Amazon
-                                            </span>
-                                        </label>
-
-                                        <label className='flex items-center'>
-                                            <input
-                                                type='checkbox'
-                                                checked={includeZoho}
-                                                onChange={(e) => setIncludeZoho(e.target.checked)}
-                                                className='rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50'
-                                            />
-                                            <span className='ml-2 flex items-center gap-2 text-sm font-medium text-gray-700'>
-                                                <Warehouse className='h-4 w-4 text-blue-600' />
-                                                Zoho
-                                            </span>
-                                        </label>
-                                    </div>
-
-                                    {includeAmazon && (
-                                        <div>
-                                            <label htmlFor='amazon-type' className='block text-sm font-medium text-gray-700 mb-1'>
-                                                Amazon Report Type
-                                            </label>
-                                            <select
-                                                id='amazon-type'
-                                                value={amazonReportType}
-                                                onChange={(e) => setAmazonReportType(e.target.value)}
-                                                className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
-                                            >
-                                                <option value='all'>All (FBA + Vendor + Seller Flex)</option>
-                                                <option value='fba'>FBA Only</option>
-                                                <option value='seller_flex'>Seller Flex Only</option>
-                                                <option value='vendor_central'>Vendor Central Only</option>
-                                                <option value='fba+seller_flex'>FBA + Seller Flex</option>
-                                            </select>
-                                        </div>
-                                    )}
-                                </div>
-                            </div> */}
-
-                            {/* Search Bar */}
+                            {/* Search Bar & Brand Filter */}
                             <div className='lg:col-span-2'>
-                                <div className='relative max-w-md'>
-                                    <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                                        <svg
-                                            className='h-5 w-5 text-gray-400'
-                                            fill='none'
-                                            stroke='currentColor'
-                                            viewBox='0 0 24 24'
-                                        >
-                                            <path
-                                                strokeLinecap='round'
-                                                strokeLinejoin='round'
-                                                strokeWidth={2}
-                                                d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
-                                            />
-                                        </svg>
+                                <div className='flex items-center gap-4'>
+                                    <div className='relative max-w-md flex-1'>
+                                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                                            <svg
+                                                className='h-5 w-5 text-gray-400'
+                                                fill='none'
+                                                stroke='currentColor'
+                                                viewBox='0 0 24 24'
+                                            >
+                                                <path
+                                                    strokeLinecap='round'
+                                                    strokeLinejoin='round'
+                                                    strokeWidth={2}
+                                                    d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
+                                                />
+                                            </svg>
+                                        </div>
+                                        <input
+                                            type='text'
+                                            placeholder='Search by product name or SKU...'
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className='block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
+                                        />
                                     </div>
-                                    <input
-                                        type='text'
-                                        placeholder='Search by product name or SKU...'
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className='block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
-                                    />
+                                    <div className='w-48'>
+                                        <select
+                                            value={selectedBrand}
+                                            onChange={(e) => setSelectedBrand(e.target.value)}
+                                            className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
+                                        >
+                                            <option value=''>All Brands</option>
+                                            {brands.map((b) => (
+                                                <option key={b.value} value={b.value}>
+                                                    {b.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -870,18 +776,60 @@ function MasterReportsPage() {
                                         </th>
                                         <th
                                             className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('combined_metrics.pupscribe_wh_stock')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Pupscribe WH Stock</span>
+                                                {getSortIcon('combined_metrics.pupscribe_wh_stock')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('combined_metrics.fba_closing_stock')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>FBA Stock</span>
+                                                {getSortIcon('combined_metrics.fba_closing_stock')}
+                                            </div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            In Stock
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('combined_metrics.transfer_orders')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Transfer Orders</span>
+                                                {getSortIcon('combined_metrics.transfer_orders')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('combined_metrics.total_sales')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Total Sales</span>
+                                                {getSortIcon('combined_metrics.total_sales')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            onClick={() => handleSort('combined_metrics.total_days_in_stock')}
+                                        >
+                                            <div className='flex items-center space-x-1'>
+                                                <span>Days in Stock</span>
+                                                {getSortIcon('combined_metrics.total_days_in_stock')}
+                                            </div>
+                                        </th>
+                                        <th
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
                                             onClick={() => handleSort('combined_metrics.avg_daily_run_rate')}
                                         >
                                             <div className='flex items-center space-x-1'>
                                                 <span>Avg DRR</span>
                                                 {getSortIcon('combined_metrics.avg_daily_run_rate')}
                                             </div>
-                                        </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Sales Breakdown
-                                        </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Returns Breakdown
                                         </th>
                                         <th
                                             className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
@@ -970,24 +918,15 @@ function MasterReportsPage() {
                                                 {getSortIcon('days_total_inventory_lasts')}
                                             </div>
                                         </th>
-                                        {anyLast90Days && (
-                                            <>
-                                                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]'>
-                                                    Blinkit Last 90 Days
-                                                </th>
-                                                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]'>
-                                                    Amazon Last 90 Days
-                                                </th>
-                                                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]'>
-                                                    Zoho Last 90 Days
-                                                </th>
-                                            </>
-                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className='bg-white divide-y divide-gray-200'>
                                     {filteredData.map((item, index) => (
-                                        <tr key={index} className='hover:bg-gray-50 transition-colors'>
+                                        <tr key={index} className={`transition-colors ${
+                                            item.highlight === 'yellow' ? 'bg-yellow-50 hover:bg-yellow-100' :
+                                            item.highlight === 'red' ? 'bg-red-50 hover:bg-red-100' :
+                                            'hover:bg-gray-50'
+                                        }`}>
                                             <td className='px-6 py-4'>
                                                 <div className='text-sm font-medium text-gray-900'>
                                                     {item.item_name || 'N/A'}
@@ -1033,52 +972,50 @@ function MasterReportsPage() {
                                                     </div>
                                                 </div>
                                             </td>
+                                            {/* Pupscribe WH Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>
+                                                    {formatNumber(item.combined_metrics.pupscribe_wh_stock || 0)}
+                                                </div>
+                                            </td>
+                                            {/* FBA Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>
+                                                    {formatNumber(item.combined_metrics.fba_closing_stock || 0)}
+                                                </div>
+                                            </td>
+                                            {/* In Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                    {item.in_stock ? 'Yes' : 'No'}
+                                                </span>
+                                            </td>
+                                            {/* Transfer Orders */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>
+                                                    {formatNumber(item.combined_metrics.transfer_orders || 0)}
+                                                </div>
+                                            </td>
+                                            {/* Total Sales */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>
+                                                    {formatNumber(item.combined_metrics.total_sales || 0)}
+                                                </div>
+                                            </td>
+                                            {/* Days in Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>
+                                                    {formatNumber(item.combined_metrics.total_days_in_stock || 0)}
+                                                </div>
+                                            </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900'>
                                                     {item.combined_metrics.avg_daily_run_rate?.toFixed(2) || '0.00'}
-                                                </div>
-                                            </td>
-                                            <td className='px-6 py-4'>
-                                                <div className='text-xs space-y-1'>
-                                                    {item.sources.includes('blinkit') && (
-                                                        <div className='flex justify-between'>
-                                                            <span className='text-orange-600'>Blinkit Sales:</span>
-                                                            <span className='text-black'>{formatNumber(item.source_breakdown.blinkit.units_sold)} units</span>
-                                                        </div>
+                                                    {item.drr_source === 'previous_period' && (
+                                                        <span className='ml-1 text-xs text-yellow-600' title={item.drr_lookback_period}>*</span>
                                                     )}
-                                                    {item.sources.some(s => s === 'amazon' || s.startsWith('amazon_')) && (
-                                                        <div className='flex justify-between'>
-                                                            <span className='text-yellow-600'>Amazon Sales:</span>
-                                                            <span className='text-black'>{formatNumber(item.source_breakdown.amazon.units_sold)} units</span>
-                                                        </div>
-                                                    )}
-                                                    {item.sources.includes('zoho') && (
-                                                        <div className='flex justify-between'>
-                                                            <span className='text-blue-600'>Zoho Sales:</span>
-                                                            <span className='text-black'>{formatNumber(item.source_breakdown.zoho.units_sold)} units</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className='px-6 py-4'>
-                                                <div className='text-xs space-y-1'>
-                                                    {item.sources.includes('blinkit') && (
-                                                        <div className='flex justify-between'>
-                                                            <span className='text-orange-600'>Blinkit Returns:</span>
-                                                            <span className='text-black'>{formatNumber(item.source_breakdown.blinkit.units_returned)} units</span>
-                                                        </div>
-                                                    )}
-                                                    {item.sources.some(s => s === 'amazon' || s.startsWith('amazon_')) && (
-                                                        <div className='flex justify-between'>
-                                                            <span className='text-yellow-600'>Amazon Returns:</span>
-                                                            <span className='text-black'>{formatNumber(item.source_breakdown.amazon.units_returned)} units</span>
-                                                        </div>
-                                                    )}
-                                                    {item.sources.includes('zoho') && (
-                                                        <div className='flex justify-between'>
-                                                            <span className='text-blue-600'>Zoho Returns:</span>
-                                                            <span className='text-black'>{formatNumber(item.source_breakdown.zoho.units_returned)} units</span>
-                                                        </div>
+                                                    {item.drr_source === 'insufficient_stock' && (
+                                                        <span className='ml-1 text-xs text-red-500' title='Less than 60 days in stock across all periods'>!</span>
                                                     )}
                                                 </div>
                                             </td>
@@ -1153,25 +1090,6 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm text-gray-900'>{item.days_total_inventory_lasts?.toFixed(1) || '0'}</div>
                                             </td>
-                                            {anyLast90Days && (
-                                                <>
-                                                    <td className='px-6 py-4'>
-                                                        <div className='text-sm text-gray-900'>
-                                                            {item.source_breakdown.blinkit.last_90_days_dates || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td className='px-6 py-4'>
-                                                        <div className='text-sm text-gray-900'>
-                                                            {item.source_breakdown.amazon.last_90_days_dates || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                    <td className='px-6 py-4'>
-                                                        <div className='text-sm text-gray-900'>
-                                                            {item.source_breakdown.zoho.last_90_days_dates || 'N/A'}
-                                                        </div>
-                                                    </td>
-                                                </>
-                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
