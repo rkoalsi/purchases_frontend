@@ -171,6 +171,7 @@ function MasterReportsPage() {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                 },
+                timeout: 120000,
             });
 
             const data: MasterReportResponse = response.data;
@@ -213,6 +214,7 @@ function MasterReportsPage() {
                     Authorization: `Bearer ${accessToken}`,
                 },
                 responseType: 'blob',
+                timeout: 120000,
             });
 
             // Create blob link to download
@@ -339,6 +341,7 @@ function MasterReportsPage() {
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                 },
+                timeout: 120000,
             });
 
             const data: MasterReportResponse = response.data;
