@@ -52,6 +52,15 @@ const DateRange: React.FC<DateRangeProps> = ({
         const threeMonthsAgoStart = new Date(today.getFullYear(), today.getMonth() - 3, 1);
         const threeMonthsAgoEnd = new Date(today.getFullYear(), today.getMonth(), 0);
 
+        // Last 90 days ending on the previous Sunday
+        // "Previous Sunday" = the most recent Sunday before today (never today itself)
+        const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const daysSinceSunday = dayOfWeek === 0 ? 7 : dayOfWeek;
+        const prevSunday = new Date(today);
+        prevSunday.setDate(today.getDate() - daysSinceSunday);
+        const ninetyDaysBeforeSunday = new Date(prevSunday);
+        ninetyDaysBeforeSunday.setDate(prevSunday.getDate() - 89); // inclusive 90-day window
+
         return [
             {
                 label: 'This Month',
@@ -67,6 +76,11 @@ const DateRange: React.FC<DateRangeProps> = ({
                 label: 'Last 3 Months',
                 startDate: formatDate(threeMonthsAgoStart),
                 endDate: formatDate(threeMonthsAgoEnd),
+            },
+            {
+                label: 'Last 90 Days',
+                startDate: formatDate(ninetyDaysBeforeSunday),
+                endDate: formatDate(prevSunday),
             },
         ];
     };
