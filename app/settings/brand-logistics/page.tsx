@@ -16,6 +16,7 @@ interface BrandLogistics {
 function BrandLogisticsPage() {
     const { isLoading, accessToken } = useAuth();
     const [brands, setBrands] = useState<BrandLogistics[]>([]);
+    const [availableBrands, setAvailableBrands] = useState<{ value: string; label: string }[]>([]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -30,6 +31,17 @@ function BrandLogisticsPage() {
         safety_days_slow: 15,
     });
     const [showAddForm, setShowAddForm] = useState(false);
+
+    const fetchAvailableBrands = async () => {
+        try {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/brands`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            setAvailableBrands(response.data.brands || []);
+        } catch {
+            // non-critical, silently fail
+        }
+    };
 
     const fetchBrands = async () => {
         try {
@@ -46,7 +58,10 @@ function BrandLogisticsPage() {
     };
 
     useEffect(() => {
-        if (accessToken) fetchBrands();
+        if (accessToken) {
+            fetchBrands();
+            fetchAvailableBrands();
+        }
     }, [accessToken]);
 
     const handleSaveBrand = async (brand: BrandLogistics) => {
@@ -165,13 +180,19 @@ function BrandLogisticsPage() {
                         <div className='grid grid-cols-1 md:grid-cols-5 gap-4'>
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>Brand Name</label>
-                                <input
-                                    type='text'
+                                <select
                                     value={newBrand.brand}
                                     onChange={(e) => setNewBrand({ ...newBrand, brand: e.target.value })}
-                                    className='w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-blue-500 focus:border-blue-500'
-                                    placeholder='e.g. Fofos'
-                                />
+                                    className='w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-blue-500 focus:border-blue-500 bg-white'
+                                >
+                                    <option value=''>Select a brand...</option>
+                                    {availableBrands
+                                        .filter((b) => !brands.some((bl) => bl.brand === b.value))
+                                        .map((b) => (
+                                            <option key={b.value} value={b.value}>{b.label}</option>
+                                        ))
+                                    }
+                                </select>
                             </div>
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1'>Lead Time (days)</label>

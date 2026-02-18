@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/context/AuthContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Box, Shield, Search, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { Box, Shield, Search, ChevronLeft, ChevronRight, Upload, Download } from 'lucide-react';
 
 interface ProductLogistics {
     item_id: string;
@@ -26,11 +26,15 @@ function ProductLogisticsPage() {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState<Set<string>>(new Set());
     const [importLoading, setImportLoading] = useState(false);
+    const [downloadLoading, setDownloadLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
-    // Pagination & search
+    // Pagination, search & filters
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedBrand, setSelectedBrand] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState('');
+    const [availableBrands, setAvailableBrands] = useState<{ value: string; label: string }[]>([]);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
@@ -41,7 +45,7 @@ function ProductLogisticsPage() {
         try {
             setLoading(true);
             const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/product-logistics`, {
-                params: { search: searchTerm, page, page_size: pageSize },
+                params: { search: searchTerm, brand: selectedBrand, status: selectedStatus, page, page_size: pageSize },
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
             const data = response.data;
@@ -53,13 +57,27 @@ function ProductLogisticsPage() {
         } finally {
             setLoading(false);
         }
-    }, [accessToken, searchTerm, page]);
+    }, [accessToken, searchTerm, selectedBrand, selectedStatus, page]);
 
     useEffect(() => {
-        if (accessToken) fetchProducts();
+        if (accessToken) {
+            fetchProducts();
+            fetchAvailableBrands();
+        }
     }, [accessToken, page]);
 
-    // Debounced search
+    const fetchAvailableBrands = async () => {
+        try {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/brands`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            setAvailableBrands(response.data.brands || []);
+        } catch {
+            // non-critical
+        }
+    };
+
+    // Debounced search / filter
     useEffect(() => {
         const timer = setTimeout(() => {
             if (accessToken) {
@@ -68,7 +86,7 @@ function ProductLogisticsPage() {
             }
         }, 400);
         return () => clearTimeout(timer);
-    }, [searchTerm]);
+    }, [searchTerm, selectedBrand, selectedStatus]);
 
     const saveField = async (item_id: string, sku: string, fields: Record<string, string | number>) => {
         setSaving(prev => new Set(prev).add(item_id));
@@ -116,6 +134,29 @@ function ProductLogisticsPage() {
         }
     };
 
+    const handleDownload = async () => {
+        try {
+            setDownloadLoading(true);
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/product-logistics/download`, {
+                params: { search: searchTerm, brand: selectedBrand, status: selectedStatus },
+                headers: { Authorization: `Bearer ${accessToken}` },
+                responseType: 'blob',
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'product_logistics.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch {
+            setError('Failed to download report');
+        } finally {
+            setDownloadLoading(false);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className='flex items-center justify-center min-h-screen'>
@@ -151,14 +192,24 @@ function ProductLogisticsPage() {
                                 Manage status, CBM and Case Pack per product. Changes save automatically.
                             </p>
                         </div>
-                        <button
-                            onClick={handleImportFromPSR}
-                            disabled={importLoading}
-                            className='inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 transition-colors'
-                        >
-                            <Upload className='h-4 w-4 mr-2' />
-                            {importLoading ? 'Importing...' : 'Import from PSR Sheet'}
-                        </button>
+                        <div className='flex gap-2'>
+                            <button
+                                onClick={handleDownload}
+                                disabled={downloadLoading}
+                                className='inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors'
+                            >
+                                <Download className='h-4 w-4 mr-2' />
+                                {downloadLoading ? 'Downloading...' : 'Download XLSX'}
+                            </button>
+                            <button
+                                onClick={handleImportFromPSR}
+                                disabled={importLoading}
+                                className='inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 transition-colors'
+                            >
+                                <Upload className='h-4 w-4 mr-2' />
+                                {importLoading ? 'Importing...' : 'Import from PSR Sheet'}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -175,19 +226,41 @@ function ProductLogisticsPage() {
                     </div>
                 )}
 
-                {/* Search */}
+                {/* Search & Filters */}
                 <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-4'>
-                    <div className='relative max-w-md'>
-                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                            <Search className='h-5 w-5 text-gray-400' />
+                    <div className='flex flex-wrap gap-3'>
+                        <div className='relative flex-1 min-w-[200px]'>
+                            <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                                <Search className='h-5 w-5 text-gray-400' />
+                            </div>
+                            <input
+                                type='text'
+                                placeholder='Search by SKU code or product name...'
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className='block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-blue-500 focus:border-blue-500'
+                            />
                         </div>
-                        <input
-                            type='text'
-                            placeholder='Search by SKU code or product name...'
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className='block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-blue-500 focus:border-blue-500'
-                        />
+                        <select
+                            value={selectedBrand}
+                            onChange={(e) => { setSelectedBrand(e.target.value); setPage(1); }}
+                            className='px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-blue-500 focus:border-blue-500 bg-white'
+                        >
+                            <option value=''>All Brands</option>
+                            {availableBrands.map((b) => (
+                                <option key={b.value} value={b.value}>{b.label}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={selectedStatus}
+                            onChange={(e) => { setSelectedStatus(e.target.value); setPage(1); }}
+                            className='px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-blue-500 focus:border-blue-500 bg-white'
+                        >
+                            <option value=''>All Statuses</option>
+                            {STATUS_OPTIONS.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className='mt-2 text-sm text-gray-500'>
                         {total} products total | Page {page} of {totalPages}
@@ -237,12 +310,11 @@ function ProductLogisticsPage() {
                                                 </td>
                                                 <td className='px-6 py-3'>
                                                     <select
-                                                        value={product.purchase_status || ''}
+                                                        value={product.purchase_status || STATUS_OPTIONS[0]}
                                                         onChange={(e) => handleStatusChange(product.item_id, product.cf_sku_code, e.target.value)}
                                                         disabled={isSaving}
                                                         className='px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
                                                     >
-                                                        <option value=''>— unset —</option>
                                                         {STATUS_OPTIONS.map(s => (
                                                             <option key={s} value={s}>{s}</option>
                                                         ))}
