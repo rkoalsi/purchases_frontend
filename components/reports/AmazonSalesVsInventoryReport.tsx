@@ -434,7 +434,7 @@ const processDownload = async (response: any) => {
                   onGenerate={fetchReportData}
                   loading={loading}
                   downloadReport={handleDownload}
-                  downloadDisabledCondition={downloading || reportData.length === 0}
+                  downloadDisabledCondition={downloading}
                   downloadLoading={downloading}
                 />
 

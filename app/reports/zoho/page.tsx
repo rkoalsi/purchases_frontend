@@ -292,7 +292,7 @@ function Page() {
                   onGenerate={handleGenerateReport}
                   loading={loading}
                   downloadReport={downloadSalesReport}
-                  downloadDisabledCondition={downloadLoading || loading || salesReport.length === 0}
+                  downloadDisabledCondition={downloadLoading || loading}
                   downloadLoading={downloadLoading}
                 />
 
