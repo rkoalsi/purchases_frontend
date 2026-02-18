@@ -37,6 +37,8 @@ interface MasterReportItem {
     in_stock: boolean;
     drr_source?: string;
     drr_lookback_period?: string;
+    drr_lookback_days_in_stock?: number;
+    drr_lookback_sales?: number;
     highlight?: string | null;
     // Movement & Order Calculation fields
     movement?: string;
@@ -835,6 +837,12 @@ function MasterReportsPage() {
                                                 {getSortIcon('combined_metrics.avg_daily_run_rate')}
                                             </div>
                                         </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            Lookback Days in Stock
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            Lookback Sales
+                                        </th>
                                         <th
                                             className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
                                             onClick={() => handleSort('mover_class')}
@@ -1021,6 +1029,18 @@ function MasterReportsPage() {
                                                     {item.drr_source === 'insufficient_stock' && (
                                                         <span className='ml-1 text-xs text-red-500' title='Less than 60 days in stock across all periods'>!</span>
                                                     )}
+                                                </div>
+                                            </td>
+                                            {/* Lookback Days in Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>
+                                                    {item.drr_source === 'previous_period' ? (item.drr_lookback_days_in_stock || 0) : '—'}
+                                                </div>
+                                            </td>
+                                            {/* Lookback Sales */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>
+                                                    {item.drr_source === 'previous_period' ? formatNumber(item.drr_lookback_sales || 0) : '—'}
                                                 </div>
                                             </td>
                                             {/* Movement */}

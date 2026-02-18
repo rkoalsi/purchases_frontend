@@ -6,12 +6,16 @@ import axios from 'axios';
 import { Box, Shield, Search, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 
 interface ProductLogistics {
+    item_id: string;
     cf_sku_code: string;
     name: string;
     brand: string;
     cbm: number;
     case_pack: number;
     purchase_status: string;
+    stock_in_transit_1: number;
+    stock_in_transit_2: number;
+    stock_in_transit_3: number;
 }
 
 const STATUS_OPTIONS = ['active', 'inactive', 'discontinued until stock lasts'] as const;
@@ -66,12 +70,12 @@ function ProductLogisticsPage() {
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    const saveField = async (sku: string, fields: Record<string, string | number>) => {
-        setSaving(prev => new Set(prev).add(sku));
+    const saveField = async (item_id: string, sku: string, fields: Record<string, string | number>) => {
+        setSaving(prev => new Set(prev).add(item_id));
         setError(null);
         try {
             await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/master/product-logistics`, null, {
-                params: { sku_code: sku, ...fields },
+                params: { item_id, sku_code: sku, ...fields },
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
             setSuccess(`Saved ${sku}`);
@@ -79,19 +83,19 @@ function ProductLogisticsPage() {
         } catch (err: any) {
             setError(err.response?.data?.detail || `Failed to save ${sku}`);
         } finally {
-            setSaving(prev => { const s = new Set(prev); s.delete(sku); return s; });
+            setSaving(prev => { const s = new Set(prev); s.delete(item_id); return s; });
         }
     };
 
-    const handleNumberBlur = (sku: string, field: 'cbm' | 'case_pack', raw: string) => {
+    const handleNumberBlur = (item_id: string, sku: string, field: 'cbm' | 'case_pack' | 'stock_in_transit_1' | 'stock_in_transit_2' | 'stock_in_transit_3', raw: string) => {
         const val = parseFloat(raw) || 0;
-        setProducts(prev => prev.map(p => p.cf_sku_code === sku ? { ...p, [field]: val } : p));
-        saveField(sku, { [field]: val });
+        setProducts(prev => prev.map(p => p.item_id === item_id ? { ...p, [field]: val } : p));
+        saveField(item_id, sku, { [field]: val });
     };
 
-    const handleStatusChange = (sku: string, value: string) => {
-        setProducts(prev => prev.map(p => p.cf_sku_code === sku ? { ...p, purchase_status: value } : p));
-        saveField(sku, { purchase_status: value });
+    const handleStatusChange = (item_id: string, sku: string, value: string) => {
+        setProducts(prev => prev.map(p => p.item_id === item_id ? { ...p, purchase_status: value } : p));
+        saveField(item_id, sku, { purchase_status: value });
     };
 
     const handleImportFromPSR = async () => {
@@ -212,13 +216,16 @@ function ProductLogisticsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Status</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>CBM</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Case Pack</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Transit 1</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Transit 2</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Transit 3</th>
                                     </tr>
                                 </thead>
                                 <tbody className='divide-y divide-gray-200'>
                                     {products.map((product) => {
-                                        const isSaving = saving.has(product.cf_sku_code);
+                                        const isSaving = saving.has(product.item_id);
                                         return (
-                                            <tr key={product.cf_sku_code} className={`hover:bg-gray-50 ${isSaving ? 'opacity-60' : ''}`}>
+                                            <tr key={product.item_id || product.cf_sku_code} className={`hover:bg-gray-50 ${isSaving ? 'opacity-60' : ''}`}>
                                                 <td className='px-6 py-3'>
                                                     <span className='text-sm font-mono text-gray-900'>{product.cf_sku_code}</span>
                                                 </td>
@@ -231,7 +238,7 @@ function ProductLogisticsPage() {
                                                 <td className='px-6 py-3'>
                                                     <select
                                                         value={product.purchase_status || ''}
-                                                        onChange={(e) => handleStatusChange(product.cf_sku_code, e.target.value)}
+                                                        onChange={(e) => handleStatusChange(product.item_id, product.cf_sku_code, e.target.value)}
                                                         disabled={isSaving}
                                                         className='px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
                                                     >
@@ -246,8 +253,8 @@ function ProductLogisticsPage() {
                                                         type='number'
                                                         step='0.0001'
                                                         defaultValue={product.cbm || 0}
-                                                        key={`cbm-${product.cf_sku_code}-${product.cbm}`}
-                                                        onBlur={(e) => handleNumberBlur(product.cf_sku_code, 'cbm', e.target.value)}
+                                                        key={`cbm-${product.item_id}-${product.cbm}`}
+                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'cbm', e.target.value)}
                                                         disabled={isSaving}
                                                         className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
                                                     />
@@ -256,8 +263,38 @@ function ProductLogisticsPage() {
                                                     <input
                                                         type='number'
                                                         defaultValue={product.case_pack || 0}
-                                                        key={`cp-${product.cf_sku_code}-${product.case_pack}`}
-                                                        onBlur={(e) => handleNumberBlur(product.cf_sku_code, 'case_pack', e.target.value)}
+                                                        key={`cp-${product.item_id}-${product.case_pack}`}
+                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'case_pack', e.target.value)}
+                                                        disabled={isSaving}
+                                                        className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
+                                                    />
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <input
+                                                        type='number'
+                                                        defaultValue={product.stock_in_transit_1 || 0}
+                                                        key={`sit1-${product.item_id}-${product.stock_in_transit_1}`}
+                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'stock_in_transit_1', e.target.value)}
+                                                        disabled={isSaving}
+                                                        className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
+                                                    />
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <input
+                                                        type='number'
+                                                        defaultValue={product.stock_in_transit_2 || 0}
+                                                        key={`sit2-${product.item_id}-${product.stock_in_transit_2}`}
+                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'stock_in_transit_2', e.target.value)}
+                                                        disabled={isSaving}
+                                                        className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
+                                                    />
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <input
+                                                        type='number'
+                                                        defaultValue={product.stock_in_transit_3 || 0}
+                                                        key={`sit3-${product.item_id}-${product.stock_in_transit_3}`}
+                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'stock_in_transit_3', e.target.value)}
                                                         disabled={isSaving}
                                                         className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
                                                     />
