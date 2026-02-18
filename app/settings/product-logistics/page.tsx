@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/context/AuthContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Box, Save, Shield, Search, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { Box, Shield, Search, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 
 interface ProductLogistics {
     cf_sku_code: string;
@@ -11,13 +11,16 @@ interface ProductLogistics {
     brand: string;
     cbm: number;
     case_pack: number;
+    purchase_status: string;
 }
+
+const STATUS_OPTIONS = ['active', 'inactive', 'discontinued until stock lasts'] as const;
 
 function ProductLogisticsPage() {
     const { isLoading, accessToken } = useAuth();
     const [products, setProducts] = useState<ProductLogistics[]>([]);
     const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState<string | null>(null);
+    const [saving, setSaving] = useState<Set<string>>(new Set());
     const [importLoading, setImportLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -29,8 +32,6 @@ function ProductLogisticsPage() {
     const [total, setTotal] = useState(0);
     const pageSize = 50;
 
-    // Track edited values
-    const [editedValues, setEditedValues] = useState<{ [sku: string]: { cbm?: number; case_pack?: number } }>({});
 
     const fetchProducts = useCallback(async () => {
         try {
@@ -65,56 +66,36 @@ function ProductLogisticsPage() {
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    const handleEdit = (sku: string, field: 'cbm' | 'case_pack', value: string) => {
-        const numVal = parseFloat(value) || 0;
-        setEditedValues(prev => ({
-            ...prev,
-            [sku]: { ...prev[sku], [field]: numVal },
-        }));
-
-        // Also update local display
-        setProducts(prev => prev.map(p => {
-            if (p.cf_sku_code === sku) {
-                return { ...p, [field]: numVal };
-            }
-            return p;
-        }));
-    };
-
-    const handleSave = async (sku: string) => {
-        const edits = editedValues[sku];
-        if (!edits) return;
-
+    const saveField = async (sku: string, fields: Record<string, string | number>) => {
+        setSaving(prev => new Set(prev).add(sku));
+        setError(null);
         try {
-            setSaving(sku);
-            setError(null);
             await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/master/product-logistics`, null, {
-                params: {
-                    sku_code: sku,
-                    ...(edits.cbm !== undefined && { cbm: edits.cbm }),
-                    ...(edits.case_pack !== undefined && { case_pack: edits.case_pack }),
-                },
+                params: { sku_code: sku, ...fields },
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
-
-            // Clear edited state for this SKU
-            setEditedValues(prev => {
-                const next = { ...prev };
-                delete next[sku];
-                return next;
-            });
-
-            setSuccess(`Updated ${sku}`);
+            setSuccess(`Saved ${sku}`);
             setTimeout(() => setSuccess(null), 2000);
         } catch (err: any) {
-            setError(err.response?.data?.detail || `Failed to update ${sku}`);
+            setError(err.response?.data?.detail || `Failed to save ${sku}`);
         } finally {
-            setSaving(null);
+            setSaving(prev => { const s = new Set(prev); s.delete(sku); return s; });
         }
     };
 
+    const handleNumberBlur = (sku: string, field: 'cbm' | 'case_pack', raw: string) => {
+        const val = parseFloat(raw) || 0;
+        setProducts(prev => prev.map(p => p.cf_sku_code === sku ? { ...p, [field]: val } : p));
+        saveField(sku, { [field]: val });
+    };
+
+    const handleStatusChange = (sku: string, value: string) => {
+        setProducts(prev => prev.map(p => p.cf_sku_code === sku ? { ...p, purchase_status: value } : p));
+        saveField(sku, { purchase_status: value });
+    };
+
     const handleImportFromPSR = async () => {
-        if (!confirm('Import CBM and Case Pack from PSR Sheet.xlsx? This will update existing product data.')) return;
+        if (!confirm('Import Status, CBM and Case Pack from the PSR Google Sheet? This will update existing product data.')) return;
         try {
             setImportLoading(true);
             setError(null);
@@ -163,7 +144,7 @@ function ProductLogisticsPage() {
                                 Product Logistics
                             </h1>
                             <p className='mt-1 text-sm text-gray-300'>
-                                Manage CBM and Case Pack per product. These values are used in the master report for order calculations.
+                                Manage status, CBM and Case Pack per product. Changes save automatically.
                             </p>
                         </div>
                         <button
@@ -228,54 +209,62 @@ function ProductLogisticsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>SKU Code</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Product Name</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Brand</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Status</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>CBM</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Case Pack</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase'>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className='divide-y divide-gray-200'>
-                                    {products.map((product) => (
-                                        <tr key={product.cf_sku_code} className='hover:bg-gray-50'>
-                                            <td className='px-6 py-3'>
-                                                <span className='text-sm font-mono text-gray-900'>{product.cf_sku_code}</span>
-                                            </td>
-                                            <td className='px-6 py-3'>
-                                                <span className='text-sm text-gray-900'>{product.name || 'N/A'}</span>
-                                            </td>
-                                            <td className='px-6 py-3'>
-                                                <span className='text-sm text-gray-600'>{product.brand || 'N/A'}</span>
-                                            </td>
-                                            <td className='px-6 py-3'>
-                                                <input
-                                                    type='number'
-                                                    step='0.0001'
-                                                    value={product.cbm || 0}
-                                                    onChange={(e) => handleEdit(product.cf_sku_code, 'cbm', e.target.value)}
-                                                    className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500'
-                                                />
-                                            </td>
-                                            <td className='px-6 py-3'>
-                                                <input
-                                                    type='number'
-                                                    value={product.case_pack || 0}
-                                                    onChange={(e) => handleEdit(product.cf_sku_code, 'case_pack', e.target.value)}
-                                                    className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500'
-                                                />
-                                            </td>
-                                            <td className='px-6 py-3'>
-                                                {editedValues[product.cf_sku_code] && (
-                                                    <button
-                                                        onClick={() => handleSave(product.cf_sku_code)}
-                                                        disabled={saving === product.cf_sku_code}
-                                                        className='inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors'
+                                    {products.map((product) => {
+                                        const isSaving = saving.has(product.cf_sku_code);
+                                        return (
+                                            <tr key={product.cf_sku_code} className={`hover:bg-gray-50 ${isSaving ? 'opacity-60' : ''}`}>
+                                                <td className='px-6 py-3'>
+                                                    <span className='text-sm font-mono text-gray-900'>{product.cf_sku_code}</span>
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <span className='text-sm text-gray-900'>{product.name || 'N/A'}</span>
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <span className='text-sm text-gray-600'>{product.brand || 'N/A'}</span>
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <select
+                                                        value={product.purchase_status || ''}
+                                                        onChange={(e) => handleStatusChange(product.cf_sku_code, e.target.value)}
+                                                        disabled={isSaving}
+                                                        className='px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
                                                     >
-                                                        <Save className='h-3 w-3 mr-1' />
-                                                        {saving === product.cf_sku_code ? 'Saving...' : 'Save'}
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                        <option value=''>— unset —</option>
+                                                        {STATUS_OPTIONS.map(s => (
+                                                            <option key={s} value={s}>{s}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <input
+                                                        type='number'
+                                                        step='0.0001'
+                                                        defaultValue={product.cbm || 0}
+                                                        key={`cbm-${product.cf_sku_code}-${product.cbm}`}
+                                                        onBlur={(e) => handleNumberBlur(product.cf_sku_code, 'cbm', e.target.value)}
+                                                        disabled={isSaving}
+                                                        className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
+                                                    />
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <input
+                                                        type='number'
+                                                        defaultValue={product.case_pack || 0}
+                                                        key={`cp-${product.cf_sku_code}-${product.case_pack}`}
+                                                        onBlur={(e) => handleNumberBlur(product.cf_sku_code, 'case_pack', e.target.value)}
+                                                        disabled={isSaving}
+                                                        className='w-24 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
+                                                    />
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

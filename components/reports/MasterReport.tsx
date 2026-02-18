@@ -54,6 +54,7 @@ interface MasterReportItem {
     order_qty?: number;
     cbm?: number;
     case_pack?: number;
+    purchase_status?: string;
     order_qty_rounded?: number;
     total_cbm?: number;
     days_current_order_lasts?: number;
@@ -720,6 +721,9 @@ function MasterReportsPage() {
                             <table className='w-full'>
                                 <thead className='bg-gray-50'>
                                     <tr>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                            Status
+                                        </th>
                                         <th
                                             className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
                                             onClick={() => handleSort('item_name')}
@@ -927,6 +931,19 @@ function MasterReportsPage() {
                                             item.highlight === 'red' ? 'bg-red-50 hover:bg-red-100' :
                                             'hover:bg-gray-50'
                                         }`}>
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                {item.purchase_status ? (
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                        item.purchase_status === 'active' ? 'bg-green-100 text-green-800' :
+                                                        item.purchase_status === 'inactive' ? 'bg-gray-100 text-gray-700' :
+                                                        'bg-orange-100 text-orange-800'
+                                                    }`}>
+                                                        {item.purchase_status}
+                                                    </span>
+                                                ) : (
+                                                    <span className='text-xs text-gray-400'>—</span>
+                                                )}
+                                            </td>
                                             <td className='px-6 py-4'>
                                                 <div className='text-sm font-medium text-gray-900'>
                                                     {item.item_name || 'N/A'}
