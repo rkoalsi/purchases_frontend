@@ -472,7 +472,7 @@ function MasterReportsPage() {
                                     showGenerateButton={true}
                                     onGenerate={handleGenerateReport}
                                     loading={loading}
-                                    downloadDisabledCondition={downloadLoading || loading || masterReport.length === 0}
+                                    downloadDisabledCondition={downloadLoading || loading}
                                     downloadLoading={downloadLoading}
                                     downloadReport={downloadMasterReport}
                                 />
@@ -723,212 +723,86 @@ function MasterReportsPage() {
                             <table className='w-full'>
                                 <thead className='bg-gray-50'>
                                     <tr>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Status
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Status</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('item_name')}>
+                                            <div className='flex items-center space-x-1'><span>Product Name</span>{getSortIcon('item_name')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('item_name')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Product Name</span>
-                                                {getSortIcon('item_name')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('sku_code')}>
+                                            <div className='flex items-center space-x-1'><span>SKU Code</span>{getSortIcon('sku_code')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('sku_code')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>SKU Code</span>
-                                                {getSortIcon('sku_code')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_amount')}>
+                                            <div className='flex items-center space-x-1'><span>Total Amount</span>{getSortIcon('combined_metrics.total_amount')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.total_units_sold')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Total Units Sold</span>
-                                                {getSortIcon('combined_metrics.total_units_sold')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_units_sold')}>
+                                            <div className='flex items-center space-x-1'><span>Total Units Sold</span>{getSortIcon('combined_metrics.total_units_sold')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.total_units_returned')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Total Units Returned</span>
-                                                {getSortIcon('combined_metrics.total_units_returned')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_units_returned')}>
+                                            <div className='flex items-center space-x-1'><span>Total Units Returned</span>{getSortIcon('combined_metrics.total_units_returned')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.total_amount')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Total Amount</span>
-                                                {getSortIcon('combined_metrics.total_amount')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_sales')}>
+                                            <div className='flex items-center space-x-1'><span>Net Total Sales</span>{getSortIcon('combined_metrics.total_sales')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.total_closing_stock')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Total Closing Stock</span>
-                                                {getSortIcon('combined_metrics.total_closing_stock')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_days_in_stock')}>
+                                            <div className='flex items-center space-x-1'><span>Days in Stock</span>{getSortIcon('combined_metrics.total_days_in_stock')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.pupscribe_wh_stock')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Pupscribe WH Stock</span>
-                                                {getSortIcon('combined_metrics.pupscribe_wh_stock')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Lookback Days in Stock</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Lookback Sales</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.avg_daily_run_rate')}>
+                                            <div className='flex items-center space-x-1'><span>Avg DRR</span>{getSortIcon('combined_metrics.avg_daily_run_rate')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.fba_closing_stock')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>FBA Stock</span>
-                                                {getSortIcon('combined_metrics.fba_closing_stock')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_closing_stock')}>
+                                            <div className='flex items-center space-x-1'><span>Total Closing Stock</span>{getSortIcon('combined_metrics.total_closing_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            In Stock
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.avg_days_of_coverage')}>
+                                            <div className='flex items-center space-x-1'><span>Avg Days of Coverage</span>{getSortIcon('combined_metrics.avg_days_of_coverage')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.transfer_orders')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Transfer Orders</span>
-                                                {getSortIcon('combined_metrics.transfer_orders')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.pupscribe_wh_stock')}>
+                                            <div className='flex items-center space-x-1'><span>Pupscribe WH Stock</span>{getSortIcon('combined_metrics.pupscribe_wh_stock')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.total_sales')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Total Sales</span>
-                                                {getSortIcon('combined_metrics.total_sales')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.fba_closing_stock')}>
+                                            <div className='flex items-center space-x-1'><span>FBA Stock</span>{getSortIcon('combined_metrics.fba_closing_stock')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.total_days_in_stock')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Days in Stock</span>
-                                                {getSortIcon('combined_metrics.total_days_in_stock')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>In Stock</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.transfer_orders')}>
+                                            <div className='flex items-center space-x-1'><span>Transfer Orders</span>{getSortIcon('combined_metrics.transfer_orders')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('combined_metrics.avg_daily_run_rate')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Avg DRR</span>
-                                                {getSortIcon('combined_metrics.avg_daily_run_rate')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_sales')}>
+                                            <div className='flex items-center space-x-1'><span>Total Sales</span>{getSortIcon('combined_metrics.total_sales')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Lookback Days in Stock
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('mover_class')}>
+                                            <div className='flex items-center space-x-1'><span>Movement</span>{getSortIcon('mover_class')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Lookback Sales
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('safety_days')}>
+                                            <div className='flex items-center space-x-1'><span>Safety Days</span>{getSortIcon('safety_days')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('mover_class')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Movement</span>
-                                                {getSortIcon('mover_class')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('lead_time')}>
+                                            <div className='flex items-center space-x-1'><span>Lead Time</span>{getSortIcon('lead_time')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('on_hand_days_coverage')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>On-Hand Days</span>
-                                                {getSortIcon('on_hand_days_coverage')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('on_hand_days_coverage')}>
+                                            <div className='flex items-center space-x-1'><span>On-Hand Days</span>{getSortIcon('on_hand_days_coverage')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Stock in Transit
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Stock in Transit</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('current_days_coverage')}>
+                                            <div className='flex items-center space-x-1'><span>Current Days Coverage</span>{getSortIcon('current_days_coverage')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('current_days_coverage')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Current Days Coverage</span>
-                                                {getSortIcon('current_days_coverage')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Target Days</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('excess_or_order')}>
+                                            <div className='flex items-center space-x-1'><span>Excess / Order</span>{getSortIcon('excess_or_order')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Target Days
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('order_qty')}>
+                                            <div className='flex items-center space-x-1'><span>Order Qty</span>{getSortIcon('order_qty')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('excess_or_order')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Excess / Order</span>
-                                                {getSortIcon('excess_or_order')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>CBM</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Case Pack</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('order_qty_rounded')}>
+                                            <div className='flex items-center space-x-1'><span>Order Qty (Rounded)</span>{getSortIcon('order_qty_rounded')}</div>
                                         </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('order_qty')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Order Qty</span>
-                                                {getSortIcon('order_qty')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Total CBM</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('days_current_order_lasts')}>
+                                            <div className='flex items-center space-x-1'><span>Days Order Lasts</span>{getSortIcon('days_current_order_lasts')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            CBM
-                                        </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Case Pack
-                                        </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('order_qty_rounded')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Order Qty (Rounded)</span>
-                                                {getSortIcon('order_qty_rounded')}
-                                            </div>
-                                        </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                                            Total CBM
-                                        </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('days_current_order_lasts')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Days Order Lasts</span>
-                                                {getSortIcon('days_current_order_lasts')}
-                                            </div>
-                                        </th>
-                                        <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
-                                            onClick={() => handleSort('days_total_inventory_lasts')}
-                                        >
-                                            <div className='flex items-center space-x-1'>
-                                                <span>Days Total Inv. Lasts</span>
-                                                {getSortIcon('days_total_inventory_lasts')}
-                                            </div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('days_total_inventory_lasts')}>
+                                            <div className='flex items-center space-x-1'><span>Days Total Inv. Lasts</span>{getSortIcon('days_total_inventory_lasts')}</div>
                                         </th>
                                     </tr>
                                 </thead>
@@ -962,74 +836,25 @@ function MasterReportsPage() {
                                                     {item.sku_code || 'N/A'}
                                                 </div>
                                             </td>
+                                            {/* Total Amount */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {formatNumber(item.combined_metrics.total_units_sold)}
-                                                </div>
+                                                <div className='text-sm font-medium text-gray-900'>{formatCurrency(item.combined_metrics.total_amount)}</div>
                                             </td>
+                                            {/* Total Units Sold */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {formatNumber(item.combined_metrics.total_units_returned)}
-                                                </div>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_units_sold)}</div>
                                             </td>
+                                            {/* Total Units Returned */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {formatCurrency(item.combined_metrics.total_amount)}
-                                                </div>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_units_returned)}</div>
                                             </td>
+                                            {/* Net Total Sales */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='flex items-center'>
-                                                    <div className='text-sm font-medium text-gray-900'>
-                                                        {formatNumber(item.combined_metrics.total_closing_stock)}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            {/* Pupscribe WH Stock */}
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {formatNumber(item.combined_metrics.pupscribe_wh_stock || 0)}
-                                                </div>
-                                            </td>
-                                            {/* FBA Stock */}
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {formatNumber(item.combined_metrics.fba_closing_stock || 0)}
-                                                </div>
-                                            </td>
-                                            {/* In Stock */}
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                    {item.in_stock ? 'Yes' : 'No'}
-                                                </span>
-                                            </td>
-                                            {/* Transfer Orders */}
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {formatNumber(item.combined_metrics.transfer_orders || 0)}
-                                                </div>
-                                            </td>
-                                            {/* Total Sales */}
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {formatNumber(item.combined_metrics.total_sales || 0)}
-                                                </div>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_sales || 0)}</div>
                                             </td>
                                             {/* Days in Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {formatNumber(item.combined_metrics.total_days_in_stock || 0)}
-                                                </div>
-                                            </td>
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
-                                                    {item.combined_metrics.avg_daily_run_rate?.toFixed(2) || '0.00'}
-                                                    {item.drr_source === 'previous_period' && (
-                                                        <span className='ml-1 text-xs text-yellow-600' title={item.drr_lookback_period}>*</span>
-                                                    )}
-                                                    {item.drr_source === 'insufficient_stock' && (
-                                                        <span className='ml-1 text-xs text-red-500' title='Less than 60 days in stock across all periods'>!</span>
-                                                    )}
-                                                </div>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_days_in_stock || 0)}</div>
                                             </td>
                                             {/* Lookback Days in Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
@@ -1043,14 +868,61 @@ function MasterReportsPage() {
                                                     {item.drr_source === 'previous_period' ? formatNumber(item.drr_lookback_sales || 0) : '—'}
                                                 </div>
                                             </td>
+                                            {/* Avg DRR */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>
+                                                    {item.combined_metrics.avg_daily_run_rate?.toFixed(2) || '0.00'}
+                                                    {item.drr_source === 'previous_period' && (
+                                                        <span className='ml-1 text-xs text-yellow-600' title={item.drr_lookback_period}>*</span>
+                                                    )}
+                                                    {item.drr_source === 'insufficient_stock' && (
+                                                        <span className='ml-1 text-xs text-red-500' title='Less than 60 days in stock across all periods'>!</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            {/* Total Closing Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_closing_stock)}</div>
+                                            </td>
+                                            {/* Avg Days of Coverage */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.combined_metrics.avg_days_of_coverage?.toFixed(1) || '0'}</div>
+                                            </td>
+                                            {/* Pupscribe WH Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.pupscribe_wh_stock || 0)}</div>
+                                            </td>
+                                            {/* FBA Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.fba_closing_stock || 0)}</div>
+                                            </td>
+                                            {/* In Stock */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                    {item.in_stock ? 'Yes' : 'No'}
+                                                </span>
+                                            </td>
+                                            {/* Transfer Orders */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.transfer_orders || 0)}</div>
+                                            </td>
+                                            {/* Total Sales */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_sales || 0)}</div>
+                                            </td>
                                             {/* Movement */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.mover_class === 1 ? 'bg-green-100 text-green-800' :
-                                                        item.mover_class === 2 ? 'bg-yellow-100 text-yellow-800' :
-                                                            'bg-red-100 text-red-800'
-                                                    }`}>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.mover_class === 1 ? 'bg-green-100 text-green-800' : item.mover_class === 2 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
                                                     {item.movement || 'N/A'}
                                                 </span>
+                                            </td>
+                                            {/* Safety Days */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.safety_days || 0}</div>
+                                            </td>
+                                            {/* Lead Time */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{item.lead_time || 0}</div>
                                             </td>
                                             {/* On-Hand Days Coverage */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
