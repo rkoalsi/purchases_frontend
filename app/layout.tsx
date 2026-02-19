@@ -55,7 +55,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} bg-gray-50 dark:bg-gray-900 min-h-screen`}
+        className={`${inter.className} bg-zinc-50 dark:bg-zinc-950 min-h-screen`}
       >
         <AuthProvider>
           <AuthGuard darkMode={darkMode} toggleDarkMode={toggleDarkMode}>

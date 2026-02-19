@@ -259,7 +259,7 @@ const FileUploader = ({
       <div className='max-w-4xl mx-auto'>
         {/* Header Section */}
         <div className='text-center mb-8'>
-          <h1 className='text-3xl sm:text-4xl font-bold text-white mb-2'>
+          <h1 className='text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-zinc-50  mb-2'>
             PI Vs CL Checker
           </h1>
           <div className='max-w-3xl mx-auto space-y-3'>
