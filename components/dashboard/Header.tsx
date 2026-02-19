@@ -39,18 +39,18 @@ export default function Header({
   }, []);
 
   return (
-    <header className='sticky top-0 z-10 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700'>
+    <header className='sticky top-0 z-10 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800'>
       <div className='px-4 sm:px-6 lg:px-8'>
-        <div className='flex justify-between h-16'>
+        <div className='flex justify-between h-14'>
           <div className='flex'>
             <button
               type='button'
-              className='md:hidden px-4 text-gray-500 dark:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500'
+              className='md:hidden px-4 text-zinc-500 dark:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500'
               onClick={onSidebarOpen}
             >
               <span className='sr-only'>Open sidebar</span>
               <svg
-                className='h-6 w-6'
+                className='h-5 w-5'
                 xmlns='http://www.w3.org/2000/svg'
                 fill='none'
                 viewBox='0 0 24 24'
@@ -70,10 +70,10 @@ export default function Header({
               <div>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
-                  className='bg-white dark:bg-gray-800 rounded-full flex focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                  className='flex items-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-full'
                 >
                   <span className='sr-only'>Open user menu</span>
-                  <div className='h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-500 dark:text-indigo-300'>
+                  <div className='h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200 text-sm font-semibold'>
                     {userEmail.charAt(0).toUpperCase()}
                   </div>
                 </button>
@@ -81,31 +81,32 @@ export default function Header({
 
               {/* Dropdown menu */}
               {dropdownOpen && (
-                <div className='origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none'>
-                  <div className='px-4 py-2 text-sm text-gray-700 dark:text-gray-300'>
-                    Signed in as
-                    <br />
-                    <span className='font-medium'>{userEmail}</span>
+                <div className='origin-top-right absolute right-0 mt-2 w-52 rounded-lg shadow-lg py-1 bg-white dark:bg-zinc-900 ring-1 ring-zinc-200 dark:ring-zinc-800 focus:outline-none'>
+                  <div className='px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800'>
+                    <p className='text-xs text-zinc-500 dark:text-zinc-400'>Signed in as</p>
+                    <p className='text-sm font-medium text-zinc-900 dark:text-zinc-50 truncate'>{userEmail}</p>
                   </div>
-                  <hr className='border-gray-200 dark:border-gray-700' />
                   <Link
                     href='/settings'
-                    className='block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    className='flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'
+                    onClick={() => setDropdownOpen(false)}
                   >
                     Settings
                   </Link>
                   <button
                     onClick={toggleDarkMode}
-                    className='block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    className='flex w-full items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'
                   >
-                    Toggle {darkMode ? 'Light' : 'Dark'} Mode
+                    {darkMode ? 'Light Mode' : 'Dark Mode'}
                   </button>
-                  <button
-                    onClick={onLogout}
-                    className='block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  >
-                    Sign out
-                  </button>
+                  <div className='border-t border-zinc-100 dark:border-zinc-800 mt-1'>
+                    <button
+                      onClick={onLogout}
+                      className='flex w-full items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'
+                    >
+                      Sign out
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

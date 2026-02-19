@@ -12,7 +12,7 @@ function Page() {
 
   if (isLoading) {
     return (
-      <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
+      <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
         <div className='text-center'>
           <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4'></div>
           <p className='text-gray-600'>Loading user data...</p>
@@ -23,7 +23,7 @@ function Page() {
 
   if (!accessToken) {
     return (
-      <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
+      <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
         <div className='bg-white p-8 rounded-lg shadow-md text-center'>
           <Shield className='h-16 w-16 text-gray-400 mx-auto mb-4' />
           <p className='text-xl text-gray-700'>
@@ -63,7 +63,7 @@ function Page() {
   };
 
   return (
-    <div className='min-h-screen bg-gray-50 py-8'>
+    <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 py-8'>
       <div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
         {/* Header */}
         <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-6'>

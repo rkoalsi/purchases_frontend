@@ -24,6 +24,7 @@ import {
   ShoppingCart,
   Truck,
   Box,
+  UserCircle,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -203,6 +204,12 @@ const navigation = [
     icon: Settings,
     requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS, // null - always visible
     children: [
+      {
+        name: 'Account',
+        href: '/settings/account',
+        icon: UserCircle,
+        requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS,
+      },
       {
         name: 'Brand Logistics',
         href: '/settings/brand-logistics',
@@ -432,16 +439,16 @@ export default function Sidebar({
               <button
                 onClick={() => toggleSubmenu(item.name)}
                 className={`
-                  group w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out
+                  group w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-all duration-150 ease-in-out
                   ${isGroup
                     ? isExpanded
-                      ? 'bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/50 text-gray-900 dark:text-white border-l-2 border-indigo-500'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'
+                      ? 'bg-zinc-100 dark:bg-zinc-800/60 text-zinc-900 dark:text-zinc-50 border-l-2 border-blue-500'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100'
                     : isItemActive
-                      ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg'
+                      ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50'
                       : isExpanded
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
+                        ? 'bg-zinc-50 dark:bg-zinc-800/40 text-zinc-800 dark:text-zinc-200'
+                        : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-100'
                   }
                 `}
                 title={isCollapsed ? item.name : ''}
@@ -451,10 +458,10 @@ export default function Sidebar({
                     <IconComponent
                       className={`flex-shrink-0 ${isGroup ? 'w-4 h-4' : 'w-5 h-5'} ${isCollapsed ? 'mr-0' : 'mr-3'
                         } ${isItemActive
-                          ? 'text-white'
+                          ? 'text-blue-500 dark:text-blue-400'
                           : isGroup && isExpanded
-                            ? 'text-indigo-600 dark:text-indigo-400'
-                            : 'text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-300'
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'
                         }`}
                     />
                   )}
@@ -468,10 +475,10 @@ export default function Sidebar({
                   <ChevronRight
                     className={`flex-shrink-0 w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''
                       } ${isItemActive
-                        ? 'text-white'
+                        ? 'text-zinc-700 dark:text-zinc-200'
                         : isGroup && isExpanded
-                          ? 'text-indigo-500 dark:text-indigo-400'
-                          : 'text-gray-400 dark:text-gray-500'
+                          ? 'text-blue-500 dark:text-blue-400'
+                          : 'text-zinc-400 dark:text-zinc-500'
                       }`}
                   />
                 )}
@@ -488,7 +495,7 @@ export default function Sidebar({
                     }
                   `}
                 >
-                  <div className={`space-y-0.5 ${isGroup ? 'pl-2 border-l border-gray-200 dark:border-gray-700' : ''}`}>
+                  <div className={`space-y-0.5 ${isGroup ? 'pl-2 border-l border-zinc-200 dark:border-zinc-800' : ''}`}>
                     {renderNavItems(item.children, level + 1)}
                   </div>
                 </div>
@@ -498,10 +505,10 @@ export default function Sidebar({
             <Link
               href={item.href}
               className={`
-                group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ease-in-out
+                group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-150 ease-in-out
                 ${isItemActive
-                  ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg transform scale-[1.02]'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-gray-700/50 hover:text-indigo-700 dark:hover:text-white hover:transform hover:translate-x-0.5'
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50'
+                  : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-100'
                 }
               `}
               onClick={() => isMobile && setIsOpen(false)}
@@ -511,14 +518,14 @@ export default function Sidebar({
                 <IconComponent
                   className={`flex-shrink-0 w-4 h-4 ${isCollapsed ? 'mr-0' : 'mr-3'
                     } ${isItemActive
-                      ? 'text-white'
-                      : 'text-gray-400 dark:text-gray-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                      ? 'text-blue-500 dark:text-blue-400'
+                      : 'text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-300'
                     }`}
                 />
               )}
               {!isCollapsed && <span className='truncate text-sm'>{item.name}</span>}
               {isItemActive && !isCollapsed && (
-                <div className='ml-auto w-1.5 h-1.5 bg-white rounded-full'></div>
+                <div className='ml-auto w-1.5 h-1.5 bg-blue-500 dark:bg-blue-400 rounded-full'></div>
               )}
             </Link>
           )}
@@ -538,7 +545,7 @@ export default function Sidebar({
       {/* Overlay */}
       {isMobile && (
         <div
-          className='fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300'
+          className='fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300'
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -551,22 +558,22 @@ export default function Sidebar({
             : `flex-1 flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-64'
             }`
           }
-          bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 h-full shadow-xl
+          bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 h-full
         `}
       >
         {/* Header */}
-        <div className='flex-shrink-0 px-4 py-6 border-b border-gray-200 dark:border-gray-700'>
+        <div className='flex-shrink-0 px-4 py-5 border-b border-zinc-200 dark:border-zinc-800'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center min-w-0'>
-              <div className='flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg'>
-                <ShoppingBag className='w-5 h-5 text-white' />
+              <div className='flex-shrink-0 w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center'>
+                <ShoppingBag className='w-4 h-4 text-white' />
               </div>
               {!isCollapsed && (
                 <div className='ml-3 min-w-0'>
-                  <h1 className='text-lg font-bold text-gray-900 dark:text-white truncate'>
+                  <h1 className='text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate'>
                     Purchase App
                   </h1>
-                  <p className='text-xs text-gray-500 dark:text-gray-400 truncate'>
+                  <p className='text-xs text-zinc-500 dark:text-zinc-400 truncate'>
                     Inventory Management
                   </p>
                 </div>
@@ -577,15 +584,15 @@ export default function Sidebar({
             {isMobile ? (
               <button
                 onClick={() => setIsOpen(false)}
-                className='p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
+                className='p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors'
               >
-                <X className='w-5 h-5' />
+                <X className='w-4 h-4' />
               </button>
             ) : (
               /* Desktop collapse button */
               <button
                 onClick={toggleCollapse}
-                className='p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
+                className='p-1.5 rounded-md text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors'
                 title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 {isCollapsed ? (
@@ -600,14 +607,14 @@ export default function Sidebar({
 
         {/* Navigation */}
         <div className='flex-1 overflow-y-auto py-4'>
-          <nav className='px-3 space-y-2'>
+          <nav className='px-3 space-y-1'>
             {permissionsLoading ? (
               <div className='text-center py-8'>
                 {!isCollapsed && (
                   <div className='space-y-2'>
-                    <div className='animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto'></div>
-                    <p className='text-sm text-gray-500 dark:text-gray-400'>
-                      Loading permissions...
+                    <div className='animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mx-auto'></div>
+                    <p className='text-xs text-zinc-500 dark:text-zinc-400'>
+                      Loading...
                     </p>
                   </div>
                 )}
@@ -616,7 +623,7 @@ export default function Sidebar({
               renderNavItems(filteredNavigation)
             ) : (
               <div className='text-center py-8'>
-                <p className='text-sm text-gray-500 dark:text-gray-400'>
+                <p className='text-sm text-zinc-500 dark:text-zinc-400'>
                   {!isCollapsed && 'No accessible pages'}
                 </p>
               </div>
@@ -626,18 +633,18 @@ export default function Sidebar({
 
         {/* Footer */}
         {!isCollapsed && (
-          <div className='flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700'>
+          <div className='flex-shrink-0 p-4 border-t border-zinc-200 dark:border-zinc-800'>
             <div className='flex items-center'>
-              <div className='w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center'>
-                <span className='text-xs font-medium text-white'>
+              <div className='w-7 h-7 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center'>
+                <span className='text-xs font-semibold text-zinc-700 dark:text-zinc-200'>
                   {user?.name?.charAt(0)}
                 </span>
               </div>
               <div className='ml-3'>
-                <p className='text-sm font-medium text-gray-900 dark:text-white'>
+                <p className='text-sm font-medium text-zinc-900 dark:text-zinc-50'>
                   {user?.name}
                 </p>
-                <p className='text-xs text-gray-500 dark:text-gray-400'>
+                <p className='text-xs text-zinc-500 dark:text-zinc-400'>
                   {capitalize(user?.role?.replace('_', ' ') || '')}
                 </p>
               </div>

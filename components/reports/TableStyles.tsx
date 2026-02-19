@@ -12,7 +12,7 @@ export const SortIcon = ({
 }) => {
   if (!sortConfig || sortConfig.key !== column) {
     return (
-      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4 text-zinc-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
       </svg>
     );
@@ -31,27 +31,27 @@ export const SortIcon = ({
 
 // Standardized table header class names
 export const TABLE_CLASSES = {
-  container: 'bg-white rounded-lg shadow-sm border border-gray-200',
-  headerSection: 'px-6 py-4 border-b border-gray-200',
+  container: 'bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800',
+  headerSection: 'px-6 py-4 border-b border-zinc-200 dark:border-zinc-800',
   table: 'w-full',
-  thead: 'bg-gray-50',
-  th: 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100',
+  thead: 'bg-zinc-50 dark:bg-zinc-800/50',
+  th: 'px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800',
   thContent: 'flex items-center space-x-1',
-  tbody: 'bg-white divide-y divide-gray-200',
-  tr: 'hover:bg-gray-50 transition-colors',
+  tbody: 'bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800',
+  tr: 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors',
   td: 'px-6 py-4 whitespace-nowrap',
-  tdText: 'text-sm text-gray-900',
-  tdTextMedium: 'text-sm font-medium text-gray-900',
+  tdText: 'text-sm text-zinc-900 dark:text-zinc-100',
+  tdTextMedium: 'text-sm font-medium text-zinc-900 dark:text-zinc-100',
   overflow: 'overflow-x-auto',
 };
 
 // Standardized controls container class names
 export const CONTROLS_CLASSES = {
-  container: 'bg-white rounded-lg shadow-sm border border-gray-200 mb-6',
+  container: 'bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 mb-6',
   inner: 'px-6 py-4',
   grid: 'grid grid-cols-1 lg:grid-cols-2 gap-6',
   section: 'flex flex-col',
-  sectionTitle: 'text-lg font-medium text-gray-900 mb-4',
+  sectionTitle: 'text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4',
 };
 
 // Standardized loading state

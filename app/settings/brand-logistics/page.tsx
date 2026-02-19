@@ -126,7 +126,7 @@ function BrandLogisticsPage() {
 
     if (!accessToken) {
         return (
-            <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
+            <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
                 <div className='bg-white p-8 rounded-lg shadow-md text-center'>
                     <Shield className='h-16 w-16 text-gray-400 mx-auto mb-4' />
                     <p className='text-xl text-gray-700'>Please log in to see this content.</p>
@@ -142,11 +142,11 @@ function BrandLogisticsPage() {
                 <div className='mb-6'>
                     <div className='flex items-center justify-between'>
                         <div>
-                            <h1 className='text-2xl font-bold text-white flex items-center gap-2'>
+                            <h1 className='text-2xl font-bold text-zinc-900 dark:text-zinc-50  flex items-center gap-2'>
                                 <Truck className='h-6 w-6' />
                                 Brand Logistics Settings
                             </h1>
-                            <p className='mt-1 text-sm text-gray-300'>
+                            <p className='mt-1 text-sm text-zinc-900 dark:text-zinc-50 '>
                                 Configure lead time and safety days per brand. These values are used in the master report for order calculations.
                             </p>
                         </div>
