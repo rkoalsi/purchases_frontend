@@ -25,6 +25,7 @@ import {
   Truck,
   Box,
   UserCircle,
+  TrendingDown,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -66,6 +67,7 @@ const PERMISSION_REQUIREMENTS = {
   SALES_REPORTS: { name: 'reports' },
   PI_CL_REPORTS: { name: 'reports' },
   ESTIMATES_VS_INVOICES: { name: 'reports' },
+  MISSED_SALES: { name: 'reports' },
 };
 
 // Navigation items with required permissions
@@ -187,6 +189,12 @@ const navigation = [
             href: '/reports/PI_vs_CL',
             icon: Import,
             requiredPermission: PERMISSION_REQUIREMENTS.PI_CL_REPORTS,
+          },
+          {
+            name: 'Missed Sales',
+            href: '/reports/missed_sales',
+            icon: TrendingDown,
+            requiredPermission: PERMISSION_REQUIREMENTS.MISSED_SALES,
           },
         ],
       },
