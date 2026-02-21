@@ -995,15 +995,15 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4'>
                                                 <div className='text-xs space-y-1'>
                                                     {(item.stock_in_transit_1 || 0) > 0 && (
-                                                        <div className='text-gray-700 dark:text-zinc-300'>T1: {formatNumber(item.stock_in_transit_1 || 0)}</div>
+                                                        <div className='text-gray-700 dark:text-zinc-100'>T1: {formatNumber(item.stock_in_transit_1 || 0)}</div>
                                                     )}
                                                     {(item.stock_in_transit_2 || 0) > 0 && (
-                                                        <div className='text-gray-700 dark:text-zinc-300'>T2: {formatNumber(item.stock_in_transit_2 || 0)}</div>
+                                                        <div className='text-gray-700 dark:text-zinc-100'>T2: {formatNumber(item.stock_in_transit_2 || 0)}</div>
                                                     )}
                                                     {(item.stock_in_transit_3 || 0) > 0 && (
-                                                        <div className='text-gray-700 dark:text-zinc-300'>T3: {formatNumber(item.stock_in_transit_3 || 0)}</div>
+                                                        <div className='text-gray-700 dark:text-zinc-100'>T3: {formatNumber(item.stock_in_transit_3 || 0)}</div>
                                                     )}
-                                                    <div className='font-medium text-gray-900'>Total: {formatNumber(item.total_stock_in_transit || 0)}</div>
+                                                    <div className='font-medium text-gray-900 dark:text-zinc-100'>Total: {formatNumber(item.total_stock_in_transit || 0)}</div>
                                                 </div>
                                             </td>
                                             {/* Current Days Coverage */}
