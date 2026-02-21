@@ -423,15 +423,15 @@ const BlinkitAdsReport: React.FC = () => {
   }, [startDate, endDate]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-950">
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8 dark:bg-zinc-900 dark:border-zinc-800">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-zinc-100 mb-2">
               Blinkit Ads Campaign Report
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-zinc-400">
               Track and analyze your advertising campaign performance
             </p>
           </div>
@@ -486,7 +486,7 @@ const BlinkitAdsReport: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-8 items-end">
             {/* Date Pickers */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Period</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-zinc-100 mb-4">Report Period</h3>
               <div className="grid grid-cols-2 gap-4">
                 <DatePicker
                   selected={startDate}
@@ -562,24 +562,24 @@ const BlinkitAdsReport: React.FC = () => {
 
         {/* Loading State */}
         {loading && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 dark:bg-zinc-900 dark:border-zinc-800">
             <div className="flex flex-col items-center justify-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mb-4"></div>
-              <p className="text-gray-600 text-lg">Loading campaign data...</p>
+              <p className="text-gray-600 dark:text-zinc-400 text-lg">Loading campaign data...</p>
             </div>
           </div>
         )}
 
         {/* Error State */}
         {error && !loading && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8 dark:bg-red-900/20 dark:border-red-800">
             <div className="flex items-center">
               <svg className="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <h3 className="text-red-800 font-medium">Error loading data</h3>
-                <p className="text-red-600 text-sm mt-1">{error}</p>
+                <h3 className="text-red-800 dark:text-red-300 font-medium">Error loading data</h3>
+                <p className="text-red-600 dark:text-red-400 text-sm mt-1">{error}</p>
               </div>
             </div>
           </div>
@@ -587,11 +587,11 @@ const BlinkitAdsReport: React.FC = () => {
 
         {/* No Data State */}
         {!loading && !error && campaignsData.length === 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 dark:bg-zinc-900 dark:border-zinc-800">
             <div className="text-center">
               <Package className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-medium text-gray-900 mb-2">No campaign data found</h3>
-              <p className="text-gray-600 mb-6">
+              <h3 className="text-xl font-medium text-gray-900 dark:text-zinc-100 mb-2">No campaign data found</h3>
+              <p className="text-gray-600 dark:text-zinc-400 mb-6">
                 Upload your ads data to start analyzing campaign performance
               </p>
               <button
@@ -606,13 +606,13 @@ const BlinkitAdsReport: React.FC = () => {
 
         {/* Campaigns Table */}
         {!loading && !error && campaignsData.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden dark:bg-zinc-900 dark:border-zinc-800">
             {/* Table Controls */}
-            <div className="p-6 bg-gray-50 border-b border-gray-200">
+            <div className="p-6 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Campaign Performance</h2>
-                  <p className="text-gray-600 text-sm mt-1">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-100">Campaign Performance</h2>
+                  <p className="text-gray-600 dark:text-zinc-400 text-sm mt-1">
                     Showing {filteredAndSortedData.length} of {campaignsData.length} campaigns
                   </p>
                 </div>
@@ -625,14 +625,14 @@ const BlinkitAdsReport: React.FC = () => {
                       placeholder="Search campaigns..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100"
                     />
                   </div>
 
                   <select
                     value={sheetTypeFilter}
                     onChange={(e) => setSheetTypeFilter(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100"
                   >
                     <option value="">All Types</option>
                     <option value="product_listing">Product Listing</option>
@@ -643,16 +643,16 @@ const BlinkitAdsReport: React.FC = () => {
             </div>
 
             {/* Campaigns List */}
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-200 dark:divide-zinc-800">
               {filteredAndSortedData.map((campaign) => (
                 <div key={`${campaign.campaign_id}`} className="p-6">
                   {/* Campaign Header */}
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-1">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-zinc-100 mb-1">
                         {campaign.campaign_name || 'Unnamed Campaign'}
                       </h3>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-zinc-400">
                         <span>ID: {campaign.campaign_id}</span>
                         <span>•</span>
                         <span>{campaign.targeting_groups_count || 0} targeting groups</span>
@@ -661,7 +661,7 @@ const BlinkitAdsReport: React.FC = () => {
                     
                     <button
                       onClick={() => toggleCampaignExpansion(campaign.campaign_id.toString())}
-                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors dark:text-zinc-500 dark:hover:text-zinc-300 dark:hover:bg-zinc-800"
                     >
                       {expandedCampaigns.has(campaign.campaign_id.toString()) ? (
                         <ChevronUp className="h-5 w-5" />
@@ -673,44 +673,44 @@ const BlinkitAdsReport: React.FC = () => {
 
                   {/* Campaign Metrics - UPDATED */}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <p className="text-blue-600 text-sm font-medium">Impressions</p>
-                      <p className="text-2xl font-bold text-blue-900 mt-1">
+                    <div className="bg-blue-50 rounded-lg p-4 dark:bg-blue-900/20">
+                      <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">Impressions</p>
+                      <p className="text-2xl font-bold text-blue-900 dark:text-blue-200 mt-1">
                         {formatNumber(campaign.campaign_totals?.total_impressions)}
                       </p>
                     </div>
                     
-                    <div className="bg-green-50 rounded-lg p-4">
-                      <p className="text-green-600 text-sm font-medium">Total Sales</p>
-                      <p className="text-2xl font-bold text-green-900 mt-1">
+                    <div className="bg-green-50 rounded-lg p-4 dark:bg-green-900/20">
+                      <p className="text-green-600 dark:text-green-400 text-sm font-medium">Total Sales</p>
+                      <p className="text-2xl font-bold text-green-900 dark:text-green-200 mt-1">
                         {formatCurrency(campaign.campaign_totals?.total_sales)}
                       </p>
                     </div>
                     
-                    <div className="bg-purple-50 rounded-lg p-4">
-                      <p className="text-purple-600 text-sm font-medium">Budget Used</p>
-                      <p className="text-2xl font-bold text-purple-900 mt-1">
+                    <div className="bg-purple-50 rounded-lg p-4 dark:bg-purple-900/20">
+                      <p className="text-purple-600 dark:text-purple-400 text-sm font-medium">Budget Used</p>
+                      <p className="text-2xl font-bold text-purple-900 dark:text-purple-200 mt-1">
                         {formatCurrency(campaign.campaign_totals?.total_budget_consumed)}
                       </p>
                     </div>
                     
-                    <div className="bg-orange-50 rounded-lg p-4">
-                      <p className="text-orange-600 text-sm font-medium">CPM</p>
-                      <p className="text-2xl font-bold text-orange-900 mt-1">
+                    <div className="bg-orange-50 rounded-lg p-4 dark:bg-orange-900/20">
+                      <p className="text-orange-600 dark:text-orange-400 text-sm font-medium">CPM</p>
+                      <p className="text-2xl font-bold text-orange-900 dark:text-orange-200 mt-1">
                         {formatCurrency(campaign.campaign_totals?.calculated_cpm)}
                       </p>
                     </div>
                     
-                    <div className="bg-indigo-50 rounded-lg p-4">
-                      <p className="text-indigo-600 text-sm font-medium">Total Units</p>
-                      <p className="text-2xl font-bold text-indigo-900 mt-1">
+                    <div className="bg-indigo-50 rounded-lg p-4 dark:bg-indigo-900/20">
+                      <p className="text-indigo-600 dark:text-indigo-400 text-sm font-medium">Total Units</p>
+                      <p className="text-2xl font-bold text-indigo-900 dark:text-indigo-200 mt-1">
                         {formatNumber(campaign.campaign_totals?.total_units)}
                       </p>
                     </div>
                     
-                    <div className="bg-pink-50 rounded-lg p-4">
-                      <p className="text-pink-600 text-sm font-medium">Total ROAS</p>
-                      <p className="text-2xl font-bold text-pink-900 mt-1">
+                    <div className="bg-pink-50 rounded-lg p-4 dark:bg-pink-900/20">
+                      <p className="text-pink-600 dark:text-pink-400 text-sm font-medium">Total ROAS</p>
+                      <p className="text-2xl font-bold text-pink-900 dark:text-pink-200 mt-1">
                         {(campaign.campaign_totals?.avg_total_roas || 0).toFixed(2)}x
                       </p>
                     </div>
@@ -718,95 +718,95 @@ const BlinkitAdsReport: React.FC = () => {
 
                   {/* Expanded Targeting Groups */}
                   {expandedCampaigns.has(campaign.campaign_id.toString()) && campaign.targeting_groups?.length > 0 && (
-                    <div className="mt-6 border-t border-gray-200 pt-6">
-                      <h4 className="text-lg font-medium text-gray-900 mb-4">
+                    <div className="mt-6 border-t border-gray-200 dark:border-zinc-800 pt-6">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-zinc-100 mb-4">
                         Targeting Groups ({campaign.targeting_groups.length})
                       </h4>
 
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
+                          <thead className="bg-gray-50 dark:bg-zinc-800">
                             <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Targeting Group
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Type
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Match Type
                               </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Sheet Type
                               </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Impressions
                               </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Total Sales
                               </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Total Units
                               </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Total ATC
                               </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 Budget Used
                               </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 CPM
                               </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">
                                 ROAS
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-white divide-y divide-gray-200 dark:bg-zinc-900 dark:divide-zinc-800">
                             {campaign.targeting_groups.map((targetingGroup, index) => (
                               <tr 
                                 key={`${campaign.campaign_id}-${index}`} 
-                                className="hover:bg-gray-50 transition-colors"
+                                className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
                               >
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-zinc-100">
                                   {targetingGroup?.targeting_group || 'N/A'}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
                                   {targetingGroup?.targeting_type || 'N/A'}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
                                   {targetingGroup?.match_type || 'N/A'}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                     targetingGroup?.sheet_type === 'product_listing'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : 'bg-green-100 text-green-800'
+                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                      : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                   }`}>
                                     {targetingGroup?.sheet_type === 'product_listing' ? 'Listing' : 'Recommendation'}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 text-right">
                                   {formatNumber(targetingGroup?.metrics?.total_impressions)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 text-right">
                                   {formatCurrency(targetingGroup?.metrics?.total_sales)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 text-right">
                                   {formatNumber(targetingGroup?.metrics?.total_units)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 text-right">
                                   {formatNumber(targetingGroup?.metrics?.total_atc)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 text-right">
                                   {formatCurrency(targetingGroup?.metrics?.total_budget_consumed)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 text-right">
                                   {formatCurrency(targetingGroup?.metrics?.calculated_cpm)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 text-right">
                                   <div className="text-right">
-                                    <div className="text-xs text-gray-500 mb-1">
+                                    <div className="text-xs text-gray-500 dark:text-zinc-400 mb-1">
                                       Direct: {(targetingGroup?.metrics?.avg_direct_roas || 0).toFixed(2)}x
                                     </div>
                                     <div className="font-medium">
@@ -829,8 +829,8 @@ const BlinkitAdsReport: React.FC = () => {
             {filteredAndSortedData.length === 0 && (
               <div className="p-12 text-center">
                 <Filter className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No campaigns match your filters</h3>
-                <p className="text-gray-600 mb-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-zinc-100 mb-2">No campaigns match your filters</h3>
+                <p className="text-gray-600 dark:text-zinc-400 mb-6">
                   Try adjusting your search term or filter criteria
                 </p>
                 <button
@@ -849,13 +849,13 @@ const BlinkitAdsReport: React.FC = () => {
 
         {/* Debug Information - Development Only */}
         {process.env.NODE_ENV === 'development' && (summaryData || campaignsData.length > 0) && (
-          <div className="mt-8 bg-gray-100 rounded-xl p-6">
-            <h3 className="text-lg font-medium text-gray-700 mb-4">Debug Information</h3>
+          <div className="mt-8 bg-gray-100 rounded-xl p-6 dark:bg-zinc-800">
+            <h3 className="text-lg font-medium text-gray-700 dark:text-zinc-300 mb-4">Debug Information</h3>
             
             <div className="grid md:grid-cols-2 gap-6 text-sm">
               <div>
                 <h4 className="font-medium text-gray-800 mb-2">API Status</h4>
-                <div className="space-y-1 text-gray-600">
+                <div className="space-y-1 text-gray-600 dark:text-zinc-400">
                   <p>Summary Data: {summaryData ? '✅ Loaded' : '❌ Missing'}</p>
                   <p>Campaigns Count: {campaignsData.length}</p>
                   <p>Filtered Count: {filteredAndSortedData.length}</p>
@@ -865,7 +865,7 @@ const BlinkitAdsReport: React.FC = () => {
               
               <div>
                 <h4 className="font-medium text-gray-800 mb-2">State</h4>
-                <div className="space-y-1 text-gray-600">
+                <div className="space-y-1 text-gray-600 dark:text-zinc-400">
                   <p>Loading: {loading ? 'Yes' : 'No'}</p>
                   <p>Error: {error ? 'Yes' : 'No'}</p>
                   <p>Search Term: {searchTerm || 'None'}</p>
@@ -877,10 +877,10 @@ const BlinkitAdsReport: React.FC = () => {
 
             {summaryData && (
               <details className="mt-4">
-                <summary className="cursor-pointer font-medium text-gray-800 hover:text-gray-900">
+                <summary className="cursor-pointer font-medium text-gray-800 dark:text-zinc-200 hover:text-gray-900">
                   Summary Data Structure
                 </summary>
-                <pre className="mt-2 text-xs bg-white p-3 rounded border overflow-auto max-h-40">
+                <pre className="mt-2 text-xs bg-white p-3 rounded border overflow-auto max-h-40 dark:bg-zinc-900 dark:border-zinc-700">
                   {JSON.stringify(summaryData, null, 2)}
                 </pre>
               </details>
@@ -888,10 +888,10 @@ const BlinkitAdsReport: React.FC = () => {
 
             {campaignsData.length > 0 && (
               <details className="mt-4">
-                <summary className="cursor-pointer font-medium text-gray-800 hover:text-gray-900">
+                <summary className="cursor-pointer font-medium text-gray-800 dark:text-zinc-200 hover:text-gray-900">
                   First Campaign Structure
                 </summary>
-                <pre className="mt-2 text-xs bg-white p-3 rounded border overflow-auto max-h-40">
+                <pre className="mt-2 text-xs bg-white p-3 rounded border overflow-auto max-h-40 dark:bg-zinc-900 dark:border-zinc-700">
                   {JSON.stringify(campaignsData[0], null, 2)}
                 </pre>
               </details>

@@ -594,18 +594,18 @@ const handleUpload = async () => {
 
   // ===== COMPONENT RENDERING =====
   return (
-    <div className='container mx-auto p-4 bg-gray-50'>
-      <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
-        <h1 className='text-2xl font-bold text-gray-800 mb-6'>
+    <div className='container mx-auto p-4 bg-gray-50 dark:bg-zinc-950'>
+      <div className='bg-white rounded-lg shadow-md p-6 mb-6 dark:bg-zinc-900 dark:border dark:border-zinc-800'>
+        <h1 className='text-2xl font-bold text-gray-800 dark:text-zinc-100 mb-6'>
           Blinkit Sales vs Inventory Report
         </h1>
-        <div className='bg-white rounded-2xl shadow-lg border border-gray-100 p-6 lg:p-8 mb-6 lg:mb-8 hover:shadow-xl transition-shadow duration-300'>
+        <div className='bg-white rounded-2xl shadow-lg border border-gray-100 p-6 lg:p-8 mb-6 lg:mb-8 hover:shadow-xl transition-shadow duration-300 dark:bg-zinc-900 dark:border-zinc-800'>
           <div className='grid gap-6 lg:grid-cols-2 lg:items-end'>
             {/* Date Pickers Section - UPDATED */}
             <div className='space-y-3'>
               <div className='flex items-center gap-2 mb-3'>
                 <div className='w-2 h-2 bg-blue-500 rounded-full'></div>
-                <label className='text-sm font-semibold text-gray-800 uppercase tracking-wide'>
+                <label className='text-sm font-semibold text-gray-800 dark:text-zinc-200 uppercase tracking-wide'>
                   Report Period
                 </label>
               </div>
@@ -642,9 +642,9 @@ const handleUpload = async () => {
                   onChange={(e) => setAnyLast90Days(e.target.checked)}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
                 />
-                <label htmlFor="anyLast90Days" className="ml-2 text-sm text-gray-700 cursor-pointer">
+                <label htmlFor="anyLast90Days" className="ml-2 text-sm text-gray-700 dark:text-zinc-300 cursor-pointer">
                   Any Last 90 days in stock
-                  <span className="ml-1 text-xs text-gray-500">(Show last 90 days item was in stock, regardless of when)</span>
+                  <span className="ml-1 text-xs text-gray-500 dark:text-zinc-400">(Show last 90 days item was in stock, regardless of when)</span>
                 </label>
               </div>
             </div>
@@ -744,8 +744,8 @@ const handleUpload = async () => {
         />
         {/* Status Indicator */}
         {reportData.length > 0 && (
-          <div className='mt-4 pt-4 border-t border-gray-100'>
-            <div className='flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg'>
+          <div className='mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800'>
+            <div className='flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg dark:bg-green-900/20 dark:text-green-400'>
               <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
                 <path
                   fillRule='evenodd'
@@ -768,8 +768,8 @@ const handleUpload = async () => {
 
         {/* No Data State */}
         {!loading && reportData.length === 0 && (
-          <div className='bg-gray-50 rounded-lg p-6 text-center'>
-            <p className='text-gray-600'>
+          <div className='bg-gray-50 rounded-lg p-6 text-center dark:bg-zinc-800'>
+            <p className='text-gray-600 dark:text-zinc-400'>
               No report data found for given date range. Please upload files to
               generate a report.
             </p>
@@ -779,15 +779,15 @@ const handleUpload = async () => {
 
       {/* Report Table */}
       {!loading && reportData.length > 0 && (
-        <div className='bg-white rounded-lg shadow-md overflow-hidden'>
+        <div className='bg-white rounded-lg shadow-md overflow-hidden dark:bg-zinc-900 dark:border dark:border-zinc-800'>
           {/* Table Header with Search and Filters */}
-          <div className='p-6 bg-gray-50 border-b border-gray-200'>
+          <div className='p-6 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800'>
             <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4'>
               <div>
-                <h2 className='text-lg font-semibold text-gray-800'>
+                <h2 className='text-lg font-semibold text-gray-800 dark:text-zinc-100'>
                   Report Details
                 </h2>
-                <p className='text-sm text-gray-600'>
+                <p className='text-sm text-gray-600 dark:text-zinc-400'>
                   Showing {filteredAndSortedData.length} of {reportData.length}{' '}
                   items
                 </p>
@@ -815,7 +815,7 @@ const handleUpload = async () => {
                   placeholder='Search items, SKU, city, warehouse...'
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className='block w-full text-black pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm'
+                  className='block w-full text-black pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm dark:text-zinc-100 dark:bg-zinc-800 dark:border-zinc-700'
                 />
                 {searchTerm && (
                   <button
@@ -823,7 +823,7 @@ const handleUpload = async () => {
                     className='absolute inset-y-0 right-0 pr-3 flex items-center'
                   >
                     <svg
-                      className='h-4 w-4 text-gray-400 hover:text-gray-600'
+                      className='h-4 w-4 text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300'
                       fill='none'
                       stroke='currentColor'
                       viewBox='0 0 24 24'
@@ -846,7 +846,7 @@ const handleUpload = async () => {
                 <select
                   value={cityFilter}
                   onChange={(e) => setCityFilter(e.target.value)}
-                  className='block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white'
+                  className='block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:text-zinc-100 dark:bg-zinc-800 dark:border-zinc-700'
                 >
                   <option value=''>All Cities</option>
                   {uniqueCities.map((city) => (
@@ -861,7 +861,7 @@ const handleUpload = async () => {
                 <select
                   value={warehouseFilter}
                   onChange={(e) => setWarehouseFilter(e.target.value)}
-                  className='block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white'
+                  className='block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:text-zinc-100 dark:bg-zinc-800 dark:border-zinc-700'
                 >
                   <option value=''>All Warehouses</option>
                   {uniqueWarehouses.map((warehouse) => (
@@ -880,7 +880,7 @@ const handleUpload = async () => {
                     setCityFilter('');
                     setWarehouseFilter('');
                   }}
-                  className='px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors'
+                  className='px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700 dark:hover:bg-zinc-700'
                 >
                   Clear Filters
                 </button>
@@ -888,33 +888,33 @@ const handleUpload = async () => {
             </div>
           </div>
                <div className="flex flex-wrap flex-row gap-3 mt-4">
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800">
                 <Package className="h-4 w-4 text-blue-600" />
-                <span className="text-sm text-blue-800">
+                <span className="text-sm text-blue-800 dark:text-blue-300">
                   <span className="font-medium">Inventory (Range):</span> {formatDate(reportMetadata.inventory_data.first_inventory_date)} - {formatDate(reportMetadata.inventory_data.last_inventory_date)}
                 </span>
               </div>
 
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100 dark:bg-green-900/20 dark:border-green-800">
                 <TrendingUp className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-green-800">
+                <span className="text-sm text-green-800 dark:text-green-300">
                   <span className="font-medium">Sales (Range):</span> {formatDate(reportMetadata.sales_data.first_sales_date)} - {formatDate(reportMetadata.sales_data.last_sales_date)}
                 </span>
               </div>
 
               {reportMetadata.inventory_data?.missing_dates && reportMetadata.inventory_data.missing_dates.length > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100 dark:bg-orange-900/20 dark:border-orange-800">
                   <TrendingDown className="h-4 w-4 text-orange-600" />
-                  <span className="text-sm text-orange-800">
+                  <span className="text-sm text-orange-800 dark:text-orange-300">
                     <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.inventory_data.missing_dates.join(', ')}
                   </span>
                 </div>
               )}
 
               {reportMetadata.sales_data?.missing_dates && reportMetadata.sales_data.missing_dates.length > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100">
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100 dark:bg-red-900/20 dark:border-red-800">
                   <TrendingDown className="h-4 w-4 text-red-600" />
-                  <span className="text-sm text-red-800">
+                  <span className="text-sm text-red-800 dark:text-red-300">
                     <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.sales_data.missing_dates.join(', ')}
                   </span>
                 </div>
@@ -922,11 +922,11 @@ const handleUpload = async () => {
             </div>
           {/* Table Container with Fixed Height and Sticky Header */}
           <div className='relative max-h-[70vh] overflow-auto'>
-            <table className='min-w-full divide-y divide-gray-200'>
+            <table className='min-w-full divide-y divide-gray-200 dark:divide-zinc-800'>
               {/* Sticky Header */}
-              <thead className='bg-gray-50 sticky top-0 z-30 shadow-sm'>
+              <thead className='bg-gray-50 sticky top-0 z-30 shadow-sm dark:bg-zinc-800'>
                 <tr>
-                  <th className='sticky left-0 z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200'>
+                  <th className='sticky left-0 z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'>
                     <div className='flex items-center gap-2'>
                       <input
                         type='checkbox'
@@ -951,166 +951,166 @@ const handleUpload = async () => {
                       <span>Select</span>
                     </div>
                   </th>
-                  <th className='sticky left-[80px] z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200'>
+                  <th className='sticky left-[80px] z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'>
                     #
                   </th>
-                  <th className='sticky left-[130px] z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[250px]'>
+                  <th className='sticky left-[130px] z-40 bg-gray-50 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[250px] dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'>
                     <button
                       onClick={() => handleSort('item_name')}
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Item Name
                       <SortIcon column='item_name' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[120px]'>
                     <button
                       onClick={() => handleSort('sku_code')}
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       SKU Code
                       <SortIcon column='sku_code' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[100px]'>
                     <button
                       onClick={() => handleSort('city')}
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       City
                       <SortIcon column='city' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[120px]'>
                     <button
                       onClick={() => handleSort('warehouse')}
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Warehouse
                       <SortIcon column='warehouse' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[120px]'>
                     <button
                       onClick={() =>
                         handleSort('metrics.avg_daily_on_stock_days')
                       }
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Avg Daily Sale
                       <SortIcon column='metrics.avg_daily_on_stock_days' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[120px]'>
                     <button
                       onClick={() =>
                         handleSort('metrics.avg_weekly_on_stock_days')
                       }
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Avg Weekly Sale
                       <SortIcon column='metrics.avg_weekly_on_stock_days' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[130px]'>
                     <button
                       onClick={() =>
                         handleSort('metrics.avg_monthly_on_stock_days')
                       }
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Avg Monthly Sale
                       <SortIcon column='metrics.avg_monthly_on_stock_days' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[110px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[110px]'>
                     <button
                       onClick={() =>
                         handleSort('metrics.total_sales_in_period')
                       }
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Total Sales
                       <SortIcon column='metrics.total_sales_in_period' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[110px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[110px]'>
                     <button
                       onClick={() =>
                         handleSort('metrics.total_returns_in_period')
                       }
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Total Returns
                       <SortIcon column='metrics.total_returns_in_period' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[80px]'>
                     <button
                       onClick={() => handleSort('metrics.days_of_coverage')}
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       DOC
                       <SortIcon column='metrics.days_of_coverage' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[140px]'>
                     <button
                       onClick={() => handleSort('metrics.days_with_inventory')}
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Days with Inventory
                       <SortIcon column='metrics.days_with_inventory' />
                     </button>
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[120px]'>
                     <button
                       onClick={() => handleSort('metrics.closing_stock')}
-                      className='flex items-center gap-1 hover:text-gray-700 transition-colors'
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
                     >
                       Closing Stock
                       <SortIcon column='metrics.closing_stock' />
                     </button>
                   </th>
                   {anyLast90Days && (
-                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]'>
+                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[200px]'>
                       Last 90 Days In Stock
                     </th>
                   )}
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[130px]'>
                     Past 7 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[150px]'>
                     Two Weeks Ago Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[180px]'>
                     Performance Two Weeks Ago vs 7 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[140px]'>
                     Past 30 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[140px]'>
                     Past 60 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[180px]'>
                     Performance Past 60 vs 30 day Sales
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[160px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[160px]'>
                     Best Performing Month
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[180px]'>
                     Quantity Sold in Best Performing Month
                   </th>
                 </tr>
               </thead>
 
               {/* Table Body */}
-              <tbody className='bg-white divide-y divide-gray-200'>
+              <tbody className='bg-white divide-y divide-gray-200 dark:bg-zinc-900 dark:divide-zinc-800'>
                 {filteredAndSortedData.length === 0 ? (
                   <tr>
                     <td
                       colSpan={anyLast90Days ? 22 : 21}
-                      className='px-4 py-8 text-center text-sm text-gray-500'
+                      className='px-4 py-8 text-center text-sm text-gray-500 dark:text-zinc-400'
                     >
                       No items match your search criteria
                     </td>
@@ -1125,10 +1125,10 @@ const handleUpload = async () => {
                       <tr
                         key={itemIdentifier}
                         className={`${
-                          isItemSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
+                          isItemSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
                         } transition-colors`}
                       >
-                        <td className='sticky left-0 z-20 bg-white px-4 py-3 whitespace-nowrap border-r border-gray-200'>
+                        <td className='sticky left-0 z-20 bg-white px-4 py-3 whitespace-nowrap border-r border-gray-200 dark:bg-zinc-900 dark:border-zinc-700'>
                           <input
                             type='checkbox'
                             checked={isItemSelected}
@@ -1138,68 +1138,68 @@ const handleUpload = async () => {
                             className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
                           />
                         </td>
-                        <td className='sticky left-[80px] z-20 bg-white px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200'>
+                        <td className='sticky left-[80px] z-20 bg-white px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200 dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700'>
                           {index + 1}
                         </td>
-                        <td className='sticky left-[130px] z-20 bg-white px-4 py-3 text-sm text-gray-900 border-r border-gray-200 min-w-[250px] max-w-[350px]'>
+                        <td className='sticky left-[130px] z-20 bg-white px-4 py-3 text-sm text-gray-900 border-r border-gray-200 min-w-[250px] max-w-[350px] dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700'>
                           <div className='break-words leading-tight'>
                             {item.item_name}
                           </div>
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100'>
                           {item.sku_code}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                           {item.city}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                           {item.warehouse}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics.avg_daily_on_stock_days.toFixed(2)}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                           {item.metrics.avg_weekly_on_stock_days.toFixed(2)}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                           {item.metrics.avg_monthly_on_stock_days?.toFixed(2)}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics?.total_sales_in_period?.toFixed(2)}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics?.total_returns_in_period?.toFixed(2)}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                           {item.metrics.days_of_coverage.toFixed(2)}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                           {item.metrics.days_with_inventory}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics.closing_stock?.toFixed(2)}
                         </td>
                         {anyLast90Days && (
-                          <td className='px-4 py-3 text-sm text-gray-900 max-w-md'>
+                          <td className='px-4 py-3 text-sm text-gray-900 max-w-md dark:text-zinc-100'>
                             {item.last_90_days_dates || 'N/A'}
                           </td>
                         )}
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics?.sales_last_7_days_ending_lcd?.toFixed(
                             2
                           )}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics?.sales_prev_7_days_before_that?.toFixed(
                             2
                           )}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           <span
                             className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                               item.metrics?.performance_vs_prev_7_days_pct >= 0
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                             }`}
                           >
                             {item.metrics?.performance_vs_prev_7_days_pct?.toFixed(
@@ -1208,22 +1208,22 @@ const handleUpload = async () => {
                             %
                           </span>
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics?.sales_last_30_days_ending_lcd?.toFixed(
                             2
                           )}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics?.sales_prev_30_days_before_that?.toFixed(
                             2
                           )}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           <span
                             className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                               item.metrics?.performance_vs_prev_30_days_pct >= 0
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                             }`}
                           >
                             {item.metrics?.performance_vs_prev_30_days_pct?.toFixed(
@@ -1232,10 +1232,10 @@ const handleUpload = async () => {
                             %
                           </span>
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.best_performing_month}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium'>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.best_performing_month_details?.quantity_sold}
                         </td>
                       </tr>
