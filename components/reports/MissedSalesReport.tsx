@@ -19,6 +19,7 @@ interface MissedSalesRecord {
   item_code: string | null;
   item_name: string | null;
   estimate_no: string | null;
+  customer_name: string | null;
   po_no: string | null;
   quantity_ordered: number;
   quantity_cancelled: number;
@@ -151,6 +152,7 @@ const MissedSalesReport: React.FC = () => {
         r.asin?.toLowerCase().includes(term) ||
         r.data_source?.toLowerCase().includes(term) ||
         r.estimate_no?.toLowerCase().includes(term) ||
+        r.customer_name?.toLowerCase().includes(term) ||
         r.po_no?.toLowerCase().includes(term)
     );
   }, [data, search]);
@@ -187,6 +189,7 @@ const MissedSalesReport: React.FC = () => {
     { key: 'item_code', label: 'Item Code' },
     { key: 'item_name', label: 'Item Name' },
     { key: 'estimate_no', label: 'Estimate No.' },
+    { key: 'customer_name', label: 'Customer Name' },
     { key: 'po_no', label: 'PO No.' },
     { key: 'quantity_ordered', label: 'Qty Ordered' },
     { key: 'quantity_cancelled', label: 'Qty Cancelled' },
@@ -379,6 +382,9 @@ const MissedSalesReport: React.FC = () => {
                     </td>
                     <td className={TABLE_CLASSES.td}>
                       <span className={TABLE_CLASSES.tdText}>{row.estimate_no || '—'}</span>
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      <span className={TABLE_CLASSES.tdText}>{row.customer_name || '—'}</span>
                     </td>
                     <td className={TABLE_CLASSES.td}>
                       <span className={TABLE_CLASSES.tdText}>{row.po_no || '—'}</span>
