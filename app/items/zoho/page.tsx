@@ -60,7 +60,7 @@ function Page() {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
-        <span className='ml-2 text-gray-600'>Loading user data...</span>
+        <span className='ml-2 text-gray-600 dark:text-zinc-400'>Loading user data...</span>
       </div>
     );
   }
@@ -69,7 +69,7 @@ function Page() {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div className='text-center'>
-          <div className='w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center'>
+          <div className='w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center'>
             <svg
               className='w-8 h-8 text-gray-400'
               fill='none'
@@ -84,7 +84,7 @@ function Page() {
               />
             </svg>
           </div>
-          <p className='text-lg text-gray-600'>
+          <p className='text-lg text-gray-600 dark:text-zinc-400'>
             Please log in to see this content.
           </p>
         </div>
@@ -93,20 +93,20 @@ function Page() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 py-8'>
+    <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 py-8'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
         {/* Header */}
         <div className='mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900'>Zoho Products</h1>
-          <p className='mt-2 text-gray-600'>View your Zoho products</p>
+          <h1 className='text-3xl font-bold text-gray-900 dark:text-zinc-100'>Zoho Products</h1>
+          <p className='mt-2 text-gray-600 dark:text-zinc-400'>View your Zoho products</p>
         </div>
 
         {/* Products Section */}
-        <div className='bg-white rounded-lg shadow-sm border border-gray-200'>
-          <div className='px-6 py-4 border-b border-gray-200'>
+        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800'>
+          <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
             <div className='flex items-center justify-between'>
-              <h2 className='text-xl font-semibold text-gray-900'>Products</h2>
-              <div className='text-sm text-gray-500'>
+              <h2 className='text-xl font-semibold text-gray-900 dark:text-zinc-100'>Products</h2>
+              <div className='text-sm text-gray-500 dark:text-zinc-400'>
                 {totalProducts} total products
               </div>
             </div>
@@ -115,7 +115,7 @@ function Page() {
           {loading ? (
             <div className='flex items-center justify-center py-12'>
               <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
-              <span className='ml-2 text-gray-600'>Loading products...</span>
+              <span className='ml-2 text-gray-600 dark:text-zinc-400'>Loading products...</span>
             </div>
           ) : error ? (
             <div className='flex items-center justify-center py-12'>
@@ -147,7 +147,7 @@ function Page() {
           ) : products.length === 0 ? (
             <div className='flex items-center justify-center py-12'>
               <div className='text-center'>
-                <div className='w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center'>
+                <div className='w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center'>
                   <svg
                     className='w-8 h-8 text-gray-400'
                     fill='none'
@@ -162,7 +162,7 @@ function Page() {
                     />
                   </svg>
                 </div>
-                <p className='text-gray-600'>No products found</p>
+                <p className='text-gray-600 dark:text-zinc-400'>No products found</p>
               </div>
             </div>
           ) : (
@@ -170,30 +170,30 @@ function Page() {
               {/* Products Table */}
               <div className='overflow-x-auto'>
                 <table className='w-full'>
-                  <thead className='bg-gray-50'>
+                  <thead className='bg-gray-50 dark:bg-zinc-800'>
                     <tr>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                         Product
                       </th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                         SKU
                       </th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                         Price
                       </th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                         Stock
                       </th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                         Status
                       </th>
                     </tr>
                   </thead>
-                  <tbody className='bg-white divide-y divide-gray-200'>
+                  <tbody className='bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800'>
                     {products.map((product: any, index) => (
                       <tr
                         key={product._id || index}
-                        className='hover:bg-gray-50 transition-colors'
+                        className='hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors'
                       >
                         <td className='px-6 py-4 whitespace-nowrap'>
                           <div className='flex items-center'>
@@ -207,24 +207,24 @@ function Page() {
                               </div>
                             </div>
                             <div className='ml-4'>
-                              <div className='text-sm font-medium text-gray-900'>
+                              <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
                                 {product.name || 'Unnamed Product'}
                               </div>
                             </div>
                           </div>
                         </td>
                         <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='text-sm text-gray-900 font-mono'>
+                          <div className='text-sm text-gray-900 dark:text-zinc-100 font-mono'>
                             {product.sku || product.item_id || 'N/A'}
                           </div>
                         </td>
                         <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='text-sm font-medium text-gray-900'>
+                          <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
                             {formatCurrency(product.rate || product.price)}
                           </div>
                         </td>
                         <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='text-sm text-gray-900'>
+                          <div className='text-sm text-gray-900 dark:text-zinc-100'>
                             {product.stock ? product.stock : 0}
                           </div>
                         </td>
@@ -232,8 +232,8 @@ function Page() {
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                               product.status === 'active' || product.is_active
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                             }`}
                           >
                             {product.status === 'active' || product.is_active
@@ -246,9 +246,9 @@ function Page() {
                   </tbody>
                 </table>
                 {
-                  <div className='px-6 py-4 border-t border-gray-200'>
+                  <div className='px-6 py-4 border-t border-gray-200 dark:border-zinc-800'>
                     <div className='flex items-center justify-between'>
-                      <div className='text-sm text-gray-500'>
+                      <div className='text-sm text-gray-500 dark:text-zinc-400'>
                         Showing {(currentPage - 1) * limit + 1} to{' '}
                         {Math.min(currentPage * limit, totalProducts)} of{' '}
                         {totalProducts} products
@@ -257,7 +257,7 @@ function Page() {
                         <button
                           onClick={() => handlePageChange(currentPage - 1)}
                           disabled={currentPage === 1}
-                          className='px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+                          className='px-3 py-2 text-sm font-medium text-gray-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
                         >
                           Previous
                         </button>
@@ -284,7 +284,7 @@ function Page() {
                                   className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                                     currentPage === pageNum
                                       ? 'bg-blue-600 text-white'
-                                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                      : 'text-gray-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700'
                                   }`}
                                 >
                                   {pageNum}
@@ -297,7 +297,7 @@ function Page() {
                         <button
                           onClick={() => handlePageChange(currentPage + 1)}
                           disabled={currentPage === totalPages}
-                          className='px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+                          className='px-3 py-2 text-sm font-medium text-gray-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
                         >
                           Next
                         </button>

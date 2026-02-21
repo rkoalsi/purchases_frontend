@@ -289,20 +289,20 @@ function Page() {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className='bg-white p-3 border border-gray-200 rounded-lg shadow-lg'>
-          <p className='font-semibold text-gray-900'>{data.fullName}</p>
+        <div className='bg-white dark:bg-zinc-900 p-3 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg'>
+          <p className='font-semibold text-gray-900 dark:text-zinc-100'>{data.fullName}</p>
           <p className='text-blue-600'>
             Units Sold: <span className='font-bold'>{payload[0].value.toLocaleString()}</span>
           </p>
-          <p className='text-gray-600 text-sm'>SKU: {data.sku}</p>
-          <p className='text-gray-600 text-sm'>Stock: {data.closingStock.toLocaleString()}</p>
+          <p className='text-gray-600 dark:text-zinc-400 text-sm'>SKU: {data.sku}</p>
+          <p className='text-gray-600 dark:text-zinc-400 text-sm'>Stock: {data.closingStock.toLocaleString()}</p>
           {data.totalAmount > 0 && (
             <p className='text-green-600 text-sm'>
               Revenue: ${data.totalAmount.toLocaleString()}
             </p>
           )}
           {data.sources && data.sources.length > 0 && (
-            <p className='text-gray-500 text-xs mt-1'>
+            <p className='text-gray-500 dark:text-zinc-400 text-xs mt-1'>
               Sources: {data.sources.join(', ')}
             </p>
           )}
@@ -315,10 +315,10 @@ function Page() {
   // Loading state
   if (isLoading) {
     return (
-      <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
+      <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
         <div className='text-center'>
           <Loader2 className='animate-spin h-12 w-12 text-blue-600 mx-auto mb-4' />
-          <p className='text-gray-600'>Loading dashboard data...</p>
+          <p className='text-gray-600 dark:text-zinc-400'>Loading dashboard data...</p>
         </div>
       </div>
     );
@@ -330,11 +330,11 @@ function Page() {
       router.push('/login');
     }, 3000);
     return (
-      <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
-        <div className='bg-white p-8 rounded-lg shadow-md text-center'>
-          <BarChart3 className='h-16 w-16 text-gray-400 mx-auto mb-4' />
-          <p className='text-xl text-gray-700'>Please log in to see this content.</p>
-          <p className='text-sm text-gray-700'>Redirecting to login page in 3 seconds</p>
+      <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
+        <div className='bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-md text-center'>
+          <BarChart3 className='h-16 w-16 text-gray-400 dark:text-zinc-500 mx-auto mb-4' />
+          <p className='text-xl text-gray-700 dark:text-zinc-300'>Please log in to see this content.</p>
+          <p className='text-sm text-gray-700 dark:text-zinc-300'>Redirecting to login page in 3 seconds</p>
         </div>
       </div>
     );
@@ -343,11 +343,11 @@ function Page() {
   // Error state
   if (error && !loading) {
     return (
-      <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
-        <div className='bg-white p-8 rounded-lg shadow-md text-center max-w-md'>
+      <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
+        <div className='bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-md text-center max-w-md'>
           <AlertCircle className='h-16 w-16 text-red-500 mx-auto mb-4' />
-          <p className='text-xl text-gray-700 mb-2'>Error loading data</p>
-          <p className='text-gray-500 mb-4'>{error}</p>
+          <p className='text-xl text-gray-700 dark:text-zinc-300 mb-2'>Error loading data</p>
+          <p className='text-gray-500 dark:text-zinc-400 mb-4'>{error}</p>
           <button
             onClick={() => {
               setError(null);
@@ -364,23 +364,23 @@ function Page() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 py-8'>
+    <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 py-8'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
         {/* Header */}
         <div className='mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900 mb-2'>
+          <h1 className='text-3xl font-bold text-gray-900 dark:text-zinc-100 mb-2'>
             {new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'}, {user?.name}!
           </h1>
-          <p className='text-gray-600'>
+          <p className='text-gray-600 dark:text-zinc-400'>
             Here's an overview of your top performing items across all platforms for the selected period
           </p>
         </div>
 
         {/* Filters Section */}
-        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8'>
+        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-6 mb-8'>
           <div className='flex items-center mb-4'>
-            <Calendar className='h-5 w-5 text-gray-500 mr-2' />
-            <h3 className='text-lg font-semibold text-gray-900'>Filters</h3>
+            <Calendar className='h-5 w-5 text-gray-500 dark:text-zinc-400 mr-2' />
+            <h3 className='text-lg font-semibold text-gray-900 dark:text-zinc-100'>Filters</h3>
           </div>
 
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4'>
@@ -404,7 +404,7 @@ function Page() {
 
           {/* Data Source Toggles */}
           <div className='mb-4'>
-            <label className='block text-sm font-medium text-gray-700 mb-2'>
+            <label className='block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2'>
               Data Sources
             </label>
             <div className='flex flex-wrap gap-4'>
@@ -413,9 +413,9 @@ function Page() {
                   type='checkbox'
                   checked={includeBlinkit}
                   onChange={(e) => setIncludeBlinkit(e.target.checked)}
-                  className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                  className='rounded border-gray-300 dark:border-zinc-600 text-blue-600 focus:ring-blue-500'
                 />
-                <span className='ml-2 text-sm text-gray-700'>
+                <span className='ml-2 text-sm text-gray-700 dark:text-zinc-300'>
                   Blinkit
                 </span>
               </label>
@@ -424,9 +424,9 @@ function Page() {
                   type='checkbox'
                   checked={includeAmazon}
                   onChange={(e) => setIncludeAmazon(e.target.checked)}
-                  className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                  className='rounded border-gray-300 dark:border-zinc-600 text-blue-600 focus:ring-blue-500'
                 />
-                <span className='ml-2 text-sm text-gray-700'>
+                <span className='ml-2 text-sm text-gray-700 dark:text-zinc-300'>
                   Amazon
                 </span>
               </label>
@@ -435,9 +435,9 @@ function Page() {
                   type='checkbox'
                   checked={includeZoho}
                   onChange={(e) => setIncludeZoho(e.target.checked)}
-                  className='rounded border-gray-300 text-blue-600 focus:ring-blue-500'
+                  className='rounded border-gray-300 dark:border-zinc-600 text-blue-600 focus:ring-blue-500'
                 />
-                <span className='ml-2 text-sm text-gray-700'>
+                <span className='ml-2 text-sm text-gray-700 dark:text-zinc-300'>
                   Zoho
                 </span>
               </label>
@@ -450,8 +450,8 @@ function Page() {
               onClick={() => handlePresetRange('thisMonth')}
               className={`px-3 py-1.5 text-sm ${
                 preset === 'thisMonth'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300'
               } rounded-lg hover:bg-blue-200 transition-colors`}
             >
               This Month
@@ -460,9 +460,9 @@ function Page() {
               onClick={() => handlePresetRange('lastMonth')}
               className={`px-3 py-1.5 text-sm ${
                 preset === 'lastMonth'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700'
-              } rounded-lg hover:bg-gray-200 transition-colors`}
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300'
+              } rounded-lg hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors`}
             >
               Last Month
             </button>
@@ -470,9 +470,9 @@ function Page() {
               onClick={() => handlePresetRange('last3Months')}
               className={`px-3 py-1.5 text-sm ${
                 preset === 'last3Months'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-gray-100 text-gray-700'
-              } rounded-lg hover:bg-gray-200 transition-colors`}
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300'
+              } rounded-lg hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors`}
             >
               Last 3 Months
             </button>
@@ -480,21 +480,21 @@ function Page() {
         </div>
 
         {/* Chart Section - Collapsible */}
-        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-6'>
           <button
             onClick={handleExpandTopProducts}
-            className='w-full flex items-center justify-between mb-6 hover:bg-gray-50 -mx-6 -mt-6 px-6 pt-6 pb-2 rounded-t-lg transition-colors'
+            className='w-full flex items-center justify-between mb-6 hover:bg-gray-50 dark:hover:bg-zinc-800/50 -mx-6 -mt-6 px-6 pt-6 pb-2 rounded-t-lg transition-colors'
           >
             <div className='text-left'>
-              <h2 className='text-xl font-bold text-gray-900 mb-2 flex items-center gap-2'>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-zinc-100 mb-2 flex items-center gap-2'>
                 Top 10 Performing Items
                 {isTopProductsExpanded ? (
-                  <ChevronUp className='h-5 w-5 text-gray-500' />
+                  <ChevronUp className='h-5 w-5 text-gray-500 dark:text-zinc-400' />
                 ) : (
-                  <ChevronDown className='h-5 w-5 text-gray-500' />
+                  <ChevronDown className='h-5 w-5 text-gray-500 dark:text-zinc-400' />
                 )}
               </h2>
-              <p className='text-gray-600 text-sm'>
+              <p className='text-gray-600 dark:text-zinc-400 text-sm'>
                 {isTopProductsExpanded
                   ? `Units sold by product for ${format(startDate, 'MMM dd')} - ${format(endDate, 'MMM dd, yyyy')}`
                   : 'Click to view top performing items (loads data on demand)'
@@ -510,15 +510,15 @@ function Page() {
             <div className='h-96 flex items-center justify-center'>
               <div className='text-center'>
                 <Loader2 className='animate-spin h-12 w-12 text-blue-600 mb-4' />
-                <p className='text-gray-500'>Loading chart data...</p>
+                <p className='text-gray-500 dark:text-zinc-400'>Loading chart data...</p>
               </div>
             </div>
           ) : data.length === 0 ? (
             <div className='h-96 flex items-center justify-center'>
               <div className='text-center'>
-                <Package className='h-16 w-16 text-gray-300 mx-auto mb-4' />
-                <p className='text-gray-500'>No data found for the selected period</p>
-                <p className='text-sm text-gray-400 mt-2'>
+                <Package className='h-16 w-16 text-gray-300 dark:text-zinc-600 mx-auto mb-4' />
+                <p className='text-gray-500 dark:text-zinc-400'>No data found for the selected period</p>
+                <p className='text-sm text-gray-400 dark:text-zinc-500 mt-2'>
                   Try adjusting your date range or data source filters
                 </p>
               </div>
@@ -564,37 +564,37 @@ function Page() {
 
           {/* Data Table - inside collapsible section */}
           {isTopProductsExpanded && data.length > 0 && (
-          <div className='mt-8 bg-gray-50 rounded-lg border border-gray-200 overflow-hidden'>
-            <div className='px-6 py-4 border-b border-gray-200'>
-              <h3 className='text-lg font-semibold text-gray-900'>Detailed Rankings</h3>
+          <div className='mt-8 bg-gray-50 dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden'>
+            <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-zinc-100'>Detailed Rankings</h3>
             </div>
             <div className='overflow-x-auto'>
-              <table className='min-w-full divide-y divide-gray-200'>
-                <thead className='bg-gray-50'>
+              <table className='min-w-full divide-y divide-gray-200 dark:divide-zinc-800'>
+                <thead className='bg-gray-50 dark:bg-zinc-800'>
                   <tr>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                       Rank
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                       Item
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                       SKU Code
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                       Units Sold
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                       Stock
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                       Sources
                     </th>
                   </tr>
                 </thead>
-                <tbody className='bg-white divide-y divide-gray-200'>
+                <tbody className='bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800'>
                   {data.map((item, index) => (
-                    <tr key={`${item.sku_code}-${index}`} className='hover:bg-gray-50'>
+                    <tr key={`${item.sku_code}-${index}`} className='hover:bg-gray-50 dark:hover:bg-zinc-800/50'>
                       <td className='px-6 py-4 whitespace-nowrap'>
                         <span
                           className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${
@@ -604,29 +604,29 @@ function Page() {
                               ? 'bg-blue-500'
                               : index === 2
                               ? 'bg-red-500'
-                              : 'bg-gray-400'
+                              : 'bg-gray-400 dark:bg-zinc-500'
                           }`}
                         >
                           {index + 1}
                         </span>
                       </td>
                       <td className='px-6 py-4'>
-                        <div className='text-sm font-medium text-gray-900 max-w-xs'>
+                        <div className='text-sm font-medium text-gray-900 dark:text-zinc-100 max-w-xs'>
                           {item.item_name}
                         </div>
                       </td>
                       <td className='px-6 py-4 whitespace-nowrap'>
-                        <span className='text-sm text-gray-900 font-mono'>
+                        <span className='text-sm text-gray-900 dark:text-zinc-100 font-mono'>
                           {item.sku_code}
                         </span>
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold'>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-semibold'>
                         {safeNumber(item.metrics?.total_sales_in_period).toLocaleString()}
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                         {safeNumber(item.metrics?.closing_stock).toLocaleString()}
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500'>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                         {item.sources && item.sources.length > 0 ? item.sources.join(', ') : item.city}
                       </td>
                     </tr>

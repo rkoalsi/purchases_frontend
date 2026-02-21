@@ -53,7 +53,6 @@ const DateRange: React.FC<DateRangeProps> = ({
         const threeMonthsAgoEnd = new Date(today.getFullYear(), today.getMonth(), 0);
 
         // Last 90 days ending on the previous Sunday
-        // "Previous Sunday" = the most recent Sunday before today (never today itself)
         const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
         const daysSinceSunday = dayOfWeek === 0 ? 7 : dayOfWeek;
         const prevSunday = new Date(today);
@@ -95,41 +94,39 @@ const DateRange: React.FC<DateRangeProps> = ({
             onApplyPreset(preset.startDate, preset.endDate);
         }
     };
-   
+
     const presets = getDatePresets();
 
     return (
         <div className={className}>
-            <div className="flex flex-col lg:flex-col gap-6">
-                <div className="flex flex-row sm:flex-row gap-4">
-                    <div>
-                        <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
-                            Start Date
-                        </label>
-                        <input
-                            type="date"
-                            id="start-date"
-                            value={startDate}
-                            onChange={(e) => onStartDateChange(e.target.value)}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">
-                            End Date
-                        </label>
-                        <input
-                            type="date"
-                            id="end-date"
-                            value={endDate}
-                            onChange={(e) => onEndDateChange(e.target.value)}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black"
-                        />
-                    </div>
+            {/* Date inputs and quick presets aligned in one row */}
+            <div className="flex flex-wrap items-end gap-4">
+                <div>
+                    <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-1">
+                        Start Date
+                    </label>
+                    <input
+                        type="date"
+                        id="start-date"
+                        value={startDate}
+                        onChange={(e) => onStartDateChange(e.target.value)}
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black dark:text-zinc-100 dark:bg-zinc-800"
+                    />
                 </div>
-
-                <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div>
+                    <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-1">
+                        End Date
+                    </label>
+                    <input
+                        type="date"
+                        id="end-date"
+                        value={endDate}
+                        onChange={(e) => onEndDateChange(e.target.value)}
+                        className="block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black dark:text-zinc-100 dark:bg-zinc-800"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-1">
                         Quick Presets
                     </label>
                     <div className="flex flex-wrap gap-2">
@@ -137,7 +134,7 @@ const DateRange: React.FC<DateRangeProps> = ({
                             <button
                                 key={preset.label}
                                 onClick={() => handlePresetClick(preset)}
-                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                             >
                                 <Calendar className="w-3.5 h-3.5" />
                                 {preset.label}

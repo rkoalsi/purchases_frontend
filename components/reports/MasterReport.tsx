@@ -442,8 +442,8 @@ function MasterReportsPage() {
                                 <div
                                     key={report.source}
                                     className={`inline-flex items-center gap-2 px-3 py-2 rounded-full border ${report.success
-                                        ? 'bg-green-50 text-green-800 border-green-200'
-                                        : 'bg-red-50 text-red-800 border-red-200'
+                                        ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800'
+                                        : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800'
                                         }`}
                                 >
                                     {getSourceIcon(report.source)}
@@ -451,11 +451,11 @@ function MasterReportsPage() {
                                         {report.source}
                                     </span>
                                     {report.success ? (
-                                        <span className="text-xs bg-green-100 px-2 py-1 rounded">
+                                        <span className="text-xs bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">
                                             {formatNumber(report.record_count || 0)} items
                                         </span>
                                     ) : (
-                                        <span className="text-xs bg-red-100 px-2 py-1 rounded">
+                                        <span className="text-xs bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded">
                                             Failed
                                         </span>
                                     )}
@@ -466,14 +466,14 @@ function MasterReportsPage() {
 
                     {/* Error Messages */}
                     {reportErrors.length > 0 && (
-                        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                             <div className="flex items-start">
                                 <svg className="h-5 w-5 text-yellow-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 <div className="ml-3">
-                                    <h3 className="text-sm font-medium text-yellow-800">Data Source Issues</h3>
-                                    <div className="mt-2 text-sm text-yellow-700">
+                                    <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Data Source Issues</h3>
+                                    <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
                                         <ul className="list-disc space-y-1 pl-5">
                                             {reportErrors.map((error, index) => (
                                                 <li key={index}>{error}</li>
@@ -487,12 +487,12 @@ function MasterReportsPage() {
                 </div>
 
                 {/* Controls Section */}
-                <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-6'>
+                <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 mb-6'>
                     <div className='px-6 py-4'>
                         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
                             {/* Date Range and Generate Button */}
                             <div>
-                                <h3 className='text-lg font-medium text-gray-900 mb-4'>Date Range & Actions</h3>
+                                <h3 className='text-lg font-medium text-gray-900 dark:text-zinc-100 mb-4'>Date Range & Actions</h3>
                                 <DateRangePresets
                                     startDate={startDate}
                                     endDate={endDate}
@@ -532,14 +532,14 @@ function MasterReportsPage() {
                                             placeholder='Search by product name or SKU...'
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
-                                            className='block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
+                                            className='block w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-md leading-5 bg-white dark:bg-zinc-800 placeholder-gray-500 dark:placeholder-zinc-400 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-black dark:text-zinc-100'
                                         />
                                     </div>
                                     <div className='w-48'>
                                         <select
                                             value={selectedBrand}
                                             onChange={(e) => setSelectedBrand(e.target.value)}
-                                            className='block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black'
+                                            className='block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black dark:text-zinc-100 bg-white dark:bg-zinc-800'
                                         >
                                             <option value=''>All Brands</option>
                                             {brands.map((b) => (
@@ -557,86 +557,86 @@ function MasterReportsPage() {
 
                 {/* Summary Cards */}
                 {summary && (
-                    <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6'>
-                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+                    <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                             <div className='flex items-center'>
                                 <div className='flex-shrink-0'>
-                                    <div className='w-8 h-8 bg-blue-100 rounded-md flex items-center justify-center'>
-                                        <BarChart3 className='w-5 h-5 text-blue-600' />
+                                    <div className='w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-md flex items-center justify-center'>
+                                        <BarChart3 className='w-5 h-5 text-blue-600 dark:text-blue-400' />
                                     </div>
                                 </div>
-                                <div className='ml-5 w-0 flex-1'>
+                                <div className='ml-4 min-w-0 flex-1'>
                                     <dl>
-                                        <dt className='text-sm font-medium text-gray-500 truncate'>Unique SKUs</dt>
-                                        <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_unique_skus)}</dd>
+                                        <dt className='text-sm font-medium text-gray-500 dark:text-zinc-400'>Unique SKUs</dt>
+                                        <dd className='text-lg font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(summary.total_unique_skus)}</dd>
                                     </dl>
                                 </div>
                             </div>
                         </div>
 
-                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                             <div className='flex items-center'>
                                 <div className='flex-shrink-0'>
-                                    <div className='w-8 h-8 bg-green-100 rounded-md flex items-center justify-center'>
-                                        <TrendingUp className='w-5 h-5 text-green-600' />
+                                    <div className='w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-md flex items-center justify-center'>
+                                        <TrendingUp className='w-5 h-5 text-green-600 dark:text-green-400' />
                                     </div>
                                 </div>
-                                <div className='ml-5 w-0 flex-1'>
+                                <div className='ml-4 min-w-0 flex-1'>
                                     <dl>
-                                        <dt className='text-sm font-medium text-gray-500 truncate'>Total Units Sold</dt>
-                                        <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_units_sold)}</dd>
+                                        <dt className='text-sm font-medium text-gray-500 dark:text-zinc-400'>Total Units Sold</dt>
+                                        <dd className='text-lg font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(summary.total_units_sold)}</dd>
                                     </dl>
                                 </div>
                             </div>
                         </div>
 
-                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                             <div className='flex items-center'>
                                 <div className='flex-shrink-0'>
-                                    <div className='w-8 h-8 bg-red-100 rounded-md flex items-center justify-center'>
-                                        <TrendingDown className='w-5 h-5 text-red-600' />
+                                    <div className='w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-md flex items-center justify-center'>
+                                        <TrendingDown className='w-5 h-5 text-red-600 dark:text-red-400' />
                                     </div>
                                 </div>
-                                <div className='ml-5 w-0 flex-1'>
+                                <div className='ml-4 min-w-0 flex-1'>
                                     <dl>
-                                        <dt className='text-sm font-medium text-gray-500 truncate'>Total Units Returned</dt>
-                                        <dd className='text-lg font-medium text-gray-900'>{formatNumber(summary.total_units_returned)}</dd>
+                                        <dt className='text-sm font-medium text-gray-500 dark:text-zinc-400'>Total Units Returned</dt>
+                                        <dd className='text-lg font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(summary.total_units_returned)}</dd>
                                     </dl>
                                 </div>
                             </div>
                         </div>
 
-                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                             <div className='flex items-center'>
                                 <div className='flex-shrink-0'>
-                                    <div className='w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center'>
-                                        <svg className='w-5 h-5 text-yellow-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                                    <div className='w-8 h-8 bg-yellow-100 dark:bg-yellow-900/30 rounded-md flex items-center justify-center'>
+                                        <svg className='w-5 h-5 text-yellow-600 dark:text-yellow-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                                             <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1' />
                                         </svg>
                                     </div>
                                 </div>
-                                <div className='ml-5 w-0 flex-1'>
+                                <div className='ml-4 min-w-0 flex-1'>
                                     <dl>
-                                        <dt className='text-sm font-medium text-gray-500 truncate'>Total Amount</dt>
-                                        <dd className='text-lg font-medium text-gray-900'>{formatCurrency(summary.total_amount)}</dd>
+                                        <dt className='text-sm font-medium text-gray-500 dark:text-zinc-400'>Total Amount</dt>
+                                        <dd className='text-lg font-medium text-gray-900 dark:text-zinc-100'>{formatCurrency(summary.total_amount)}</dd>
                                     </dl>
                                 </div>
                             </div>
                         </div>
 
-                        <div className='bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                             <div className='flex items-center'>
                                 <div className='flex-shrink-0'>
-                                    <div className='w-8 h-8 bg-purple-100 rounded-md flex items-center justify-center'>
-                                        <svg className='w-5 h-5 text-purple-600' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+                                    <div className='w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-md flex items-center justify-center'>
+                                        <svg className='w-5 h-5 text-purple-600 dark:text-purple-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
                                             <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' />
                                         </svg>
                                     </div>
                                 </div>
-                                <div className='ml-5 w-0 flex-1'>
+                                <div className='ml-4 min-w-0 flex-1'>
                                     <dl>
-                                        <dt className='text-sm font-medium text-gray-500 truncate'>Average DRR</dt>
-                                        <dd className='text-lg font-medium text-gray-900'>{summary.avg_drr?.toFixed(2) || '0.00'}</dd>
+                                        <dt className='text-sm font-medium text-gray-500 dark:text-zinc-400'>Average DRR</dt>
+                                        <dd className='text-lg font-medium text-gray-900 dark:text-zinc-100'>{summary.avg_drr?.toFixed(2) || '0.00'}</dd>
                                     </dl>
                                 </div>
                             </div>
@@ -645,12 +645,12 @@ function MasterReportsPage() {
                 )}
 
                 {/* Master Report Table */}
-                <div className='bg-white rounded-lg shadow-sm border border-gray-200'>
-                    <div className='px-6 py-4 border-b border-gray-200'>
+                <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800'>
+                    <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
                         <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
                             <div>
-                                <h2 className='text-xl font-semibold text-gray-900'>Master Sales Report Data</h2>
-                                <div className='text-sm text-gray-500'>
+                                <h2 className='text-xl font-semibold text-gray-900 dark:text-zinc-100'>Master Sales Report Data</h2>
+                                <div className='text-sm text-gray-500 dark:text-zinc-400'>
                                     {filteredData.length} of {masterReport.length} items
                                     {meta?.execution_time_seconds && (
                                         <span className='ml-2'>• Generated in {meta.execution_time_seconds}s</span>
@@ -751,125 +751,125 @@ function MasterReportsPage() {
                     ) : (
                         <div className='overflow-x-auto'>
                             <table className='w-full'>
-                                <thead className='bg-gray-50'>
+                                <thead className='bg-gray-50 dark:bg-zinc-800/50'>
                                     <tr>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Status</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('item_name')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Status</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('item_name')}>
                                             <div className='flex items-center space-x-1'><span>Product Name</span>{getSortIcon('item_name')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('sku_code')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('sku_code')}>
                                             <div className='flex items-center space-x-1'><span>SKU Code</span>{getSortIcon('sku_code')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_amount')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_amount')}>
                                             <div className='flex items-center space-x-1'><span>Total Amount</span>{getSortIcon('combined_metrics.total_amount')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_units_sold')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_units_sold')}>
                                             <div className='flex items-center space-x-1'><span>Total Units Sold</span>{getSortIcon('combined_metrics.total_units_sold')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_units_returned')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_units_returned')}>
                                             <div className='flex items-center space-x-1'><span>Total Units Returned</span>{getSortIcon('combined_metrics.total_units_returned')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_sales')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_sales')}>
                                             <div className='flex items-center space-x-1'><span>Net Total Sales</span>{getSortIcon('combined_metrics.total_sales')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_days_in_stock')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_days_in_stock')}>
                                             <div className='flex items-center space-x-1'><span>Days in Stock</span>{getSortIcon('combined_metrics.total_days_in_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Lookback Days in Stock</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Lookback Sales</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.avg_daily_run_rate')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Lookback Days in Stock</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Lookback Sales</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.avg_daily_run_rate')}>
                                             <div className='flex items-center space-x-1'><span>Avg DRR</span>{getSortIcon('combined_metrics.avg_daily_run_rate')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_closing_stock')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_closing_stock')}>
                                             <div className='flex items-center space-x-1'><span>Total Stock ({endDateLabel})</span>{getSortIcon('combined_metrics.total_closing_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.avg_days_of_coverage')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.avg_days_of_coverage')}>
                                             <div className='flex items-center space-x-1'><span>Avg Days of Coverage</span>{getSortIcon('combined_metrics.avg_days_of_coverage')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.pupscribe_wh_stock')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.pupscribe_wh_stock')}>
                                             <div className='flex items-center space-x-1'><span>Pupscribe WH Stock ({endDateLabel})</span>{getSortIcon('combined_metrics.pupscribe_wh_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.fba_closing_stock')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.fba_closing_stock')}>
                                             <div className='flex items-center space-x-1'><span>FBA Stock ({endDateLabel})</span>{getSortIcon('combined_metrics.fba_closing_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('latest_total_stock')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('latest_total_stock')}>
                                             <div className='flex items-center space-x-1'><span>Total Stock ({latestTotalLabel})</span>{getSortIcon('latest_total_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('latest_zoho_stock')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('latest_zoho_stock')}>
                                             <div className='flex items-center space-x-1'><span>Pupscribe WH Stock ({latestZohoLabel})</span>{getSortIcon('latest_zoho_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('latest_fba_stock')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('latest_fba_stock')}>
                                             <div className='flex items-center space-x-1'><span>FBA Stock ({latestFbaLabel})</span>{getSortIcon('latest_fba_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>In Stock</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.transfer_orders')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>In Stock</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.transfer_orders')}>
                                             <div className='flex items-center space-x-1'><span>Transfer Orders</span>{getSortIcon('combined_metrics.transfer_orders')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_sales')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_sales')}>
                                             <div className='flex items-center space-x-1'><span>Total Sales</span>{getSortIcon('combined_metrics.total_sales')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('mover_class')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('mover_class')}>
                                             <div className='flex items-center space-x-1'><span>Movement</span>{getSortIcon('mover_class')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('safety_days')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('safety_days')}>
                                             <div className='flex items-center space-x-1'><span>Safety Days</span>{getSortIcon('safety_days')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('lead_time')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('lead_time')}>
                                             <div className='flex items-center space-x-1'><span>Lead Time</span>{getSortIcon('lead_time')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('on_hand_days_coverage')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('on_hand_days_coverage')}>
                                             <div className='flex items-center space-x-1'><span>On-Hand Days</span>{getSortIcon('on_hand_days_coverage')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Stock in Transit</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('current_days_coverage')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Stock in Transit</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('current_days_coverage')}>
                                             <div className='flex items-center space-x-1'><span>Current Days Coverage</span>{getSortIcon('current_days_coverage')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('missed_sales')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('missed_sales')}>
                                             <div className='flex items-center space-x-1'><span>Missed Sales</span>{getSortIcon('missed_sales')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('missed_sales_drr')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('missed_sales_drr')}>
                                             <div className='flex items-center space-x-1'><span>Missed Sales DRR</span>{getSortIcon('missed_sales_drr')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('extra_qty')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('extra_qty')}>
                                             <div className='flex items-center space-x-1'><span>Extra Qty</span>{getSortIcon('extra_qty')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Target Days</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('excess_or_order')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Target Days</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('excess_or_order')}>
                                             <div className='flex items-center space-x-1'><span>Excess / Order</span>{getSortIcon('excess_or_order')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('order_qty_plus_extra_qty')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('order_qty_plus_extra_qty')}>
                                             <div className='flex items-center space-x-1'><span>Order Qty + Extra Qty</span>{getSortIcon('order_qty_plus_extra_qty')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('order_qty')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('order_qty')}>
                                             <div className='flex items-center space-x-1'><span>Order Qty</span>{getSortIcon('order_qty')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>CBM</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Case Pack</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('order_qty_rounded')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>CBM</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Case Pack</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('order_qty_rounded')}>
                                             <div className='flex items-center space-x-1'><span>Order Qty (Rounded)</span>{getSortIcon('order_qty_rounded')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Total CBM</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('days_current_order_lasts')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Total CBM</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('days_current_order_lasts')}>
                                             <div className='flex items-center space-x-1'><span>Days Order Lasts</span>{getSortIcon('days_current_order_lasts')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('days_total_inventory_lasts')}>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('days_total_inventory_lasts')}>
                                             <div className='flex items-center space-x-1'><span>Days Total Inv. Lasts</span>{getSortIcon('days_total_inventory_lasts')}</div>
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className='bg-white divide-y divide-gray-200'>
+                                <tbody className='bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800'>
                                     {filteredData.map((item, index) => (
                                         <tr key={index} className={`transition-colors ${
-                                            item.highlight === 'yellow' ? 'bg-yellow-50 hover:bg-yellow-100' :
-                                            item.highlight === 'red' ? 'bg-red-50 hover:bg-red-100' :
-                                            'hover:bg-gray-50'
+                                            item.highlight === 'yellow' ? 'bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30' :
+                                            item.highlight === 'red' ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30' :
+                                            'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
                                         }`}>
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 {item.purchase_status ? (
                                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                                        item.purchase_status === 'active' ? 'bg-green-100 text-green-800' :
-                                                        item.purchase_status === 'inactive' ? 'bg-gray-100 text-gray-700' :
-                                                        'bg-orange-100 text-orange-800'
+                                                        item.purchase_status === 'active' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
+                                                        item.purchase_status === 'inactive' ? 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300' :
+                                                        'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
                                                     }`}>
                                                         {item.purchase_status}
                                                     </span>
@@ -878,50 +878,50 @@ function MasterReportsPage() {
                                                 )}
                                             </td>
                                             <td className='px-6 py-4'>
-                                                <div className='text-sm font-medium text-gray-900'>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
                                                     {item.item_name || 'N/A'}
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-mono text-gray-900'>
+                                                <div className='text-sm font-mono text-gray-900 dark:text-zinc-100'>
                                                     {item.sku_code || 'N/A'}
                                                 </div>
                                             </td>
                                             {/* Total Amount */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatCurrency(item.combined_metrics.total_amount)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatCurrency(item.combined_metrics.total_amount)}</div>
                                             </td>
                                             {/* Total Units Sold */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_units_sold)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.total_units_sold)}</div>
                                             </td>
                                             {/* Total Units Returned */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_units_returned)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.total_units_returned)}</div>
                                             </td>
                                             {/* Net Total Sales */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_sales || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.total_sales || 0)}</div>
                                             </td>
                                             {/* Days in Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_days_in_stock || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.total_days_in_stock || 0)}</div>
                                             </td>
                                             {/* Lookback Days in Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>
                                                     {item.drr_source === 'previous_period' ? (item.drr_lookback_days_in_stock || 0) : '—'}
                                                 </div>
                                             </td>
                                             {/* Lookback Sales */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>
                                                     {item.drr_source === 'previous_period' ? formatNumber(item.drr_lookback_sales || 0) : '—'}
                                                 </div>
                                             </td>
                                             {/* Avg DRR */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
                                                     {item.combined_metrics.avg_daily_run_rate?.toFixed(2) || '0.00'}
                                                     {item.drr_source === 'previous_period' && (
                                                         <span className='ml-1 text-xs text-yellow-600' title={item.drr_lookback_period}>*</span>
@@ -933,137 +933,137 @@ function MasterReportsPage() {
                                             </td>
                                             {/* Total Closing Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_closing_stock)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.total_closing_stock)}</div>
                                             </td>
                                             {/* Avg Days of Coverage */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.combined_metrics.avg_days_of_coverage?.toFixed(1) || '0'}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.combined_metrics.avg_days_of_coverage?.toFixed(1) || '0'}</div>
                                             </td>
                                             {/* Pupscribe WH Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.pupscribe_wh_stock || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.pupscribe_wh_stock || 0)}</div>
                                             </td>
                                             {/* FBA Stock (end date) */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.fba_closing_stock || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.fba_closing_stock || 0)}</div>
                                             </td>
                                             {/* Total Stock (latest) */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.latest_total_stock || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.latest_total_stock || 0)}</div>
                                             </td>
                                             {/* Pupscribe WH Stock (latest) */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.latest_zoho_stock || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.latest_zoho_stock || 0)}</div>
                                             </td>
                                             {/* FBA Stock (latest) */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.latest_fba_stock || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.latest_fba_stock || 0)}</div>
                                             </td>
                                             {/* In Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.in_stock ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>
                                                     {item.in_stock ? 'Yes' : 'No'}
                                                 </span>
                                             </td>
                                             {/* Transfer Orders */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.transfer_orders || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.transfer_orders || 0)}</div>
                                             </td>
                                             {/* Total Sales */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.total_sales || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.total_sales || 0)}</div>
                                             </td>
                                             {/* Movement */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.mover_class === 1 ? 'bg-green-100 text-green-800' : item.mover_class === 2 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.mover_class === 1 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : item.mover_class === 2 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>
                                                     {item.movement || 'N/A'}
                                                 </span>
                                             </td>
                                             {/* Safety Days */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.safety_days || 0}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.safety_days || 0}</div>
                                             </td>
                                             {/* Lead Time */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.lead_time || 0}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.lead_time || 0}</div>
                                             </td>
                                             {/* On-Hand Days Coverage */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.on_hand_days_coverage?.toFixed(1) || '0'}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.on_hand_days_coverage?.toFixed(1) || '0'}</div>
                                             </td>
                                             {/* Stock in Transit */}
                                             <td className='px-6 py-4'>
                                                 <div className='text-xs space-y-1'>
                                                     {(item.stock_in_transit_1 || 0) > 0 && (
-                                                        <div className='text-gray-700'>T1: {formatNumber(item.stock_in_transit_1 || 0)}</div>
+                                                        <div className='text-gray-700 dark:text-zinc-300'>T1: {formatNumber(item.stock_in_transit_1 || 0)}</div>
                                                     )}
                                                     {(item.stock_in_transit_2 || 0) > 0 && (
-                                                        <div className='text-gray-700'>T2: {formatNumber(item.stock_in_transit_2 || 0)}</div>
+                                                        <div className='text-gray-700 dark:text-zinc-300'>T2: {formatNumber(item.stock_in_transit_2 || 0)}</div>
                                                     )}
                                                     {(item.stock_in_transit_3 || 0) > 0 && (
-                                                        <div className='text-gray-700'>T3: {formatNumber(item.stock_in_transit_3 || 0)}</div>
+                                                        <div className='text-gray-700 dark:text-zinc-300'>T3: {formatNumber(item.stock_in_transit_3 || 0)}</div>
                                                     )}
                                                     <div className='font-medium text-gray-900'>Total: {formatNumber(item.total_stock_in_transit || 0)}</div>
                                                 </div>
                                             </td>
                                             {/* Current Days Coverage */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.current_days_coverage?.toFixed(1) || '0'}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.current_days_coverage?.toFixed(1) || '0'}</div>
                                             </td>
                                             {/* Missed Sales */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{formatNumber(item.missed_sales || 0)}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{formatNumber(item.missed_sales || 0)}</div>
                                             </td>
                                             {/* Missed Sales DRR */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{(item.missed_sales_drr || 0).toFixed(2)}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{(item.missed_sales_drr || 0).toFixed(2)}</div>
                                             </td>
                                             {/* Extra Qty */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{(item.extra_qty || 0).toFixed(2)}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{(item.extra_qty || 0).toFixed(2)}</div>
                                             </td>
                                             {/* Target Days */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.target_days || 0}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.target_days || 0}</div>
                                             </td>
                                             {/* Excess / Order */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.excess_or_order === 'ORDER' ? 'bg-red-100 text-red-800' : item.excess_or_order === 'NO MOVEMENT' ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.excess_or_order === 'ORDER' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' : item.excess_or_order === 'NO MOVEMENT' ? 'bg-gray-100 dark:bg-zinc-800 text-gray-800 dark:text-zinc-300' : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                                                     }`}>
                                                     {item.excess_or_order || 'N/A'}
                                                 </span>
                                             </td>
                                             {/* Order Qty + Extra Qty */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-blue-700'>{formatNumber(item.order_qty_plus_extra_qty || 0)}</div>
+                                                <div className='text-sm font-medium text-blue-700 dark:text-blue-400'>{formatNumber(item.order_qty_plus_extra_qty || 0)}</div>
                                             </td>
                                             {/* Order Qty */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.order_qty || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.order_qty || 0)}</div>
                                             </td>
                                             {/* CBM */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.cbm || 0}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.cbm || 0}</div>
                                             </td>
                                             {/* Case Pack */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.case_pack || 0}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.case_pack || 0}</div>
                                             </td>
                                             {/* Order Qty (Rounded) */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.order_qty_rounded || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.order_qty_rounded || 0)}</div>
                                             </td>
                                             {/* Total CBM */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{(item.total_cbm || 0).toFixed(4)}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{(item.total_cbm || 0).toFixed(4)}</div>
                                             </td>
                                             {/* Days Current Order Lasts */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.days_current_order_lasts?.toFixed(1) || '0'}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.days_current_order_lasts?.toFixed(1) || '0'}</div>
                                             </td>
                                             {/* Days Total Inventory Lasts */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>{item.days_total_inventory_lasts?.toFixed(1) || '0'}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.days_total_inventory_lasts?.toFixed(1) || '0'}</div>
                                             </td>
                                         </tr>
                                     ))}

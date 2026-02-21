@@ -297,8 +297,8 @@ function AmazonSettlementsPage() {
     };
 
     const getValueColor = (value: number | null | undefined) => {
-        if (value === null || value === undefined || value === 0) return 'text-gray-600';
-        return value > 0 ? 'text-green-600' : 'text-red-600';
+        if (value === null || value === undefined || value === 0) return 'text-gray-600 dark:text-zinc-400';
+        return value > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
     };
 
     const uniqueSkusList = Array.from(new Set(settlements.map(item => item.sku))).sort();
@@ -310,25 +310,25 @@ function AmazonSettlementsPage() {
     const chargeColumns = availableColumns.filter(col => !coreColumns.includes(col));
 
     return (
-        <div className='min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8'>
+        <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8'>
             <div className='max-w-[1800px] mx-auto'>
                 {/* Header */}
                 <div className='mb-8'>
-                    <h1 className='text-3xl font-bold text-gray-900 flex items-center gap-3'>
+                    <h1 className='text-3xl font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-3'>
                         <FileText className='w-8 h-8 text-blue-600' />
                         Amazon Settlements Report
                     </h1>
-                    <p className='mt-2 text-sm text-gray-600'>
+                    <p className='mt-2 text-sm text-gray-600 dark:text-zinc-400'>
                         View and analyze Amazon settlement charges in pivot table format
                     </p>
                 </div>
 
                 {/* Filters Section */}
-                <div className='bg-white rounded-lg shadow-sm p-6 mb-6 text-black'>
+                <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-6 mb-6 text-black dark:text-zinc-100'>
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
                         {/* Date Range */}
                         <div>
-                            <label className='block font-medium text-black mb-2'>
+                            <label className='block font-medium text-black dark:text-zinc-100 mb-2'>
                                 <Calendar className='inline w-4 h-4 mr-1' />
                                 Start Date
                             </label>
@@ -336,12 +336,12 @@ function AmazonSettlementsPage() {
                                 type='date'
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                                className='w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-black dark:text-zinc-100'
                             />
                         </div>
 
                         <div>
-                            <label className='block font-medium text-black mb-2'>
+                            <label className='block font-medium text-black dark:text-zinc-100 mb-2'>
                                 <Calendar className='inline w-4 h-4 mr-1' />
                                 End Date
                             </label>
@@ -349,20 +349,20 @@ function AmazonSettlementsPage() {
                                 type='date'
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                                className='w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-black dark:text-zinc-100'
                             />
                         </div>
 
                         {/* SKU Filter */}
                         <div>
-                            <label className='block text-sm font-medium text-black mb-2'>
+                            <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-2'>
                                 <Package className='inline w-4 h-4 mr-1' />
                                 Filter by SKU
                             </label>
                             <select
                                 value={selectedSku}
                                 onChange={(e) => setSelectedSku(e.target.value)}
-                                className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                                className='w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-black dark:text-zinc-100'
                             >
                                 <option value=''>All SKUs</option>
                                 {uniqueSkusList.map((sku) => (
@@ -375,7 +375,7 @@ function AmazonSettlementsPage() {
 
                         {/* Search */}
                         <div>
-                            <label className='block text-sm font-medium text-black mb-2'>
+                            <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-2'>
                                 <Search className='inline w-4 h-4 mr-1' />
                                 Search
                             </label>
@@ -384,7 +384,7 @@ function AmazonSettlementsPage() {
                                 placeholder='Order ID or SKU'
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                                className='w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-zinc-800 text-black dark:text-zinc-100'
                             />
                         </div>
                     </div>
@@ -412,7 +412,7 @@ function AmazonSettlementsPage() {
                         <button
                             onClick={handleDownloadExcel}
                             disabled={downloadLoading || settlements.length === 0}
-                            className='inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-black bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                            className='inline-flex items-center px-4 py-2 border border-gray-300 dark:border-zinc-700 text-sm font-medium rounded-md text-black dark:text-zinc-100 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed'
                         >
                             {downloadLoading ? (
                                 <>
@@ -430,31 +430,31 @@ function AmazonSettlementsPage() {
                         <div className='relative'>
                             <button
                                 onClick={() => setShowColumnSelector(!showColumnSelector)}
-                                className='inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-black bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+                                className='inline-flex items-center px-4 py-2 border border-gray-300 dark:border-zinc-700 text-sm font-medium rounded-md text-black dark:text-zinc-100 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
                             >
                                 <Filter className='-ml-1 mr-2 h-4 w-4' />
                                 Manage Columns ({visibleColumns.size})
                             </button>
 
                             {showColumnSelector && (
-                                <div className='absolute z-10 mt-2 w-72 bg-white rounded-md shadow-lg border border-gray-200 max-h-96 overflow-y-auto'>
+                                <div className='absolute z-10 mt-2 w-72 bg-white dark:bg-zinc-900 rounded-md shadow-lg border border-gray-200 dark:border-zinc-800 max-h-96 overflow-y-auto'>
                                     <div className='p-4'>
-                                        <h3 className='text-sm font-medium text-gray-900 mb-3'>
+                                        <h3 className='text-sm font-medium text-gray-900 dark:text-zinc-100 mb-3'>
                                             Select Columns to Display
                                         </h3>
                                         <div className='space-y-2'>
                                             {chargeColumns.map((column) => (
                                                 <label
                                                     key={column}
-                                                    className='flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded'
+                                                    className='flex items-center space-x-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800/50 p-2 rounded'
                                                 >
                                                     <input
                                                         type='checkbox'
                                                         checked={visibleColumns.has(column)}
                                                         onChange={() => toggleColumnVisibility(column)}
-                                                        className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+                                                        className='h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-zinc-700 rounded'
                                                     />
-                                                    <span className='text-sm text-black'>{column}</span>
+                                                    <span className='text-sm text-black dark:text-zinc-100'>{column}</span>
                                                 </label>
                                             ))}
                                         </div>
@@ -467,11 +467,11 @@ function AmazonSettlementsPage() {
 
                 {/* Error Display */}
                 {error && (
-                    <div className='bg-red-50 border border-red-200 rounded-lg p-4 mb-6'>
+                    <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6'>
                         <div className='flex items-center'>
                             <div className='flex-shrink-0'>
                                 <svg
-                                    className='h-5 w-5 text-red-400'
+                                    className='h-5 w-5 text-red-400 dark:text-red-300'
                                     xmlns='http://www.w3.org/2000/svg'
                                     viewBox='0 0 20 20'
                                     fill='currentColor'
@@ -484,7 +484,7 @@ function AmazonSettlementsPage() {
                                 </svg>
                             </div>
                             <div className='ml-3'>
-                                <p className='text-sm font-medium text-red-800'>{error}</p>
+                                <p className='text-sm font-medium text-red-800 dark:text-red-300'>{error}</p>
                             </div>
                         </div>
                     </div>
@@ -493,58 +493,58 @@ function AmazonSettlementsPage() {
                 {/* Summary Stats */}
                 {settlements.length > 0 && (
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6'>
-                        <div className='bg-white rounded-lg shadow-sm p-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-6'>
                             <div className='flex items-center justify-between'>
                                 <div>
-                                    <p className='text-sm font-medium text-gray-600'>Total Revenue</p>
-                                    <p className='text-2xl font-bold text-gray-900 mt-2'>
+                                    <p className='text-sm font-medium text-gray-600 dark:text-zinc-400'>Total Revenue</p>
+                                    <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100 mt-2'>
                                         {formatCurrency(totalRevenue)}
                                     </p>
                                 </div>
-                                <div className='p-3 bg-green-100 rounded-full'>
-                                    <DollarSign className='w-6 h-6 text-green-600' />
+                                <div className='p-3 bg-green-100 dark:bg-green-900/20 rounded-full'>
+                                    <DollarSign className='w-6 h-6 text-green-600 dark:text-green-300' />
                                 </div>
                             </div>
                         </div>
 
-                        <div className='bg-white rounded-lg shadow-sm p-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-6'>
                             <div className='flex items-center justify-between'>
                                 <div>
-                                    <p className='text-sm font-medium text-gray-600'>Total Orders</p>
-                                    <p className='text-2xl font-bold text-gray-900 mt-2'>
+                                    <p className='text-sm font-medium text-gray-600 dark:text-zinc-400'>Total Orders</p>
+                                    <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100 mt-2'>
                                         {formatNumber(totalOrders)}
                                     </p>
                                 </div>
-                                <div className='p-3 bg-blue-100 rounded-full'>
-                                    <ShoppingCart className='w-6 h-6 text-blue-600' />
+                                <div className='p-3 bg-blue-100 dark:bg-blue-900/20 rounded-full'>
+                                    <ShoppingCart className='w-6 h-6 text-blue-600 dark:text-blue-300' />
                                 </div>
                             </div>
                         </div>
 
-                        <div className='bg-white rounded-lg shadow-sm p-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-6'>
                             <div className='flex items-center justify-between'>
                                 <div>
-                                    <p className='text-sm font-medium text-gray-600'>Unique SKUs</p>
-                                    <p className='text-2xl font-bold text-gray-900 mt-2'>
+                                    <p className='text-sm font-medium text-gray-600 dark:text-zinc-400'>Unique SKUs</p>
+                                    <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100 mt-2'>
                                         {formatNumber(uniqueSkus)}
                                     </p>
                                 </div>
-                                <div className='p-3 bg-purple-100 rounded-full'>
-                                    <Package className='w-6 h-6 text-purple-600' />
+                                <div className='p-3 bg-purple-100 dark:bg-purple-900/20 rounded-full'>
+                                    <Package className='w-6 h-6 text-purple-600 dark:text-purple-300' />
                                 </div>
                             </div>
                         </div>
 
-                        <div className='bg-white rounded-lg shadow-sm p-6'>
+                        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-6'>
                             <div className='flex items-center justify-between'>
                                 <div>
-                                    <p className='text-sm font-medium text-gray-600'>Avg Order Value</p>
-                                    <p className='text-2xl font-bold text-gray-900 mt-2'>
+                                    <p className='text-sm font-medium text-gray-600 dark:text-zinc-400'>Avg Order Value</p>
+                                    <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100 mt-2'>
                                         {formatCurrency(avgOrderValue)}
                                     </p>
                                 </div>
-                                <div className='p-3 bg-yellow-100 rounded-full'>
-                                    <TrendingUp className='w-6 h-6 text-yellow-600' />
+                                <div className='p-3 bg-yellow-100 dark:bg-yellow-900/20 rounded-full'>
+                                    <TrendingUp className='w-6 h-6 text-yellow-600 dark:text-yellow-300' />
                                 </div>
                             </div>
                         </div>
@@ -552,28 +552,28 @@ function AmazonSettlementsPage() {
                 )}
 
                 {/* Data Table */}
-                <div className='bg-white rounded-lg shadow-sm'>
+                <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm'>
                     {loading ? (
                         <div className='flex items-center justify-center py-12'>
                             <RefreshCw className='animate-spin h-8 w-8 text-blue-600' />
-                            <span className='ml-3 text-gray-600'>Loading settlements data...</span>
+                            <span className='ml-3 text-gray-600 dark:text-zinc-400'>Loading settlements data...</span>
                         </div>
                     ) : filteredData.length === 0 ? (
                         <div className='text-center py-12'>
-                            <FileText className='mx-auto h-12 w-12 text-gray-400' />
-                            <h3 className='mt-2 text-sm font-medium text-gray-900'>No settlements found</h3>
-                            <p className='mt-1 text-sm text-gray-500'>
+                            <FileText className='mx-auto h-12 w-12 text-gray-400 dark:text-zinc-500' />
+                            <h3 className='mt-2 text-sm font-medium text-gray-900 dark:text-zinc-100'>No settlements found</h3>
+                            <p className='mt-1 text-sm text-gray-500 dark:text-zinc-400'>
                                 Select a date range and click "Generate Report" to view data.
                             </p>
                         </div>
                     ) : (
                         <div className='overflow-x-auto'>
-                            <table className='min-w-full divide-y divide-gray-200'>
-                                <thead className='bg-gray-50'>
+                            <table className='min-w-full divide-y divide-gray-200 dark:divide-zinc-800'>
+                                <thead className='bg-gray-50 dark:bg-zinc-900'>
                                     <tr>
                                         {/* Core Columns */}
                                         <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky left-0 bg-gray-50 z-10'
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 sticky left-0 bg-gray-50 dark:bg-zinc-900 z-10'
                                             onClick={() => handleSort('order_id')}
                                         >
                                             <div className='flex items-center space-x-1'>
@@ -582,7 +582,7 @@ function AmazonSettlementsPage() {
                                             </div>
                                         </th>
                                         <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800'
                                             onClick={() => handleSort('posted_date')}
                                         >
                                             <div className='flex items-center space-x-1'>
@@ -591,7 +591,7 @@ function AmazonSettlementsPage() {
                                             </div>
                                         </th>
                                         <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800'
                                             onClick={() => handleSort('sku')}
                                         >
                                             <div className='flex items-center space-x-1'>
@@ -600,7 +600,7 @@ function AmazonSettlementsPage() {
                                             </div>
                                         </th>
                                         <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800'
                                             onClick={() => handleSort('quantity_purchased')}
                                         >
                                             <div className='flex items-center space-x-1'>
@@ -614,7 +614,7 @@ function AmazonSettlementsPage() {
                                             visibleColumns.has(column) ? (
                                                 <th
                                                     key={column}
-                                                    className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100'
+                                                    className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800'
                                                     onClick={() => handleSort(column)}
                                                 >
                                                     <div className='flex items-center space-x-1'>
@@ -627,7 +627,7 @@ function AmazonSettlementsPage() {
 
                                         {/* Grand Total */}
                                         <th
-                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 sticky right-0 bg-gray-50 z-10'
+                                            className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 sticky right-0 bg-gray-50 dark:bg-zinc-900 z-10'
                                             onClick={() => handleSort('Grand Total')}
                                         >
                                             <div className='flex items-center space-x-1'>
@@ -637,27 +637,27 @@ function AmazonSettlementsPage() {
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className='bg-white divide-y divide-gray-200'>
+                                <tbody className='bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800'>
                                     {filteredData.map((item, index) => (
-                                        <tr key={index} className='hover:bg-gray-50 transition-colors'>
+                                        <tr key={index} className='hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors'>
                                             {/* Core Columns */}
-                                            <td className='px-6 py-4 whitespace-nowrap sticky left-0 bg-white z-10'>
+                                            <td className='px-6 py-4 whitespace-nowrap sticky left-0 bg-white dark:bg-zinc-900 z-10'>
                                                 <div className='text-sm font-mono text-blue-600'>
                                                     {item.order_id || 'N/A'}
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900'>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>
                                                     {item.posted_date || 'N/A'}
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
                                                     {item.sku || 'N/A'}
                                                 </div>
                                             </td>
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900'>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
                                                     {item.quantity_purchased || 'N/A'}
                                                 </div>
                                             </td>
@@ -676,7 +676,7 @@ function AmazonSettlementsPage() {
                                             )}
 
                                             {/* Grand Total */}
-                                            <td className='px-6 py-4 whitespace-nowrap sticky right-0 bg-white z-10'>
+                                            <td className='px-6 py-4 whitespace-nowrap sticky right-0 bg-white dark:bg-zinc-900 z-10'>
                                                 <div className={`text-sm font-bold ${getValueColor(item['Grand Total'])}`}>
                                                     {formatCurrency(item['Grand Total'])}
                                                 </div>
@@ -690,8 +690,8 @@ function AmazonSettlementsPage() {
 
                     {/* Results Count */}
                     {filteredData.length > 0 && (
-                        <div className='px-6 py-4 border-t border-gray-200 bg-gray-50'>
-                            <p className='text-sm text-black'>
+                        <div className='px-6 py-4 border-t border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50'>
+                            <p className='text-sm text-black dark:text-zinc-100'>
                                 Showing <span className='font-medium'>{filteredData.length}</span> of{' '}
                                 <span className='font-medium'>{settlements.length}</span> orders
                             </p>
@@ -701,20 +701,20 @@ function AmazonSettlementsPage() {
 
                 {/* Summary by Charge Type */}
                 {summary.length > 0 && (
-                    <div className='mt-6 bg-white rounded-lg shadow-sm p-6'>
-                        <h2 className='text-lg font-semibold text-gray-900 mb-4'>
+                    <div className='mt-6 bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-6'>
+                        <h2 className='text-lg font-semibold text-gray-900 dark:text-zinc-100 mb-4'>
                             Summary by Charge Type
                         </h2>
                         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
                             {summary.slice(0, 12).map((item, index) => (
-                                <div key={index} className='border border-gray-200 rounded-lg p-4'>
-                                    <p className='text-sm font-medium text-gray-600 truncate' title={item.amount_description}>
+                                <div key={index} className='border border-gray-200 dark:border-zinc-800 rounded-lg p-4'>
+                                    <p className='text-sm font-medium text-gray-600 dark:text-zinc-400 truncate' title={item.amount_description}>
                                         {item.amount_description}
                                     </p>
                                     <p className={`text-lg font-bold mt-1 ${getValueColor(item.total_amount)}`}>
                                         {formatCurrency(item.total_amount)}
                                     </p>
-                                    <p className='text-xs text-gray-500 mt-1'>
+                                    <p className='text-xs text-gray-500 dark:text-zinc-400 mt-1'>
                                         {formatNumber(item.count)} transactions • Avg: {formatCurrency(item.average_amount)}
                                     </p>
                                 </div>

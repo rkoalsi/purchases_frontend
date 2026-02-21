@@ -115,7 +115,7 @@ const BlinkitItemsTable: React.FC = () => {
   };
   // ===== COMPONENT RENDERING =====
   return (
-    <div className='container mx-auto p-4 bg-gray-50'>
+    <div className='container mx-auto p-4 bg-gray-50 dark:bg-transparent'>
       {/* Loading State */}
       {loading && (
         <div className='flex justify-center items-center py-12'>
@@ -128,35 +128,35 @@ const BlinkitItemsTable: React.FC = () => {
 
       {/* Report Table */}
       {!loading && reportData.length > 0 && (
-        <div className='bg-white rounded-lg shadow-md overflow-hidden'>
-          <div className='p-4 bg-gray-50 border-b border-gray-200'>
-            <h2 className='text-lg font-semibold text-gray-800'>
+        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-md overflow-hidden'>
+          <div className='p-4 bg-gray-50 dark:bg-zinc-800/50 border-b border-gray-200 dark:border-zinc-800'>
+            <h2 className='text-lg font-semibold text-gray-800 dark:text-zinc-100'>
               All Blinkit Product Details and Mappings
             </h2>
           </div>
 
           <div className='overflow-x-auto'>
-            <table className='min-w-full divide-y divide-gray-200'>
-              <thead className='bg-gray-50'>
+            <table className='min-w-full divide-y divide-gray-200 dark:divide-zinc-800'>
+              <thead className='bg-gray-50 dark:bg-zinc-800'>
                 <tr>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                     #
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                     Item Name
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                     Sku Code
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                     Item Id
                   </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className='bg-white divide-y divide-gray-200'>
+              <tbody className='bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800'>
                 {reportData.map((item: any, index) => {
                   const itemIdentifier = `${item.item_id}-${item.city}`;
                   const isItemSelected = selectedItems.includes(itemIdentifier);
@@ -165,22 +165,22 @@ const BlinkitItemsTable: React.FC = () => {
                     <tr
                       key={itemIdentifier}
                       className={
-                        isItemSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
+                        isItemSelected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
                       }
                     >
-                      <td className='px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900'>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-zinc-100'>
                         {index + 1}
                       </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900'>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100'>
                         {item.item_name}
                       </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900'>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100'>
                         {item.sku_code}
                       </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                         {item.item_id}
                       </td>
-                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>
+                      <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                         <Trash2 onClick={() => deleteItem(item)} />
                       </td>
                     </tr>

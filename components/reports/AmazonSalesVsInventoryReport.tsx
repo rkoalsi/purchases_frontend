@@ -144,15 +144,15 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
   if (reportType === "all") {
     // Render both vendor_central and fba_seller_flex data
     return (
-      <div className="space-y-4 mt-4 text-black text-sm">
+      <div className="space-y-4 mt-4 text-black dark:text-zinc-100 text-sm">
         {/* Vendor Central Section */}
         {reportMetadata.vendor_central && (
           <div className="space-y-2 mt-2">
-            <h4 className="text-sm font-medium text-gray-700">Vendor Central (Last Updated)</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-zinc-400">Vendor Central (Last Updated)</h4>
             <div className="flex flex-wrap flex-row gap-3">
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-full border border-purple-100">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 rounded-full border border-purple-100 dark:border-purple-800">
                 <Package className="h-4 w-4 text-purple-600" />
-                <span className="text-sm text-purple-800">
+                <span className="text-sm text-purple-800 dark:text-purple-300">
                   <span className="font-medium">Inventory (Range):</span> {
                     reportMetadata.vendor_central.inventory_data.first_inventory_date && reportMetadata.vendor_central.inventory_data.last_inventory_date
                       ? `${formatDate(reportMetadata.vendor_central.inventory_data.first_inventory_date)} - ${formatDate(reportMetadata.vendor_central.inventory_data.last_inventory_date)}`
@@ -161,9 +161,9 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                 </span>
               </div>
 
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 rounded-full border border-indigo-100">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-full border border-indigo-100 dark:border-indigo-800">
                 <TrendingUp className="h-4 w-4 text-indigo-600" />
-                <span className="text-sm text-indigo-800">
+                <span className="text-sm text-indigo-800 dark:text-indigo-300">
                   <span className="font-medium">Sales (Range):</span> {
                     reportMetadata.vendor_central.sales_data.first_sales_date && reportMetadata.vendor_central.sales_data.last_sales_date
                       ? `${formatDate(reportMetadata.vendor_central.sales_data.first_sales_date)} - ${formatDate(reportMetadata.vendor_central.sales_data.last_sales_date)}`
@@ -172,25 +172,25 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                 </span>
               </div>
 
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
-                <span className="text-sm text-gray-800">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-zinc-800 rounded-full border border-gray-100 dark:border-zinc-700">
+                <span className="text-sm text-gray-800 dark:text-zinc-300">
                   <span className="font-medium">Records:</span> {reportMetadata.vendor_central.sales_data.records_count} sales, {reportMetadata.vendor_central.inventory_data.records_count} inventory
                 </span>
               </div>
 
               {reportMetadata.vendor_central.inventory_data?.missing_dates && reportMetadata.vendor_central.inventory_data.missing_dates.length > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 dark:bg-orange-900/20 rounded-full border border-orange-100 dark:border-orange-800">
                   <TrendingDown className="h-4 w-4 text-orange-600" />
-                  <span className="text-sm text-orange-800">
+                  <span className="text-sm text-orange-800 dark:text-orange-300">
                     <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.vendor_central.inventory_data.missing_dates.join(', ')}
                   </span>
                 </div>
               )}
 
               {reportMetadata.vendor_central.sales_data?.missing_dates && reportMetadata.vendor_central.sales_data.missing_dates.length > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100">
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-full border border-red-100 dark:border-red-800">
                   <TrendingDown className="h-4 w-4 text-red-600" />
-                  <span className="text-sm text-red-800">
+                  <span className="text-sm text-red-800 dark:text-red-300">
                     <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.vendor_central.sales_data.missing_dates.join(', ')}
                   </span>
                 </div>
@@ -202,11 +202,11 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
         {/* FBA/Seller Flex Section */}
         {reportMetadata.fba_seller_flex && (
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-700">FBA/Seller Flex (Last Updated)</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-zinc-400">FBA/Seller Flex (Last Updated)</h4>
             <div className="flex flex-wrap flex-row gap-3">
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-800">
                 <Package className="h-4 w-4 text-blue-600" />
-                <span className="text-sm text-blue-800">
+                <span className="text-sm text-blue-800 dark:text-blue-300">
                   <span className="font-medium">Inventory (Range):</span> {
                     reportMetadata.fba_seller_flex.inventory_data.first_inventory_date && reportMetadata.fba_seller_flex.inventory_data.last_inventory_date
                       ? `${formatDate(reportMetadata.fba_seller_flex.inventory_data.first_inventory_date)} - ${formatDate(reportMetadata.fba_seller_flex.inventory_data.last_inventory_date)}`
@@ -215,9 +215,9 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                 </span>
               </div>
 
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-100 dark:border-green-800">
                 <TrendingUp className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-green-800">
+                <span className="text-sm text-green-800 dark:text-green-300">
                   <span className="font-medium">Sales (Range):</span> {
                     reportMetadata.fba_seller_flex.sales_data.first_sales_date && reportMetadata.fba_seller_flex.sales_data.last_sales_date
                       ? `${formatDate(reportMetadata.fba_seller_flex.sales_data.first_sales_date)} - ${formatDate(reportMetadata.fba_seller_flex.sales_data.last_sales_date)}`
@@ -226,25 +226,25 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
                 </span>
               </div>
 
-              <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
-                <span className="text-sm text-gray-800">
+              <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-zinc-800 rounded-full border border-gray-100 dark:border-zinc-700">
+                <span className="text-sm text-gray-800 dark:text-zinc-300">
                   <span className="font-medium">Records:</span> {reportMetadata.fba_seller_flex.sales_data.records_count} sales, {reportMetadata.fba_seller_flex.inventory_data.records_count} inventory
                 </span>
               </div>
 
               {reportMetadata.fba_seller_flex.inventory_data?.missing_dates && reportMetadata.fba_seller_flex.inventory_data.missing_dates.length > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 dark:bg-orange-900/20 rounded-full border border-orange-100 dark:border-orange-800">
                   <TrendingDown className="h-4 w-4 text-orange-600" />
-                  <span className="text-sm text-orange-800">
+                  <span className="text-sm text-orange-800 dark:text-orange-300">
                     <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.fba_seller_flex.inventory_data.missing_dates.join(', ')}
                   </span>
                 </div>
               )}
 
               {reportMetadata.fba_seller_flex.sales_data?.missing_dates && reportMetadata.fba_seller_flex.sales_data.missing_dates.length > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100">
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-full border border-red-100 dark:border-red-800">
                   <TrendingDown className="h-4 w-4 text-red-600" />
-                  <span className="text-sm text-red-800">
+                  <span className="text-sm text-red-800 dark:text-red-300">
                     <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.fba_seller_flex.sales_data.missing_dates.join(', ')}
                   </span>
                 </div>
@@ -258,9 +258,9 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
     // Original single report type rendering
     return (
       <div className="flex flex-wrap flex-row gap-3 mt-4">
-        <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full border border-blue-100">
+        <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-800">
           <Package className="h-4 w-4 text-blue-600" />
-          <span className="text-sm text-blue-800">
+          <span className="text-sm text-blue-800 dark:text-blue-300">
             <span className="font-medium">Inventory (Range):</span> {
               reportMetadata.inventory_data?.first_inventory_date && reportMetadata.inventory_data?.last_inventory_date
                 ? `${formatDate(reportMetadata.inventory_data.first_inventory_date)} - ${formatDate(reportMetadata.inventory_data.last_inventory_date)}`
@@ -269,9 +269,9 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
           </span>
         </div>
 
-        <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full border border-green-100">
+        <div className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-100 dark:border-green-800">
           <TrendingUp className="h-4 w-4 text-green-600" />
-          <span className="text-sm text-green-800">
+          <span className="text-sm text-green-800 dark:text-green-300">
             <span className="font-medium">Sales (Range):</span> {
               reportMetadata.sales_data?.first_sales_date && reportMetadata.sales_data?.last_sales_date
                 ? `${formatDate(reportMetadata.sales_data.first_sales_date)} - ${formatDate(reportMetadata.sales_data.last_sales_date)}`
@@ -281,26 +281,26 @@ const AmazonSalesVSInventoryReport: React.FC = () => {
         </div>
 
         {reportMetadata.sales_data?.records_count !== undefined && reportMetadata.inventory_data?.records_count !== undefined && (
-          <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-100">
-            <span className="text-sm text-gray-800">
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-zinc-800 rounded-full border border-gray-100 dark:border-zinc-700">
+            <span className="text-sm text-gray-800 dark:text-zinc-300">
               <span className="font-medium">Records:</span> {reportMetadata.sales_data.records_count} sales, {reportMetadata.inventory_data.records_count} inventory
             </span>
           </div>
         )}
 
         {reportMetadata.inventory_data?.missing_dates && reportMetadata.inventory_data.missing_dates.length > 0 && (
-          <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100">
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 dark:bg-orange-900/20 rounded-full border border-orange-100 dark:border-orange-800">
             <TrendingDown className="h-4 w-4 text-orange-600" />
-            <span className="text-sm text-orange-800">
+            <span className="text-sm text-orange-800 dark:text-orange-300">
               <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.inventory_data.missing_dates.join(', ')}
             </span>
           </div>
         )}
 
         {reportMetadata.sales_data?.missing_dates && reportMetadata.sales_data.missing_dates.length > 0 && (
-          <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100">
+          <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-full border border-red-100 dark:border-red-800">
             <TrendingDown className="h-4 w-4 text-red-600" />
-            <span className="text-sm text-red-800">
+            <span className="text-sm text-red-800 dark:text-red-300">
               <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.sales_data.missing_dates.join(', ')}
             </span>
           </div>
@@ -415,9 +415,9 @@ const processDownload = async (response: any) => {
 };
   // ===== COMPONENT RENDERING =====
   return (
-    <div className="container mx-auto p-4 bg-gray-50">
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">
+    <div className="container mx-auto p-4 bg-gray-50 dark:bg-zinc-950">
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6 dark:bg-zinc-900 dark:shadow-none dark:border dark:border-zinc-800">
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-zinc-100 mb-6">
           Amazon Sales vs Inventory Report
         </h1>
         <div className={CONTROLS_CLASSES.container}>
@@ -447,9 +447,9 @@ const processDownload = async (response: any) => {
                     onChange={(e) => setAnyLast90Days(e.target.checked)}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
                   />
-                  <label htmlFor="anyLast90Days" className="ml-2 text-sm text-gray-700 cursor-pointer">
+                  <label htmlFor="anyLast90Days" className="ml-2 text-sm text-gray-700 dark:text-zinc-300 cursor-pointer">
                     Any Last 90 days in stock
-                    <span className="ml-1 text-xs text-gray-500">(Show last 90 days item was in stock, regardless of when)</span>
+                    <span className="ml-1 text-xs text-gray-500 dark:text-zinc-400">(Show last 90 days item was in stock, regardless of when)</span>
                   </label>
                 </div>
               </div>
@@ -467,8 +467,8 @@ const processDownload = async (response: any) => {
         </div>
         {/* Status Indicator */}
         {reportData.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg dark:bg-green-900/20 dark:text-green-400">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
@@ -486,8 +486,8 @@ const processDownload = async (response: any) => {
 
         {/* No Data State */}
         {!loading && reportData.length === 0 && (
-          <div className="bg-gray-50 rounded-lg p-6 text-center">
-            <p className="text-gray-600">
+          <div className="bg-gray-50 rounded-lg p-6 text-center dark:bg-zinc-800">
+            <p className="text-gray-600 dark:text-zinc-400">
               No report data found for given date range. Please upload files to
               generate a report.
             </p>
@@ -497,15 +497,15 @@ const processDownload = async (response: any) => {
 
       {/* Report Table */}
       {!loading && reportData.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white rounded-lg shadow-md overflow-hidden dark:bg-zinc-900 dark:border dark:border-zinc-800">
           {/* Table Header with Search and Filters */}
-          <div className="p-6 bg-gray-50 border-b border-gray-200">
+          <div className="p-6 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-gray-800">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-zinc-100">
                   Report Details
                 </h2>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-zinc-400">
                   Showing {filteredAndSortedData.length} of {reportData.length}{" "}
                   items
                 </p>
@@ -529,7 +529,7 @@ const processDownload = async (response: any) => {
                     console.log(e.target.value);
                     setReportType(e.target.value);
                   }}
-                  className="block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  className="block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100"
                 >
                   <option value="all">FBA + Seller Flex + Vendor Central</option>
                   {[
@@ -554,7 +554,7 @@ const processDownload = async (response: any) => {
                     setCityFilter("");
                     setWarehouseFilter("");
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700 dark:hover:bg-zinc-700"
                 >
                   Clear Filters
                 </button>
@@ -565,118 +565,118 @@ const processDownload = async (response: any) => {
 
           {/* Table Container with Fixed Height and Sticky Header */}
           <div className="relative max-h-[70vh] overflow-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-700">
               {/* Sticky Header */}
-              <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
+              <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm dark:bg-zinc-800">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider border-r border-gray-200 dark:border-zinc-700">
                     #
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[250px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider border-r border-gray-200 dark:border-zinc-700 min-w-[250px]">
                     <button
                       onClick={() => handleSort("item_name")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       Item Name
                       <StandardSortIcon column="item_name" sortConfig={sortConfig} />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("sku_code")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       SKU Code
                       <StandardSortIcon column="sku_code" sortConfig={sortConfig} />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[100px]">
                     <button
                       onClick={() => handleSort("asin")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       ASIN
                       <StandardSortIcon column="asin" sortConfig={sortConfig} />
                     </button>
                   </th>
                   {reportType !== "vendor_central" && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                       <button
                         onClick={() => handleSort("warehouse")}
-                        className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                       >
                         Warehouse
                         <StandardSortIcon column="warehouse" sortConfig={sortConfig} />
                       </button>
                     </th>
                   )}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("units_sold")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       Units Sold
                       <StandardSortIcon column="units_sold" sortConfig={sortConfig} />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("total_returns")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       Total Returns
                       <StandardSortIcon column="total_returns" sortConfig={sortConfig} />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("total_amount")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       Total Amount
                       <StandardSortIcon column="total_amount" sortConfig={sortConfig} />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("closing_stock")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       Closing Stock
                       <StandardSortIcon column="closing_stock" sortConfig={sortConfig} />
                     </button>
                   </th>
                   {reportType !== "vendor_central" && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                       <button
                         onClick={() => handleSort("sessions")}
-                        className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                       >
                         Sessions
                         <StandardSortIcon column="sessions" sortConfig={sortConfig} />
                       </button>
                     </th>
                   )}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("total_days_in_stock")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       Total Days in Stock
                       <StandardSortIcon column="total_days_in_stock" sortConfig={sortConfig} />
                     </button>
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("drr")}
-                      className="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                      className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
                       DRR
                       <StandardSortIcon column="drr" sortConfig={sortConfig} />
                     </button>
                   </th>
                   {anyLast90Days && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[200px]">
                       Last 90 Days In Stock
                     </th>
                   )}
@@ -684,12 +684,12 @@ const processDownload = async (response: any) => {
               </thead>
 
               {/* Table Body */}
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-200 dark:bg-zinc-900 dark:divide-zinc-800">
                 {filteredAndSortedData.length === 0 ? (
                   <tr>
                     <td
                       colSpan={21}
-                      className="px-4 py-8 text-center text-sm text-gray-500"
+                      className="px-4 py-8 text-center text-sm text-gray-500 dark:text-zinc-400"
                     >
                       No items match your search criteria
                     </td>
@@ -703,53 +703,53 @@ const processDownload = async (response: any) => {
                     return (
                       <tr
                         key={itemIdentifier}
-                        className={`${isItemSelected ? "bg-blue-50" : "hover:bg-gray-50"
+                        className={`${isItemSelected ? "bg-blue-50 dark:bg-blue-900/20" : "hover:bg-gray-50 dark:hover:bg-zinc-800/50"
                           } transition-colors`}
                       >
-                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-zinc-100 border-r border-gray-200 dark:border-zinc-700">
                           {index + 1}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200 min-w-[250px] max-w-[350px]">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-zinc-100 border-r border-gray-200 dark:border-zinc-700 min-w-[250px] max-w-[350px]">
                           <div className="break-words leading-tight">
                             {item.item_name}
                           </div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100">
                           {item.sku_code}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
                           {item.asin}
                         </td>
                         {reportType !== "vendor_central" && (
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
                             {item?.warehouses?.map((w: string) => w).join(",")}
                           </td>
                         )}
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.units_sold}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.total_returns}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.total_amount}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.closing_stock}
                         </td>
                         {reportType !== "vendor_central" && (
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                             {item.sessions}
                           </td>
                         )}
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.total_days_in_stock}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.drr}
                         </td>
                         {anyLast90Days && (
-                          <td className="px-4 py-3 text-sm text-gray-900 max-w-md">
+                          <td className="px-4 py-3 text-sm text-gray-900 dark:text-zinc-100 max-w-md">
                             {item.last_90_days_dates || 'N/A'}
                           </td>
                         )}

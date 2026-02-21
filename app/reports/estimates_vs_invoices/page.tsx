@@ -159,11 +159,11 @@ function EstimatesVsInvoicesPage() {
             <div className='max-w-[1800px] mx-auto'>
                 {/* Header */}
                 <div className='mb-8'>
-                    <h1 className='text-3xl font-bold text-gray-900 flex items-center gap-3'>
+                    <h1 className='text-3xl font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-3'>
                         <FileText className='w-8 h-8 text-blue-600' />
                         Estimates vs Invoices Report
                     </h1>
-                    <p className='mt-2 text-sm text-gray-600'>
+                    <p className='mt-2 text-sm text-zinc-900 dark:text-zinc-50'>
                         Compare estimated quantities with invoiced quantities to track fill rates
                     </p>
                 </div>

@@ -202,13 +202,13 @@ function Page() {
 
   return (
     <>
-      <div className='bg-gray-50 rounded-lg p-6 mb-8'>
+      <div className='bg-gray-50 dark:bg-zinc-900 rounded-lg p-6 mb-8'>
         <div className='mb-8 flex justify-between items-start'>
           <div>
-            <h1 className='text-3xl font-bold text-black mb-2'>
+            <h1 className='text-3xl font-bold text-black dark:text-zinc-100 mb-2'>
               Blinkit SKU Mapping Management
             </h1>
-            <p className='text-black'>
+            <p className='text-black dark:text-zinc-400'>
               Upload and manage Blinkit Item and Sku Codes
             </p>
           </div>
@@ -225,15 +225,15 @@ function Page() {
           <div
             className={`mb-4 p-3 rounded-md ${
               messageType === 'success'
-                ? 'bg-green-100 text-green-700 border border-green-300'
-                : 'bg-red-100 text-red-700 border border-red-300'
+                ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-800'
+                : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800'
             }`}
           >
             {message}
           </div>
         )}
 
-        <h2 className='text-xl font-semibold text-gray-800 mb-4'>
+        <h2 className='text-xl font-semibold text-gray-800 dark:text-zinc-100 mb-4'>
           Upload SKU Mapping
         </h2>
         <div className='flex flex-col sm:flex-row gap-4 items-start'>
@@ -243,9 +243,9 @@ function Page() {
               type='file'
               accept='.xlsx,.xls'
               onChange={handleFileSelect}
-              className='w-full text-black px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+              className='w-full text-black dark:text-zinc-100 px-3 py-2 border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             />
-            <p className='text-sm text-gray-700 mt-1'>
+            <p className='text-sm text-gray-700 dark:text-zinc-400 mt-1'>
               Expected columns: Item ID, SKU Code, Item Name
             </p>
           </div>
@@ -268,14 +268,14 @@ function Page() {
       {/* Modal */}
       {isModalOpen && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white rounded-lg p-6 w-full max-w-md mx-4'>
+          <div className='bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md mx-4'>
             <div className='flex justify-between items-center mb-4'>
-              <h3 className='text-lg font-semibold text-gray-900'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-zinc-100'>
                 Create New Item
               </h3>
               <button
                 onClick={closeModal}
-                className='text-gray-400 hover:text-gray-600'
+                className='text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300'
               >
                 <svg
                   className='w-6 h-6'
@@ -301,7 +301,7 @@ function Page() {
             >
               <div className='space-y-4'>
                 <div>
-                  <label className='block text-sm font-medium text-black mb-1'>
+                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
                     Item ID
                   </label>
                   <input
@@ -309,8 +309,8 @@ function Page() {
                     name='item_id'
                     value={formData.item_id}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 text-black border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.item_id ? 'border-red-300' : 'border-gray-300'
+                    className={`w-full px-3 py-2 text-black dark:text-zinc-100 dark:bg-zinc-800 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      formErrors.item_id ? 'border-red-300' : 'border-gray-300 dark:border-zinc-700'
                     }`}
                     placeholder='Enter Item ID'
                   />
@@ -322,7 +322,7 @@ function Page() {
                 </div>
 
                 <div>
-                  <label className='block text-sm font-medium text-black mb-1'>
+                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
                     SKU Code
                   </label>
                   <input
@@ -330,8 +330,8 @@ function Page() {
                     name='sku_code'
                     value={formData.sku_code}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 text-black border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.sku_code ? 'border-red-300' : 'border-gray-300'
+                    className={`w-full px-3 py-2 text-black dark:text-zinc-100 dark:bg-zinc-800 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      formErrors.sku_code ? 'border-red-300' : 'border-gray-300 dark:border-zinc-700'
                     }`}
                     placeholder='Enter SKU Code'
                   />
@@ -343,7 +343,7 @@ function Page() {
                 </div>
 
                 <div>
-                  <label className='block text-sm font-medium text-black mb-1'>
+                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
                     Item Name
                   </label>
                   <input
@@ -351,10 +351,10 @@ function Page() {
                     name='item_name'
                     value={formData.item_name}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border text-black rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    className={`w-full px-3 py-2 border text-black dark:text-zinc-100 dark:bg-zinc-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       formErrors.item_name
                         ? 'border-red-300'
-                        : 'border-gray-300'
+                        : 'border-gray-300 dark:border-zinc-700'
                     }`}
                     placeholder='Enter Item Name'
                   />
@@ -370,7 +370,7 @@ function Page() {
                 <button
                   type='button'
                   onClick={closeModal}
-                  className='flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors'
+                  className='flex-1 px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'
                 >
                   Cancel
                 </button>

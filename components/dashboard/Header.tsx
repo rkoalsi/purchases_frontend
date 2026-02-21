@@ -87,7 +87,7 @@ export default function Header({
                     <p className='text-sm font-medium text-zinc-900 dark:text-zinc-50 truncate'>{userEmail}</p>
                   </div>
                   <Link
-                    href='/settings'
+                    href='/settings/account'
                     className='flex items-center px-4 py-2 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'
                     onClick={() => setDropdownOpen(false)}
                   >

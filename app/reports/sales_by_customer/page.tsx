@@ -173,16 +173,16 @@ const InvoiceReportGenerator = () => {
   return (
     <div>
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-lg dark:shadow-none border border-transparent dark:border-zinc-800 p-8">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="flex justify-center items-center mb-4">
               <FileSpreadsheet className="h-12 w-12 text-blue-600 mr-3" />
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-zinc-100">
                 Sales By Customer Report
               </h1>
             </div>
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-zinc-400">
               Generate detailed invoice reports by date range and brand
             </p>
           </div>
@@ -194,7 +194,7 @@ const InvoiceReportGenerator = () => {
               <div>
                 <label
                   htmlFor="startDate"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className="block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2"
                 >
                   <Calendar className="inline h-4 w-4 mr-1" />
                   Start Date
@@ -206,14 +206,14 @@ const InvoiceReportGenerator = () => {
                   value={formData.startDate}
                   onChange={handleInputChange}
                   max={today}
-                  className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full text-black dark:text-zinc-100 px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white dark:bg-zinc-800"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="endDate"
-                  className="block text-sm font-medium text-gray-700 mb-2"
+                  className="block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2"
                 >
                   <Calendar className="inline h-4 w-4 mr-1" />
                   End Date
@@ -226,7 +226,7 @@ const InvoiceReportGenerator = () => {
                   onChange={handleInputChange}
                   max={today}
                   min={formData.startDate}
-                  className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full text-black dark:text-zinc-100 px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white dark:bg-zinc-800"
                 />
               </div>
             </div>
@@ -235,7 +235,7 @@ const InvoiceReportGenerator = () => {
             <div>
               <label
                 htmlFor="brand"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2"
               >
                 Brand
               </label>
@@ -244,7 +244,7 @@ const InvoiceReportGenerator = () => {
                 name="brand"
                 value={formData.brand}
                 onChange={handleInputChange}
-                className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full text-black dark:text-zinc-100 px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white dark:bg-zinc-800"
               >
                 <option value="">Select a brand...</option>
                 {brands.map((brand: any) => (
@@ -258,7 +258,7 @@ const InvoiceReportGenerator = () => {
             <div>
               <label
                 htmlFor="min_quantity"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className="block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2"
               >
                 Minimum Quantity (optional)
               </label>
@@ -270,9 +270,9 @@ const InvoiceReportGenerator = () => {
                 onChange={handleInputChange}
                 placeholder="Leave blank for all customers"
                 min="0"
-                className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full text-black dark:text-zinc-100 px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white dark:bg-zinc-800"
               />
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-zinc-500">
                 Only include customers with individual item quantity greater than or equal to this value
               </p>
             </div>
@@ -300,7 +300,7 @@ const InvoiceReportGenerator = () => {
                 "(SSAM) Sales samples", ]
                 <div className="tooltip-arrow" data-popper-arrow></div>
               </div> */}
-              <label className="ms-2 text-sm font-medium text-gray-900 dark:text-black">
+              <label className="ms-2 text-sm font-medium text-gray-900 dark:text-zinc-100">
                 Exclude Customers
               </label>
             </div>
@@ -309,8 +309,8 @@ const InvoiceReportGenerator = () => {
               <div
                 className={`flex items-center p-4 rounded-lg ${
                   message.type === "error"
-                    ? "bg-red-50 text-red-700 border border-red-200"
-                    : "bg-green-50 text-green-700 border border-green-200"
+                    ? "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
+                    : "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800"
                 }`}
               >
                 {message.type === "error" ? (
@@ -347,11 +347,11 @@ const InvoiceReportGenerator = () => {
           </div>
 
           {/* Info Section */}
-          <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 className="font-medium text-blue-900 mb-2">
+          <div className="mt-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <h3 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
               Report Information
             </h3>
-            <ul className="text-sm text-blue-700 space-y-1">
+            <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
               <li>
                 • Reports include invoices with status other than 'draft' or
                 'void'

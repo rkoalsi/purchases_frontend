@@ -66,10 +66,10 @@ function Page() {
     <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 py-8'>
       <div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
         {/* Header */}
-        <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-6'>
-          <div className='px-6 py-4 border-b border-gray-200'>
+        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 mb-6'>
+          <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
             <div className='flex items-center justify-between'>
-              <h1 className='text-2xl font-bold text-gray-900'>Settings</h1>
+              <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>Settings</h1>
               {!isEditing ? (
                 <button
                   onClick={handleEdit}
@@ -101,9 +101,9 @@ function Page() {
         </div>
 
         {/* User Information Card */}
-        <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-6'>
-          <div className='px-6 py-4 border-b border-gray-200'>
-            <h2 className='text-lg font-semibold text-gray-900 flex items-center'>
+        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 mb-6'>
+          <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
+            <h2 className='text-lg font-semibold text-gray-900 dark:text-zinc-100 flex items-center'>
               <User className='h-5 w-5 mr-2 text-blue-600' />
               User Information
             </h2>
@@ -112,7 +112,7 @@ function Page() {
             <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
               {/* Name */}
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2'>
                   Full Name
                 </label>
                 {isEditing ? (
@@ -120,10 +120,10 @@ function Page() {
                     type='text'
                     value={editedUser.name || ''}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className='w-full text-black px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                    className='w-full text-black dark:text-zinc-100 dark:bg-zinc-800 px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
                   />
                 ) : (
-                  <p className='text-gray-900 bg-gray-50 px-3 py-2 rounded-md'>
+                  <p className='text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-800 px-3 py-2 rounded-md'>
                     {user?.name || 'Not provided'}
                   </p>
                 )}
@@ -131,7 +131,7 @@ function Page() {
 
               {/* Email */}
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-2 flex items-center'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2 items-center'>
                   <Mail className='h-4 w-4 mr-1' />
                   Email Address
                 </label>
@@ -140,10 +140,10 @@ function Page() {
                     type='email'
                     value={editedUser.email || ''}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className='w-full text-black px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                    className='w-full text-black dark:text-zinc-100 dark:bg-zinc-800 px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
                   />
                 ) : (
-                  <p className='text-gray-900 bg-gray-50 px-3 py-2 rounded-md'>
+                  <p className='text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-800 px-3 py-2 rounded-md'>
                     {email || 'Not provided'}
                   </p>
                 )}
@@ -151,7 +151,7 @@ function Page() {
 
               {/* Phone */}
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2'>
                   Phone Number
                 </label>
                 {isEditing ? (
@@ -159,22 +159,22 @@ function Page() {
                     type='tel'
                     value={editedUser.phone || ''}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className='w-full text-black px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                    className='w-full text-black dark:text-zinc-100 dark:bg-zinc-800 px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
                     placeholder='Enter phone number'
                   />
                 ) : (
-                  <p className='text-gray-900 bg-gray-50 px-3 py-2 rounded-md'>
+                  <p className='text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-800 px-3 py-2 rounded-md'>
                     {user?.phone || 'Not provided'}
                   </p>
                 )}
               </div>
               {/* Created Date */}
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-2 flex items-center'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2 items-center'>
                   <Calendar className='h-4 w-4 mr-1' />
                   Role
                 </label>
-                <p className='text-gray-900 bg-gray-50 px-3 py-2 rounded-md'>
+                <p className='text-gray-900 dark:text-zinc-100 bg-gray-50 dark:bg-zinc-800 px-3 py-2 rounded-md'>
                   {capitalize(user?.role.replace('_', ' '))}
                 </p>
               </div>
@@ -183,9 +183,9 @@ function Page() {
         </div>
 
         {/* Account Status Card */}
-        <div className='bg-white rounded-lg shadow-sm border border-gray-200'>
-          <div className='px-6 py-4 border-b border-gray-200'>
-            <h2 className='text-lg font-semibold text-gray-900 flex items-center'>
+        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800'>
+          <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
+            <h2 className='text-lg font-semibold text-gray-900 dark:text-zinc-100 flex items-center'>
               <Shield className='h-5 w-5 mr-2 text-green-600' />
               Account Status
             </h2>
@@ -193,21 +193,21 @@ function Page() {
           <div className='px-6 py-6'>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2'>
                   Account Status
                 </label>
                 <div className='flex items-center'>
                   <div className='h-3 w-3 bg-green-500 rounded-full mr-2'></div>
-                  <span className='text-green-700 font-medium'>Active</span>
+                  <span className='text-green-700 dark:text-green-400 font-medium'>Active</span>
                 </div>
               </div>
               <div>
-                <label className='block text-sm font-medium text-gray-700 mb-2'>
+                <label className='block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2'>
                   Authentication
                 </label>
                 <div className='flex items-center'>
                   <div className='h-3 w-3 bg-green-500 rounded-full mr-2'></div>
-                  <span className='text-green-700 font-medium'>
+                  <span className='text-green-700 dark:text-green-400 font-medium'>
                     Authenticated
                   </span>
                 </div>
