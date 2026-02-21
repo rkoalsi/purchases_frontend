@@ -51,8 +51,12 @@ interface MasterReportItem {
     stock_in_transit_3?: number;
     total_stock_in_transit?: number;
     current_days_coverage?: number;
+    missed_sales?: number;
+    missed_sales_drr?: number;
+    extra_qty?: number;
     target_days?: number;
     excess_or_order?: string;
+    order_qty_plus_extra_qty?: number;
     order_qty?: number;
     cbm?: number;
     case_pack?: number;
@@ -61,6 +65,9 @@ interface MasterReportItem {
     total_cbm?: number;
     days_current_order_lasts?: number;
     days_total_inventory_lasts?: number;
+    latest_zoho_stock?: number;
+    latest_fba_stock?: number;
+    latest_total_stock?: number;
 }
 
 interface MasterReportResponse {
@@ -90,6 +97,10 @@ interface MasterReportResponse {
     };
     combined_data: MasterReportItem[];
     errors: string[];
+    latest_stock_dates: {
+        zoho: string;
+        fba: string;
+    };
     meta: {
         execution_time_seconds: number;
         timestamp: string;
@@ -107,6 +118,7 @@ function MasterReportsPage() {
     const [meta, setMeta] = useState<any>(null);
     const [individualReports, setIndividualReports] = useState<any>({});
     const [reportErrors, setReportErrors] = useState<string[]>([]);
+    const [latestStockDates, setLatestStockDates] = useState<{ zoho: string; fba: string }>({ zoho: '', fba: '' });
 
     // Date range state
     const [startDate, setStartDate] = useState(() => {
@@ -184,6 +196,7 @@ function MasterReportsPage() {
             setMeta(data.meta || {});
             setIndividualReports(data.individual_reports || {});
             setReportErrors(data.errors || []);
+            setLatestStockDates(data.latest_stock_dates || { zoho: '', fba: '' });
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to fetch master report data');
             console.error('Error fetching master report:', err);
@@ -279,6 +292,22 @@ function MasterReportsPage() {
         return new Intl.NumberFormat('en-IN').format(num || 0);
     };
 
+    const formatDateLabel = (dateStr: string) => {
+        try {
+            const d = new Date(dateStr + 'T00:00:00');
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        } catch {
+            return dateStr;
+        }
+    };
+
+    const endDateLabel = formatDateLabel(endDate);
+    const latestZohoLabel = latestStockDates.zoho ? formatDateLabel(latestStockDates.zoho) : 'Latest';
+    const latestFbaLabel = latestStockDates.fba ? formatDateLabel(latestStockDates.fba) : 'Latest';
+    const latestTotalLabel = (latestStockDates.fba >= latestStockDates.zoho ? latestStockDates.fba : latestStockDates.zoho)
+        ? formatDateLabel(latestStockDates.fba >= latestStockDates.zoho ? latestStockDates.fba : latestStockDates.zoho)
+        : 'Latest';
+
     const getSortIcon = (columnKey: string) => {
         if (!sortConfig || sortConfig.key !== columnKey) {
             return (
@@ -354,6 +383,7 @@ function MasterReportsPage() {
             setMeta(data.meta || {});
             setIndividualReports(data.individual_reports || {});
             setReportErrors(data.errors || []);
+            setLatestStockDates(data.latest_stock_dates || { zoho: '', fba: '' });
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to fetch master report data');
             console.error('Error fetching master report:', err);
@@ -751,16 +781,25 @@ function MasterReportsPage() {
                                             <div className='flex items-center space-x-1'><span>Avg DRR</span>{getSortIcon('combined_metrics.avg_daily_run_rate')}</div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.total_closing_stock')}>
-                                            <div className='flex items-center space-x-1'><span>Total Closing Stock</span>{getSortIcon('combined_metrics.total_closing_stock')}</div>
+                                            <div className='flex items-center space-x-1'><span>Total Stock ({endDateLabel})</span>{getSortIcon('combined_metrics.total_closing_stock')}</div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.avg_days_of_coverage')}>
                                             <div className='flex items-center space-x-1'><span>Avg Days of Coverage</span>{getSortIcon('combined_metrics.avg_days_of_coverage')}</div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.pupscribe_wh_stock')}>
-                                            <div className='flex items-center space-x-1'><span>Pupscribe WH Stock</span>{getSortIcon('combined_metrics.pupscribe_wh_stock')}</div>
+                                            <div className='flex items-center space-x-1'><span>Pupscribe WH Stock ({endDateLabel})</span>{getSortIcon('combined_metrics.pupscribe_wh_stock')}</div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.fba_closing_stock')}>
-                                            <div className='flex items-center space-x-1'><span>FBA Stock</span>{getSortIcon('combined_metrics.fba_closing_stock')}</div>
+                                            <div className='flex items-center space-x-1'><span>FBA Stock ({endDateLabel})</span>{getSortIcon('combined_metrics.fba_closing_stock')}</div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('latest_total_stock')}>
+                                            <div className='flex items-center space-x-1'><span>Total Stock ({latestTotalLabel})</span>{getSortIcon('latest_total_stock')}</div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('latest_zoho_stock')}>
+                                            <div className='flex items-center space-x-1'><span>Pupscribe WH Stock ({latestZohoLabel})</span>{getSortIcon('latest_zoho_stock')}</div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('latest_fba_stock')}>
+                                            <div className='flex items-center space-x-1'><span>FBA Stock ({latestFbaLabel})</span>{getSortIcon('latest_fba_stock')}</div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>In Stock</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('combined_metrics.transfer_orders')}>
@@ -785,9 +824,21 @@ function MasterReportsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('current_days_coverage')}>
                                             <div className='flex items-center space-x-1'><span>Current Days Coverage</span>{getSortIcon('current_days_coverage')}</div>
                                         </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('missed_sales')}>
+                                            <div className='flex items-center space-x-1'><span>Missed Sales</span>{getSortIcon('missed_sales')}</div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('missed_sales_drr')}>
+                                            <div className='flex items-center space-x-1'><span>Missed Sales DRR</span>{getSortIcon('missed_sales_drr')}</div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('extra_qty')}>
+                                            <div className='flex items-center space-x-1'><span>Extra Qty</span>{getSortIcon('extra_qty')}</div>
+                                        </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Target Days</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('excess_or_order')}>
                                             <div className='flex items-center space-x-1'><span>Excess / Order</span>{getSortIcon('excess_or_order')}</div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('order_qty_plus_extra_qty')}>
+                                            <div className='flex items-center space-x-1'><span>Order Qty + Extra Qty</span>{getSortIcon('order_qty_plus_extra_qty')}</div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100' onClick={() => handleSort('order_qty')}>
                                             <div className='flex items-center space-x-1'><span>Order Qty</span>{getSortIcon('order_qty')}</div>
@@ -892,9 +943,21 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.pupscribe_wh_stock || 0)}</div>
                                             </td>
-                                            {/* FBA Stock */}
+                                            {/* FBA Stock (end date) */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900'>{formatNumber(item.combined_metrics.fba_closing_stock || 0)}</div>
+                                            </td>
+                                            {/* Total Stock (latest) */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.latest_total_stock || 0)}</div>
+                                            </td>
+                                            {/* Pupscribe WH Stock (latest) */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.latest_zoho_stock || 0)}</div>
+                                            </td>
+                                            {/* FBA Stock (latest) */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-gray-900'>{formatNumber(item.latest_fba_stock || 0)}</div>
                                             </td>
                                             {/* In Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
@@ -947,6 +1010,18 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm text-gray-900'>{item.current_days_coverage?.toFixed(1) || '0'}</div>
                                             </td>
+                                            {/* Missed Sales */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{formatNumber(item.missed_sales || 0)}</div>
+                                            </td>
+                                            {/* Missed Sales DRR */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{(item.missed_sales_drr || 0).toFixed(2)}</div>
+                                            </td>
+                                            {/* Extra Qty */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900'>{(item.extra_qty || 0).toFixed(2)}</div>
+                                            </td>
                                             {/* Target Days */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm text-gray-900'>{item.target_days || 0}</div>
@@ -957,6 +1032,10 @@ function MasterReportsPage() {
                                                     }`}>
                                                     {item.excess_or_order || 'N/A'}
                                                 </span>
+                                            </td>
+                                            {/* Order Qty + Extra Qty */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-blue-700'>{formatNumber(item.order_qty_plus_extra_qty || 0)}</div>
                                             </td>
                                             {/* Order Qty */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
