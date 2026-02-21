@@ -151,7 +151,7 @@ function EstimatesVsInvoicesPage() {
     const totalInvoiced = data.reduce((sum, item) => sum + item.invoiced_quantity, 0);
 
     if (isLoading) {
-        return <div className='p-8 text-black'>Loading...</div>;
+        return <div className='p-8 text-black dark:text-zinc-100'>Loading...</div>;
     }
 
     return (
@@ -163,13 +163,13 @@ function EstimatesVsInvoicesPage() {
                         <FileText className='w-8 h-8 text-blue-600' />
                         Estimates vs Invoices Report
                     </h1>
-                    <p className='mt-2 text-sm text-zinc-900 dark:text-zinc-50'>
+                    <p className='mt-2 text-sm text-zinc-600 dark:text-zinc-400'>
                         Compare estimated quantities with invoiced quantities to track fill rates
                     </p>
                 </div>
 
                 {/* Filters Section */}
-                <div className='bg-white rounded-lg shadow-sm p-6 mb-6'>
+                <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-6 mb-6'>
                     <DateRange
                         startDate={startDate}
                         endDate={endDate}
@@ -185,10 +185,10 @@ function EstimatesVsInvoicesPage() {
 
                 {/* Error Display */}
                 {error && (
-                    <div className='bg-red-50 border border-red-200 rounded-lg p-4 mb-6'>
+                    <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6'>
                         <div className='flex items-center'>
-                            <AlertCircle className='h-5 w-5 text-red-400 mr-3' />
-                            <p className='text-sm font-medium text-red-800'>{error}</p>
+                            <AlertCircle className='h-5 w-5 text-red-400 dark:text-red-300 mr-3' />
+                            <p className='text-sm font-medium text-red-800 dark:text-red-300'>{error}</p>
                         </div>
                     </div>
                 )}
@@ -197,104 +197,104 @@ function EstimatesVsInvoicesPage() {
                 {meta && data.length > 0 && (
                     <>
                         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6'>
-                            <div className='bg-white rounded-lg shadow-sm p-4'>
+                            <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                                 <div className='flex items-center justify-between'>
                                     <div>
-                                        <p className='text-xs font-medium text-gray-600'>Total Items</p>
-                                        <p className='text-xl font-bold text-gray-900 mt-1'>
+                                        <p className='text-xs font-medium text-gray-600 dark:text-zinc-400'>Total Items</p>
+                                        <p className='text-xl font-bold text-gray-900 dark:text-zinc-100 mt-1'>
                                             {formatNumber(meta.total_items)}
                                         </p>
                                     </div>
-                                    <div className='p-2 bg-purple-100 rounded-full'>
-                                        <Package className='w-5 h-5 text-purple-600' />
+                                    <div className='p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full'>
+                                        <Package className='w-5 h-5 text-purple-600 dark:text-purple-300' />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className='bg-white rounded-lg shadow-sm p-4'>
+                            <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                                 <div className='flex items-center justify-between'>
                                     <div>
-                                        <p className='text-xs font-medium text-gray-600'>Estimated Qty</p>
-                                        <p className='text-xl font-bold text-gray-900 mt-1'>
+                                        <p className='text-xs font-medium text-gray-600 dark:text-zinc-400'>Estimated Qty</p>
+                                        <p className='text-xl font-bold text-gray-900 dark:text-zinc-100 mt-1'>
                                             {formatNumber(totalEstimated)}
                                         </p>
                                     </div>
-                                    <div className='p-2 bg-blue-100 rounded-full'>
-                                        <FileText className='w-5 h-5 text-blue-600' />
+                                    <div className='p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full'>
+                                        <FileText className='w-5 h-5 text-blue-600 dark:text-blue-300' />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className='bg-white rounded-lg shadow-sm p-4'>
+                            <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                                 <div className='flex items-center justify-between'>
                                     <div>
-                                        <p className='text-xs font-medium text-gray-600'>Invoiced Qty</p>
-                                        <p className='text-xl font-bold text-gray-900 mt-1'>
+                                        <p className='text-xs font-medium text-gray-600 dark:text-zinc-400'>Invoiced Qty</p>
+                                        <p className='text-xl font-bold text-gray-900 dark:text-zinc-100 mt-1'>
                                             {formatNumber(totalInvoiced)}
                                         </p>
                                     </div>
-                                    <div className='p-2 bg-green-100 rounded-full'>
-                                        <FileText className='w-5 h-5 text-green-600' />
+                                    <div className='p-2 bg-green-100 dark:bg-green-900/30 rounded-full'>
+                                        <FileText className='w-5 h-5 text-green-600 dark:text-green-300' />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className='bg-white rounded-lg shadow-sm p-4'>
+                            <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                                 <div className='flex items-center justify-between'>
                                     <div>
-                                        <p className='text-xs font-medium text-gray-600'>Avg Fill Rate</p>
-                                        <p className='text-xl font-bold text-gray-900 mt-1'>
+                                        <p className='text-xs font-medium text-gray-600 dark:text-zinc-400'>Avg Fill Rate</p>
+                                        <p className='text-xl font-bold text-gray-900 dark:text-zinc-100 mt-1'>
                                             {averageFillRate.toFixed(2)}%
                                         </p>
                                     </div>
-                                    <div className='p-2 bg-yellow-100 rounded-full'>
-                                        <TrendingUp className='w-5 h-5 text-yellow-600' />
+                                    <div className='p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-full'>
+                                        <TrendingUp className='w-5 h-5 text-yellow-600 dark:text-yellow-300' />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className='bg-white rounded-lg shadow-sm p-4'>
+                            <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4'>
                                 <div className='flex items-center justify-between'>
                                     <div>
-                                        <p className='text-xs font-medium text-gray-600'>Total Stock</p>
-                                        <p className='text-xl font-bold text-gray-900 mt-1'>
+                                        <p className='text-xs font-medium text-gray-600 dark:text-zinc-400'>Total Stock</p>
+                                        <p className='text-xl font-bold text-gray-900 dark:text-zinc-100 mt-1'>
                                             {formatNumber(data.reduce((sum, item) => sum + item.closing_stock, 0))}
                                         </p>
                                     </div>
-                                    <div className='p-2 bg-indigo-100 rounded-full'>
-                                        <Package className='w-5 h-5 text-indigo-600' />
+                                    <div className='p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-full'>
+                                        <Package className='w-5 h-5 text-indigo-600 dark:text-indigo-300' />
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Missed vs Over-delivered Summary */}
-                        <div className='bg-gradient-to-r from-red-50 to-green-50 rounded-lg shadow-sm p-4 mb-6'>
+                        <div className='bg-gradient-to-r from-red-50 to-green-50 dark:from-zinc-900 dark:to-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-4 mb-6'>
                             <div className='grid grid-cols-1 md:grid-cols-3 gap-4 text-center'>
-                                <div className='bg-white/80 rounded-lg p-3'>
-                                    <p className='text-xs font-medium text-red-600'>Missed Items</p>
-                                    <p className='text-2xl font-bold text-red-700 mt-1'>
+                                <div className='bg-white/80 dark:bg-zinc-800/80 rounded-lg p-3'>
+                                    <p className='text-xs font-medium text-red-600 dark:text-red-400'>Missed Items</p>
+                                    <p className='text-2xl font-bold text-red-700 dark:text-red-400 mt-1'>
                                         {formatNumber(meta.missed_items)}
                                     </p>
-                                    <p className='text-xs text-gray-500 mt-1'>
+                                    <p className='text-xs text-gray-500 dark:text-zinc-400 mt-1'>
                                         ({((meta.missed_items / meta.total_items) * 100).toFixed(1)}%)
                                     </p>
                                 </div>
-                                <div className='bg-white/80 rounded-lg p-3'>
-                                    <p className='text-xs font-medium text-gray-600'>Fully Delivered</p>
-                                    <p className='text-2xl font-bold text-gray-700 mt-1'>
+                                <div className='bg-white/80 dark:bg-zinc-800/80 rounded-lg p-3'>
+                                    <p className='text-xs font-medium text-gray-600 dark:text-zinc-400'>Fully Delivered</p>
+                                    <p className='text-2xl font-bold text-gray-700 dark:text-zinc-300 mt-1'>
                                         {formatNumber(meta.fully_delivered_items)}
                                     </p>
-                                    <p className='text-xs text-gray-500 mt-1'>
+                                    <p className='text-xs text-gray-500 dark:text-zinc-400 mt-1'>
                                         ({((meta.fully_delivered_items / meta.total_items) * 100).toFixed(1)}%)
                                     </p>
                                 </div>
-                                <div className='bg-white/80 rounded-lg p-3'>
-                                    <p className='text-xs font-medium text-green-600'>Over-delivered</p>
-                                    <p className='text-2xl font-bold text-green-700 mt-1'>
+                                <div className='bg-white/80 dark:bg-zinc-800/80 rounded-lg p-3'>
+                                    <p className='text-xs font-medium text-green-600 dark:text-green-400'>Over-delivered</p>
+                                    <p className='text-2xl font-bold text-green-700 dark:text-green-400 mt-1'>
                                         {formatNumber(meta.over_delivered_items)}
                                     </p>
-                                    <p className='text-xs text-gray-500 mt-1'>
+                                    <p className='text-xs text-gray-500 dark:text-zinc-400 mt-1'>
                                         ({((meta.over_delivered_items / meta.total_items) * 100).toFixed(1)}%)
                                     </p>
                                 </div>
@@ -304,87 +304,87 @@ function EstimatesVsInvoicesPage() {
                 )}
 
                 {/* Data Table */}
-                <div className='bg-white rounded-lg shadow-sm'>
+                <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800'>
                     {loading ? (
                         <div className='flex items-center justify-center py-12'>
                             <RefreshCw className='animate-spin h-8 w-8 text-blue-600' />
-                            <span className='ml-3 text-gray-600'>Loading report data...</span>
+                            <span className='ml-3 text-gray-600 dark:text-zinc-400'>Loading report data...</span>
                         </div>
                     ) : data.length === 0 ? (
                         <div className='text-center py-12'>
-                            <FileText className='mx-auto h-12 w-12 text-gray-400' />
-                            <h3 className='mt-2 text-sm font-medium text-gray-900'>No data found</h3>
-                            <p className='mt-1 text-sm text-gray-500'>
+                            <FileText className='mx-auto h-12 w-12 text-gray-400 dark:text-zinc-500' />
+                            <h3 className='mt-2 text-sm font-medium text-gray-900 dark:text-zinc-100'>No data found</h3>
+                            <p className='mt-1 text-sm text-gray-500 dark:text-zinc-400'>
                                 Select a date range and click "Generate Report" to view data.
                             </p>
                         </div>
                     ) : (
                         <div className='overflow-x-auto'>
-                            <table className='min-w-full divide-y divide-gray-200'>
-                                <thead className='bg-gray-50'>
+                            <table className='min-w-full divide-y divide-gray-200 dark:divide-zinc-800'>
+                                <thead className='bg-gray-50 dark:bg-zinc-800'>
                                     <tr>
-                                        <th className='px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                        <th className='px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                                             Item Name
                                         </th>
-                                        <th className='px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                        <th className='px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                                             SKU
                                         </th>
-                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                                             Est. Qty
                                         </th>
-                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                                             Inv. Qty
                                         </th>
-                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                                             Missed
                                         </th>
-                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                                             Closing Stock{meta?.stock_date ? ` (${meta.stock_date})` : ''}
                                         </th>
-                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                                        <th className='px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
                                             Fill Rate
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className='bg-white divide-y divide-gray-200'>
+                                <tbody className='bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800'>
                                     {data.map((item) => (
                                         <tr
                                             key={item.item_id}
-                                            className={`hover:bg-gray-50 transition-colors ${
+                                            className={`hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors ${
                                                 item.invoiced_quantity < item.estimated_quantity
-                                                    ? 'bg-red-50/30'
+                                                    ? 'bg-red-50/30 dark:bg-red-900/10'
                                                     : ''
                                             }`}
                                         >
                                             <td className='px-3 py-2'>
-                                                <div className='text-xs font-medium text-gray-900'>
+                                                <div className='text-xs font-medium text-gray-900 dark:text-zinc-100'>
                                                     {item.item_name || 'N/A'}
                                                 </div>
                                             </td>
                                             <td className='px-3 py-2 whitespace-nowrap'>
-                                                <div className='text-xs text-gray-600 font-mono'>
+                                                <div className='text-xs text-gray-600 dark:text-zinc-400 font-mono'>
                                                     {item.sku || 'N/A'}
                                                 </div>
                                             </td>
                                             <td className='px-3 py-2 whitespace-nowrap text-right'>
-                                                <div className='text-xs font-medium text-gray-900'>
+                                                <div className='text-xs font-medium text-gray-900 dark:text-zinc-100'>
                                                     {formatNumber(item.estimated_quantity)}
                                                 </div>
                                             </td>
                                             <td className='px-3 py-2 whitespace-nowrap text-right'>
-                                                <div className='text-xs font-medium text-gray-900'>
+                                                <div className='text-xs font-medium text-gray-900 dark:text-zinc-100'>
                                                     {formatNumber(item.invoiced_quantity)}
                                                 </div>
                                             </td>
                                             <td className='px-3 py-2 whitespace-nowrap text-right'>
                                                 <div className={`text-xs font-semibold ${
-                                                    item.missed_quantity > 0 ? 'text-red-600' : 'text-gray-400'
+                                                    item.missed_quantity > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-zinc-500'
                                                 }`}>
                                                     {item.missed_quantity > 0 ? formatNumber(item.missed_quantity) : '-'}
                                                 </div>
                                             </td>
                                             <td className='px-3 py-2 whitespace-nowrap text-right'>
-                                                <div className='text-xs font-medium text-indigo-600'>
+                                                <div className='text-xs font-medium text-indigo-600 dark:text-indigo-400'>
                                                     {formatNumber(item.closing_stock)}
                                                 </div>
                                             </td>
@@ -402,25 +402,25 @@ function EstimatesVsInvoicesPage() {
 
                     {/* Results Count */}
                     {data.length > 0 && meta && (
-                        <div className='px-4 py-3 border-t border-gray-200 bg-gray-50'>
-                            <div className='flex flex-wrap gap-4 text-xs text-gray-600'>
+                        <div className='px-4 py-3 border-t border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50'>
+                            <div className='flex flex-wrap gap-4 text-xs text-gray-600 dark:text-zinc-400'>
                                 <span>
                                     <span className='font-medium'>{data.length}</span> items
                                 </span>
-                                <span className='text-gray-300'>|</span>
+                                <span className='text-gray-300 dark:text-zinc-600'>|</span>
                                 <span>
                                     <span className='font-medium'>{meta.total_estimates}</span> estimates
                                 </span>
-                                <span className='text-gray-300'>|</span>
+                                <span className='text-gray-300 dark:text-zinc-600'>|</span>
                                 <span>
                                     <span className='font-medium'>{meta.total_invoices}</span> invoices
                                 </span>
-                                <span className='text-gray-300'>|</span>
-                                <span className='text-red-600'>
+                                <span className='text-gray-300 dark:text-zinc-600'>|</span>
+                                <span className='text-red-600 dark:text-red-400'>
                                     <span className='font-medium'>{meta.missed_items}</span> missed
                                 </span>
-                                <span className='text-gray-300'>|</span>
-                                <span className='text-green-600'>
+                                <span className='text-gray-300 dark:text-zinc-600'>|</span>
+                                <span className='text-green-600 dark:text-green-400'>
                                     <span className='font-medium'>{meta.over_delivered_items}</span> over-delivered
                                 </span>
                             </div>
