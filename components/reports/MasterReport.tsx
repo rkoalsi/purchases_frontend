@@ -60,7 +60,10 @@ interface MasterReportItem {
     order_qty?: number;
     cbm?: number;
     case_pack?: number;
+    return_pct?: number;
+    growth_rate?: number | null;
     purchase_status?: string;
+    is_new?: boolean;
     order_qty_rounded?: number;
     total_cbm?: number;
     days_current_order_lasts?: number;
@@ -754,6 +757,9 @@ function MasterReportsPage() {
                                 <thead className='bg-gray-50 dark:bg-zinc-800/50'>
                                     <tr>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Status</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('is_new')}>
+                                            <div className='flex items-center space-x-1'><span>Is New</span>{getSortIcon('is_new')}</div>
+                                        </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('item_name')}>
                                             <div className='flex items-center space-x-1'><span>Product Name</span>{getSortIcon('item_name')}</div>
                                         </th>
@@ -772,6 +778,9 @@ function MasterReportsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_sales')}>
                                             <div className='flex items-center space-x-1'><span>Net Total Sales</span>{getSortIcon('combined_metrics.total_sales')}</div>
                                         </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('return_pct')}>
+                                            <div className='flex items-center space-x-1'><span>Return %</span>{getSortIcon('return_pct')}</div>
+                                        </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_days_in_stock')}>
                                             <div className='flex items-center space-x-1'><span>Days in Stock</span>{getSortIcon('combined_metrics.total_days_in_stock')}</div>
                                         </th>
@@ -779,6 +788,9 @@ function MasterReportsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Lookback Sales</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.avg_daily_run_rate')}>
                                             <div className='flex items-center space-x-1'><span>Avg DRR</span>{getSortIcon('combined_metrics.avg_daily_run_rate')}</div>
+                                        </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('growth_rate')}>
+                                            <div className='flex items-center space-x-1'><span>Growth Rate</span>{getSortIcon('growth_rate')}</div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.total_closing_stock')}>
                                             <div className='flex items-center space-x-1'><span>Total Stock ({endDateLabel})</span>{getSortIcon('combined_metrics.total_closing_stock')}</div>
@@ -877,6 +889,12 @@ function MasterReportsPage() {
                                                     <span className='text-xs text-gray-400'>—</span>
                                                 )}
                                             </td>
+                                            {/* Is New */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.is_new ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400'}`}>
+                                                    {item.is_new ? 'Yes' : 'No'}
+                                                </span>
+                                            </td>
                                             <td className='px-6 py-4'>
                                                 <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
                                                     {item.item_name || 'N/A'}
@@ -902,6 +920,10 @@ function MasterReportsPage() {
                                             {/* Net Total Sales */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.combined_metrics.total_sales || 0)}</div>
+                                            </td>
+                                            {/* Return % */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{(item.return_pct ?? 0).toFixed(1)}%</div>
                                             </td>
                                             {/* Days in Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
@@ -930,6 +952,16 @@ function MasterReportsPage() {
                                                         <span className='ml-1 text-xs text-red-500' title='Less than 60 days in stock across all periods'>!</span>
                                                     )}
                                                 </div>
+                                            </td>
+                                            {/* Growth Rate */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                {item.growth_rate != null ? (
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${item.growth_rate >= 0 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>
+                                                        {item.growth_rate >= 0 ? '+' : ''}{item.growth_rate.toFixed(1)}%
+                                                    </span>
+                                                ) : (
+                                                    <span className='text-xs text-gray-400'>—</span>
+                                                )}
                                             </td>
                                             {/* Total Closing Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
