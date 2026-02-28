@@ -63,6 +63,7 @@ interface MasterReportItem {
     return_pct?: number;
     growth_rate?: number | null;
     purchase_status?: string;
+    brand?: string;
     is_new?: boolean;
     order_qty_rounded?: number;
     total_cbm?: number;
@@ -142,21 +143,26 @@ function MasterReportsPage() {
 
     // Search and filter state
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState('');
     const [filteredData, setFilteredData] = useState<MasterReportItem[]>([]);
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
     useEffect(() => {
-        // Filter data based on search term
+        let filtered = masterReport;
         if (searchTerm) {
-            const filtered = masterReport.filter((item) =>
+            filtered = filtered.filter((item) =>
                 item.item_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 item.sku_code?.toLowerCase().includes(searchTerm.toLowerCase())
             );
-            setFilteredData(filtered);
-        } else {
-            setFilteredData(masterReport);
         }
-    }, [masterReport, searchTerm]);
+        if (selectedBrand) {
+            filtered = filtered.filter((item) => item.brand === selectedBrand);
+        }
+        if (selectedStatus) {
+            filtered = filtered.filter((item) => item.purchase_status === selectedStatus);
+        }
+        setFilteredData(filtered);
+    }, [masterReport, searchTerm, selectedBrand, selectedStatus]);
 
     // Fetch available brands on mount
     useEffect(() => {
@@ -185,6 +191,7 @@ function MasterReportsPage() {
                     end_date: endDate,
                     include_zoho: includeZoho,
                     ...(selectedBrand ? { brand: selectedBrand } : {}),
+                    ...(selectedStatus ? { purchase_status: selectedStatus } : {}),
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -228,6 +235,7 @@ function MasterReportsPage() {
                     end_date: endDate,
                     include_zoho: includeZoho,
                     ...(selectedBrand ? { brand: selectedBrand } : {}),
+                    ...(selectedStatus ? { purchase_status: selectedStatus } : {}),
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -372,6 +380,7 @@ function MasterReportsPage() {
                     end_date: newEndDate,
                     include_zoho: includeZoho,
                     ...(selectedBrand ? { brand: selectedBrand } : {}),
+                    ...(selectedStatus ? { purchase_status: selectedStatus } : {}),
                 },
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
@@ -511,9 +520,9 @@ function MasterReportsPage() {
                                 />
                             </div>
 
-                            {/* Search Bar & Brand Filter */}
+                            {/* Search Bar & Filters */}
                             <div className='lg:col-span-2'>
-                                <div className='flex items-center gap-4'>
+                                <div className='flex items-center gap-4 flex-wrap'>
                                     <div className='relative max-w-md flex-1'>
                                         <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                                             <svg
@@ -538,7 +547,7 @@ function MasterReportsPage() {
                                             className='block w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-md leading-5 bg-white dark:bg-zinc-800 placeholder-gray-500 dark:placeholder-zinc-400 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm text-black dark:text-zinc-100'
                                         />
                                     </div>
-                                    <div className='w-48'>
+                                    <div className='w-44'>
                                         <select
                                             value={selectedBrand}
                                             onChange={(e) => setSelectedBrand(e.target.value)}
@@ -548,6 +557,20 @@ function MasterReportsPage() {
                                             {brands.map((b) => (
                                                 <option key={b.value} value={b.value}>
                                                     {b.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className='w-44'>
+                                        <select
+                                            value={selectedStatus}
+                                            onChange={(e) => setSelectedStatus(e.target.value)}
+                                            className='block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm text-black dark:text-zinc-100 bg-white dark:bg-zinc-800'
+                                        >
+                                            <option value=''>All Statuses</option>
+                                            {Array.from(new Set(masterReport.map((item) => item.purchase_status).filter(Boolean))).sort().map((status) => (
+                                                <option key={status} value={status}>
+                                                    {status}
                                                 </option>
                                             ))}
                                         </select>
@@ -737,16 +760,16 @@ function MasterReportsPage() {
                                     </svg>
                                 </div>
                                 <p className='text-gray-600'>
-                                    {searchTerm
-                                        ? `No items found for "${searchTerm}"`
+                                    {searchTerm || selectedBrand || selectedStatus
+                                        ? 'No items match the current filters'
                                         : 'No sales data found for the selected date range'}
                                 </p>
-                                {searchTerm && (
+                                {(searchTerm || selectedBrand || selectedStatus) && (
                                     <button
-                                        onClick={() => setSearchTerm('')}
+                                        onClick={() => { setSearchTerm(''); setSelectedBrand(''); setSelectedStatus(''); }}
                                         className='mt-2 text-blue-600 hover:text-blue-700 text-sm'
                                     >
-                                        Clear search
+                                        Clear filters
                                     </button>
                                 )}
                             </div>
