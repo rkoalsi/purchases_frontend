@@ -65,7 +65,7 @@ interface MasterReportItem {
     purchase_status?: string;
     brand?: string;
     is_new?: boolean;
-    order_qty_rounded?: number;
+    order_qty_plus_extra_qty_rounded?: number;
     total_cbm?: number;
     days_current_order_lasts?: number;
     days_total_inventory_lasts?: number;
@@ -885,16 +885,16 @@ function MasterReportsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('excess_or_order')}>
                                             <div className='flex items-center space-x-1'><span>Excess / Order</span>{getSortIcon('excess_or_order')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('order_qty_plus_extra_qty')}>
-                                            <div className='flex items-center space-x-1'><span>Order Qty + Extra Qty</span>{getSortIcon('order_qty_plus_extra_qty')}</div>
-                                        </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('order_qty')}>
                                             <div className='flex items-center space-x-1'><span>Order Qty</span>{getSortIcon('order_qty')}</div>
                                         </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('order_qty_plus_extra_qty')}>
+                                            <div className='flex items-center space-x-1'><span>Order Qty + Extra Qty</span>{getSortIcon('order_qty_plus_extra_qty')}</div>
+                                        </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>CBM</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Case Pack</th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('order_qty_rounded')}>
-                                            <div className='flex items-center space-x-1'><span>Order Qty (Rounded)</span>{getSortIcon('order_qty_rounded')}</div>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('order_qty_plus_extra_qty_rounded')}>
+                                            <div className='flex items-center space-x-1'><span>Order Qty + Extra Qty (Rounded)</span>{getSortIcon('order_qty_plus_extra_qty_rounded')}</div>
                                         </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Total CBM</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('days_current_order_lasts')}>
@@ -1097,13 +1097,13 @@ function MasterReportsPage() {
                                                     {item.excess_or_order || 'N/A'}
                                                 </span>
                                             </td>
-                                            {/* Order Qty + Extra Qty */}
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-blue-700 dark:text-blue-400'>{formatNumber(item.order_qty_plus_extra_qty || 0)}</div>
-                                            </td>
                                             {/* Order Qty */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.order_qty || 0)}</div>
+                                            </td>
+                                            {/* Order Qty + Extra Qty */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm font-medium text-blue-700 dark:text-blue-400'>{formatNumber(item.order_qty_plus_extra_qty || 0)}</div>
                                             </td>
                                             {/* CBM */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
@@ -1113,9 +1113,9 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.case_pack || 0}</div>
                                             </td>
-                                            {/* Order Qty (Rounded) */}
+                                            {/* Order Qty + Extra Qty (Rounded) */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.order_qty_rounded || 0)}</div>
+                                                <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.order_qty_plus_extra_qty_rounded || 0)}</div>
                                             </td>
                                             {/* Total CBM */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
