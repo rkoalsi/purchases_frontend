@@ -26,6 +26,7 @@ import {
   Box,
   UserCircle,
   TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -163,6 +164,12 @@ const navigation = [
             name: 'Master',
             href: '/reports/master',
             icon: SquareKanban,
+            requiredPermission: PERMISSION_REQUIREMENTS.MASTER_REPORTS,
+          },
+          {
+            name: 'Seasonal DRR',
+            href: '/reports/seasonal',
+            icon: TrendingUp,
             requiredPermission: PERMISSION_REQUIREMENTS.MASTER_REPORTS,
           },
           {
