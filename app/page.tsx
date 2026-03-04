@@ -3,65 +3,101 @@
 import { useAuth } from '@/components/context/AuthContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  PieChart,
-  Pie,
-} from 'recharts';
-import {
-  Package,
-  BarChart3,
-  AlertCircle,
-  Loader2,
-  TrendingUp,
-  RefreshCw,
-  DollarSign,
-  Layers,
+  AlertTriangle, CheckCircle2, XCircle, MinusCircle,
+  Loader2, RefreshCw, Download, TrendingUp, Package,
+  Layers, ArrowDownToLine, ChevronDown, ChevronRight,
+  TrendingDown, DollarSign,
 } from 'lucide-react';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface MasterReportItem {
+interface SkuDetail {
   sku_code: string;
   item_name: string;
-  brand?: string;
-  sources: string[];
-  combined_metrics: {
-    total_units_sold: number;
-    total_amount: number;
-    total_closing_stock: number;
-    avg_daily_run_rate: number;
-  };
-  in_stock: boolean;
+  drr: number;
+  net_stock: number;
+  days_cover: number;
+  excess_or_order: string;
+  movement: string;
+  stock_class: string;
 }
 
-interface MasterSummary {
-  total_unique_skus: number;
-  total_units_sold: number;
-  total_amount: number;
-  total_closing_stock: number;
-  sources_included: string[];
-  source_record_counts: { [key: string]: number };
+type StockClassKey = 'reorder_risk' | 'healthy' | 'heavy' | 'overstock' | 'dead';
+
+interface StockClassification {
+  counts: Record<StockClassKey, number>;
+  pct: Record<StockClassKey, number>;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+interface BrandKPI {
+  brand: string;
+  sku_count: number;
+  units_sold: number;
+  units_returned: number;
+  credit_notes: number;
+  transfer_orders: number;
+  net_sales: number;
+  revenue: number;
+  return_pct: number;
+  growth_rate: number | null;
+  drr: number;
+  latest_net_stock: number;
+  latest_zoho_stock: number;
+  latest_fba_stock: number;
+  net_sellable_inventory_value: number;
+  stock_in_transit: number;
+  total_cbm: number;
+  days_cover: number;
+  current_days_coverage: number;
+  weighted_avg_days_cover: number;
+  lead_time: number;
+  safety_days: number;
+  target_days: number;
+  alert_level: number;
+  order_count: number;
+  excess_count: number;
+  no_movement_count: number;
+  fast_mover_count: number;
+  medium_mover_count: number;
+  slow_mover_count: number;
+  missed_sales_units: number;
+  missed_sales_daily_units: number;
+  missed_sales_value_total: number;
+  missed_sales_daily_value: number;
+  stock_classification: StockClassification;
+  sku_lowest_10: SkuDetail[];
+  sku_highest_10: SkuDetail[];
+}
 
-const BAR_COLORS = [
-  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-  '#06B6D4', '#F97316', '#84CC16', '#EC4899', '#6B7280',
-];
+interface Totals {
+  brand_count: number;
+  sku_count: number;
+  units_sold: number;
+  units_returned: number;
+  net_sales: number;
+  revenue: number;
+  return_pct: number;
+  drr: number;
+  latest_net_stock: number;
+  net_sellable_inventory_value: number;
+  stock_in_transit: number;
+  total_cbm: number;
+  days_cover: number;
+  current_days_coverage: number;
+  weighted_avg_days_cover: number;
+  missed_sales_daily_units: number;
+  missed_sales_daily_value: number;
+}
 
-const PIE_COLORS = [
-  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
-  '#06B6D4', '#F97316', '#84CC16', '#EC4899',
-];
+interface DashboardKPI {
+  period: { start_date: string; end_date: string; days: number };
+  brands: BrandKPI[];
+  totals: Totals;
+  global_stock_classification: StockClassification;
+  latest_stock_dates: { zoho?: string; fba?: string };
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,13 +107,13 @@ const safeNum = (v: any, fallback = 0): number => {
   return isNaN(p) ? fallback : p;
 };
 
-const getLast30 = () => {
-  const end = new Date();
-  return {
-    start: format(subDays(end, 30), 'yyyy-MM-dd'),
-    end: format(end, 'yyyy-MM-dd'),
-  };
-};
+const fmt = (n: any) => safeNum(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+const fmtDec = (n: any, d = 1) =>
+  safeNum(n).toLocaleString('en-IN', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtCurrency = (n: any) =>
+  `₹${safeNum(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+const fmtPct = (n: any) =>
+  `${safeNum(n).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -86,138 +122,277 @@ const greeting = () => {
   return 'Good evening';
 };
 
-// ─── Tooltips ─────────────────────────────────────────────────────────────────
+// ─── Stock class config ────────────────────────────────────────────────────────
 
-const BarTooltip = ({ active, payload }: any) => {
-  if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
+const CLASS_CONFIG: Record<string, { label: string; color: string; bg: string; bar: string }> = {
+  reorder_risk: { label: 'Reorder Risk', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-100 dark:bg-red-900/30', bar: 'bg-red-500' },
+  healthy:      { label: 'Healthy',      color: 'text-green-700 dark:text-green-300', bg: 'bg-green-100 dark:bg-green-900/30', bar: 'bg-green-500' },
+  heavy:        { label: 'Heavy',        color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-100 dark:bg-amber-900/30', bar: 'bg-amber-500' },
+  overstock:    { label: 'Overstock',    color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-900/30', bar: 'bg-orange-500' },
+  dead:         { label: 'Dead / No Sales', color: 'text-gray-500 dark:text-zinc-400', bg: 'bg-gray-100 dark:bg-zinc-800', bar: 'bg-gray-400' },
+};
+const CLASS_ORDER: StockClassKey[] = ['reorder_risk', 'healthy', 'heavy', 'overstock', 'dead'];
+
+// ─── Alert badge ──────────────────────────────────────────────────────────────
+
+const AlertBadge = ({ level, targetDays, leadTime }: {
+  level: number; targetDays: number; leadTime: number;
+}) => {
+  if (level === 3) return (
+    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400'>
+      <MinusCircle className='w-3 h-3' /> No Movement
+    </span>
+  );
+  if (level === 2) return (
+    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'>
+      <XCircle className='w-3 h-3' /> Critical &lt;{leadTime}d
+    </span>
+  );
+  if (level === 1) return (
+    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'>
+      <AlertTriangle className='w-3 h-3' /> Caution &lt;{targetDays}d
+    </span>
+  );
   return (
-    <div className='bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg p-3 text-sm'>
-      <p className='font-semibold text-gray-900 dark:text-zinc-100 mb-1 max-w-[200px] leading-snug'>
-        {d.fullName}
-      </p>
-      <p className='text-blue-600 dark:text-blue-400'>
-        Units Sold: <span className='font-bold'>{d.unitsSold.toLocaleString()}</span>
-      </p>
-      <p className='text-gray-500 dark:text-zinc-400'>SKU: {d.sku}</p>
-      {d.sources?.length > 0 && (
-        <p className='text-gray-400 dark:text-zinc-500 text-xs mt-1'>
-          Sources: {d.sources.join(', ')}
-        </p>
+    <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'>
+      <CheckCircle2 className='w-3 h-3' /> OK
+    </span>
+  );
+};
+
+const rowBg = (level: number) => {
+  if (level === 2) return 'bg-red-50 dark:bg-red-900/10 hover:bg-red-100/70 dark:hover:bg-red-900/20';
+  if (level === 1) return 'bg-amber-50 dark:bg-amber-900/10 hover:bg-amber-100/70 dark:hover:bg-amber-900/20';
+  return 'hover:bg-gray-50 dark:hover:bg-zinc-800/50';
+};
+
+// ─── Stock classification bar ─────────────────────────────────────────────────
+
+const ClassificationBar = ({ sc }: { sc: StockClassification }) => (
+  <div className='flex rounded-full overflow-hidden h-3 w-full'>
+    {CLASS_ORDER.map((k) => {
+      const pct = sc.pct[k] || 0;
+      if (pct === 0) return null;
+      return (
+        <div
+          key={k}
+          className={`${CLASS_CONFIG[k].bar} transition-all`}
+          style={{ width: `${pct}%` }}
+          title={`${CLASS_CONFIG[k].label}: ${sc.counts[k]} SKUs (${pct}%)`}
+        />
+      );
+    })}
+  </div>
+);
+
+// ─── SKU detail table (lowest / highest 10) ───────────────────────────────────
+
+const SkuTable = ({ skus, title, dimClass }: { skus: SkuDetail[]; title: string; dimClass?: string }) => {
+  if (!skus.length) return null;
+  return (
+    <div className='flex-1 min-w-0'>
+      <h4 className={`text-xs font-semibold mb-2 ${dimClass || 'text-gray-700 dark:text-zinc-200'}`}>{title}</h4>
+      <div className='overflow-x-auto rounded-lg border border-gray-200 dark:border-zinc-700'>
+        <table className='w-full text-xs'>
+          <thead className='bg-gray-50 dark:bg-zinc-800'>
+            <tr>
+              <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>SKU / Name</th>
+              <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>DRR</th>
+              <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>Stock</th>
+              <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>Days Cover</th>
+              <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>Class</th>
+            </tr>
+          </thead>
+          <tbody className='divide-y divide-gray-100 dark:divide-zinc-700'>
+            {skus.map((s) => {
+              const cfg = CLASS_CONFIG[s.stock_class] || CLASS_CONFIG['healthy'];
+              return (
+                <tr key={s.sku_code} className='hover:bg-gray-50 dark:hover:bg-zinc-800/50'>
+                  <td className='px-2 py-1.5'>
+                    <div className='font-medium text-gray-800 dark:text-zinc-200'>{s.sku_code}</div>
+                    <div className='text-gray-400 dark:text-zinc-500 truncate max-w-[180px]'>{s.item_name}</div>
+                  </td>
+                  <td className='px-2 py-1.5 text-right text-gray-700 dark:text-zinc-300'>{fmtDec(s.drr, 2)}</td>
+                  <td className='px-2 py-1.5 text-right text-gray-700 dark:text-zinc-300'>{fmt(s.net_stock)}</td>
+                  <td className={`px-2 py-1.5 text-right font-semibold ${cfg.color}`}>{fmtDec(s.days_cover, 1)}d</td>
+                  <td className='px-2 py-1.5'>
+                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+                      {cfg.label}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// ─── Download button with dropdown ────────────────────────────────────────────
+
+const DownloadButton = ({ accessToken, API }: { accessToken: string; API: string }) => {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const download = async (breakdown: 'brand' | 'product') => {
+    setLoading(breakdown);
+    setOpen(false);
+    try {
+      const res = await fetch(`${API}/master/dashboard-kpi/download?breakdown=${breakdown}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error(res.statusText);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `stock_cover_kpi_${breakdown}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Download failed: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div className='relative'>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        disabled={!!loading}
+        className='flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors'
+      >
+        {loading ? <Loader2 className='w-4 h-4 animate-spin' /> : <Download className='w-4 h-4' />}
+        {loading === 'brand' ? 'Exporting…' : loading === 'product' ? 'Exporting…' : 'Download'}
+        <ChevronDown className='w-3 h-3' />
+      </button>
+      {open && (
+        <div className='absolute right-0 mt-1 w-52 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg z-10'>
+          <button
+            onClick={() => download('brand')}
+            className='w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 flex items-center gap-2 rounded-t-lg'
+          >
+            <Layers className='w-4 h-4 text-blue-500' /> Brand-wise breakdown
+          </button>
+          <button
+            onClick={() => download('product')}
+            className='w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 flex items-center gap-2 rounded-b-lg border-t border-gray-100 dark:border-zinc-700'
+          >
+            <Package className='w-4 h-4 text-purple-500' /> Product-wise breakdown
+          </button>
+        </div>
       )}
     </div>
   );
 };
 
-const PieTooltip = ({ active, payload }: any) => {
-  if (!active || !payload?.length) return null;
-  const d = payload[0];
-  return (
-    <div className='bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg p-3 text-sm'>
-      <p className='font-semibold text-gray-900 dark:text-zinc-100'>{d.name}</p>
-      <p className='text-gray-600 dark:text-zinc-300'>
-        Units Sold: <span className='font-bold'>{d.value.toLocaleString()}</span>
-      </p>
-      <p className='text-gray-500 dark:text-zinc-400'>
-        Share: {d.payload?.total > 0 ? `${((d.value / d.payload.total) * 100).toFixed(1)}%` : '—'}
-      </p>
+// ─── Expanded brand detail row ─────────────────────────────────────────────────
+
+const BrandDetail = ({ b }: { b: BrandKPI }) => (
+  <div className='px-6 py-5 bg-gray-50 dark:bg-zinc-900/50 border-t border-gray-200 dark:border-zinc-700'>
+    {/* Stock classification */}
+    <div className='mb-5'>
+      <div className='flex items-center justify-between mb-2'>
+        <span className='text-xs font-semibold text-gray-700 dark:text-zinc-200'>
+          Stock Classification  ·  Weighted Avg Days Cover: {fmtDec(b.weighted_avg_days_cover, 1)}d
+        </span>
+        <span className='text-xs text-gray-400 dark:text-zinc-500'>
+          Lead Time: {b.lead_time}d  ·  Target: {b.target_days}d  (lead + {b.safety_days}d safety + 10d review)
+        </span>
+      </div>
+      <ClassificationBar sc={b.stock_classification} />
+      <div className='flex flex-wrap gap-3 mt-2'>
+        {CLASS_ORDER.map((k) => {
+          const c = b.stock_classification.counts[k];
+          const p = b.stock_classification.pct[k];
+          const cfg = CLASS_CONFIG[k];
+          return (
+            <div key={k} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+              <span className={`w-2 h-2 rounded-full ${cfg.bar}`} />
+              {cfg.label}: {c} ({p}%)
+            </div>
+          );
+        })}
+      </div>
     </div>
-  );
-};
+
+    {/* Additional metrics row */}
+    <div className='grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5'>
+      {[
+        { label: 'Net Inv. Value', value: fmtCurrency(b.net_sellable_inventory_value) },
+        { label: 'Total CBM (orders)', value: fmtDec(b.total_cbm, 2) },
+        { label: 'Missed Sales /day (units)', value: fmtDec(b.missed_sales_daily_units, 2) },
+        { label: 'Missed Sales /day (₹)', value: fmtCurrency(b.missed_sales_daily_value) },
+      ].map((m) => (
+        <div key={m.label} className='bg-white dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700 px-3 py-2'>
+          <div className='text-xs text-gray-500 dark:text-zinc-400'>{m.label}</div>
+          <div className='font-semibold text-gray-900 dark:text-zinc-100 text-sm'>{m.value}</div>
+        </div>
+      ))}
+    </div>
+
+    {/* Lowest / highest 10 SKUs */}
+    <div className='flex flex-col lg:flex-row gap-4'>
+      <SkuTable skus={b.sku_lowest_10} title='⚠ Lowest Days Cover (most at risk)' dimClass='text-red-600 dark:text-red-400' />
+      <SkuTable skus={b.sku_highest_10} title='↑ Highest Days Cover (most overstocked)' dimClass='text-blue-600 dark:text-blue-400' />
+    </div>
+  </div>
+);
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-function Page() {
+export default function Page() {
   const { isLoading, accessToken, user } = useAuth();
   const router = useRouter();
 
-  const [masterItems, setMasterItems] = useState<MasterReportItem[]>([]);
-  const [masterSummary, setMasterSummary] = useState<MasterSummary | null>(null);
+  const [data, setData] = useState<DashboardKPI | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
 
   const API = process.env.NEXT_PUBLIC_API_URL!;
-  const { start: d30Start, end: d30End } = getLast30();
-
-  // ── Single master-report fetch ────────────────────────────────────────────
 
   const fetchData = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${API}/master/master-report?start_date=${d30Start}&end_date=${d30End}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
+      const res = await fetch(`${API}/master/dashboard-kpi`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
       if (!res.ok) throw new Error(res.statusText);
-      const json = await res.json();
-      setMasterItems(json.combined_data || []);
-      setMasterSummary(json.summary || null);
+      setData(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
-  }, [accessToken, API, d30Start, d30End]);
+  }, [accessToken, API]);
 
-  useEffect(() => {
-    if (accessToken) fetchData();
-  }, [accessToken]);
+  useEffect(() => { if (accessToken) fetchData(); }, [accessToken]);
 
-  // ── Derived data ──────────────────────────────────────────────────────────
+  const toggleBrand = (brand: string) =>
+    setExpandedBrands((prev) => {
+      const next = new Set(prev);
+      next.has(brand) ? next.delete(brand) : next.add(brand);
+      return next;
+    });
 
-  const top10 = [...masterItems]
-    .filter((p) => safeNum(p.combined_metrics?.total_units_sold) > 0)
-    .sort(
-      (a, b) =>
-        safeNum(b.combined_metrics?.total_units_sold) -
-        safeNum(a.combined_metrics?.total_units_sold)
-    )
-    .slice(0, 10);
-
-  const chartData = top10.map((p) => ({
-    item:
-      p.item_name.length > 16 ? p.item_name.substring(0, 16) + '…' : p.item_name,
-    fullName: p.item_name,
-    unitsSold: safeNum(p.combined_metrics?.total_units_sold),
-    sku: p.sku_code,
-    sources: p.sources,
-  }));
-
-  // Brand distribution pie — group combined_data by brand, sum units sold
-  const brandTotals: { [brand: string]: number } = {};
-  for (const item of masterItems) {
-    const brand = item.brand?.trim() || 'Unknown';
-    brandTotals[brand] = (brandTotals[brand] || 0) + safeNum(item.combined_metrics?.total_units_sold);
-  }
-  const brandEntries = Object.entries(brandTotals)
-    .filter(([, v]) => v > 0)
-    .sort(([, a], [, b]) => b - a);
-  const brandTotal = brandEntries.reduce((s, [, v]) => s + v, 0);
-  const pieData = brandEntries.map(([brand, units], i) => ({
-    name: brand,
-    value: units,
-    fill: PIE_COLORS[i % PIE_COLORS.length],
-    total: brandTotal,
-  }));
-
-  // ── Auth gates ────────────────────────────────────────────────────────────
-
-  if (isLoading) {
-    return (
-      <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
-        <Loader2 className='animate-spin h-10 w-10 text-blue-600' />
-      </div>
-    );
-  }
+  // Auth gates
+  if (isLoading) return (
+    <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
+      <Loader2 className='animate-spin h-10 w-10 text-blue-600' />
+    </div>
+  );
 
   if (!accessToken) {
     setTimeout(() => router.push('/login'), 3000);
     return (
       <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
         <div className='bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-md text-center'>
-          <BarChart3 className='h-16 w-16 text-gray-400 dark:text-zinc-500 mx-auto mb-4' />
           <p className='text-xl text-gray-700 dark:text-zinc-300'>Please log in to see this content.</p>
           <p className='text-sm text-gray-500 dark:text-zinc-400 mt-1'>Redirecting to login…</p>
         </div>
@@ -225,182 +400,289 @@ function Page() {
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  const t = data?.totals;
+  const period = data?.period;
+  const gsc = data?.global_stock_classification;
 
   return (
     <div className='bg-gray-50 dark:bg-zinc-950 py-8'>
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8'>
+      <div className='max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6'>
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className='flex items-center justify-between'>
           <div>
             <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
               {greeting()}, {user?.name}!
             </h1>
             <p className='text-sm text-gray-500 dark:text-zinc-400 mt-0.5'>
-              Last 30 days · {d30Start} → {d30End}
+              Stock Cover KPI · Last 90 days
+              {period && ` · ${period.start_date} → ${period.end_date}`}
             </p>
           </div>
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className='flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors'
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className='flex items-center gap-2'>
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              className='flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors'
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            {accessToken && <DownloadButton accessToken={accessToken} API={API} />}
+          </div>
         </div>
 
-        {/* Error */}
+        {/* ── Error ── */}
         {error && !loading && (
           <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3'>
-            <AlertCircle className='h-5 w-5 text-red-500 dark:text-red-400 flex-shrink-0' />
+            <XCircle className='h-5 w-5 text-red-500 flex-shrink-0' />
             <p className='text-sm text-red-700 dark:text-red-300'>{error}</p>
-            <button onClick={fetchData} className='ml-auto text-sm text-red-600 dark:text-red-400 underline'>
-              Retry
-            </button>
+            <button onClick={fetchData} className='ml-auto text-sm text-red-600 dark:text-red-400 underline'>Retry</button>
           </div>
         )}
 
-        {/* KPI cards */}
+        {/* ── Summary KPI cards ── */}
         <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
           {[
-            {
-              label: 'Units Sold',
-              value: masterSummary?.total_units_sold,
-              icon: <TrendingUp className='w-5 h-5 text-blue-500' />,
-            },
-            {
-              label: 'Total Active SKUs',
-              value: masterSummary?.total_unique_skus,
-              icon: <Package className='w-5 h-5 text-green-500' />,
-            },
-            {
-              label: 'Total Revenue',
-              value: masterSummary?.total_amount,
-              icon: <DollarSign className='w-5 h-5 text-amber-500' />,
-              format: 'currency',
-            },
-            {
-              label: 'Closing Stock',
-              value: masterSummary?.total_closing_stock,
-              icon: <Layers className='w-5 h-5 text-purple-500' />,
-            },
-          ].map((card) => (
-            <div
-              key={card.label}
-              className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-4'
-            >
-              <div className='flex items-center gap-2 mb-2'>
-                {card.icon}
-                <span className='text-xs text-gray-500 dark:text-zinc-400'>{card.label}</span>
-              </div>
-              {loading ? (
-                <div className='h-7 w-20 bg-gray-100 dark:bg-zinc-800 rounded animate-pulse' />
-              ) : (
-                <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
-                  {card.value == null
-                    ? '—'
-                    : card.format === 'currency'
-                    ? `₹${safeNum(card.value).toLocaleString('en-IN')}`
-                    : safeNum(card.value).toLocaleString()}
-                </p>
-              )}
+            { label: 'Net Sales (90d)', value: t?.net_sales, icon: <TrendingUp className='w-5 h-5 text-blue-500' />, fmt: 'num' },
+            { label: 'Net Stock (Latest)', value: t?.latest_net_stock, icon: <Package className='w-5 h-5 text-green-500' />, fmt: 'num' },
+            { label: 'Overall DRR', value: t?.drr, icon: <ArrowDownToLine className='w-5 h-5 text-purple-500' />, fmt: 'drr' },
+            { label: 'Wtd. Avg Days Cover', value: t?.weighted_avg_days_cover, icon: <Layers className='w-5 h-5 text-amber-500' />, fmt: 'days' },
+          ].map((c) => (
+            <div key={c.label} className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-4'>
+              <div className='flex items-center gap-2 mb-2'>{c.icon}<span className='text-xs text-gray-500 dark:text-zinc-400'>{c.label}</span></div>
+              {loading
+                ? <div className='h-7 w-24 bg-gray-100 dark:bg-zinc-800 rounded animate-pulse' />
+                : <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
+                    {c.value == null ? '—'
+                      : c.fmt === 'drr' ? fmtDec(c.value, 2)
+                      : c.fmt === 'days' ? `${fmtDec(c.value, 1)}d`
+                      : fmt(c.value)}
+                  </p>
+              }
             </div>
           ))}
         </div>
 
-        {/* Charts row */}
-        <div className='grid grid-cols-1 lg:grid-cols-5 gap-6'>
+        {/* ── Secondary metric cards ── */}
+        <div className='grid grid-cols-2 sm:grid-cols-4 gap-4'>
+          {[
+            { label: 'Net Inv. Value', value: t?.net_sellable_inventory_value, icon: <DollarSign className='w-5 h-5 text-teal-500' />, fmt: 'currency' },
+            { label: 'Return %', value: t?.return_pct, icon: <TrendingDown className='w-5 h-5 text-rose-500' />, fmt: 'pct' },
+            { label: 'Missed Sales /day (units)', value: t?.missed_sales_daily_units, icon: <AlertTriangle className='w-5 h-5 text-orange-500' />, fmt: 'drr' },
+            { label: 'Missed Sales /day (₹)', value: t?.missed_sales_daily_value, icon: <DollarSign className='w-5 h-5 text-orange-500' />, fmt: 'currency' },
+          ].map((c) => (
+            <div key={c.label} className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-4'>
+              <div className='flex items-center gap-2 mb-2'>{c.icon}<span className='text-xs text-gray-500 dark:text-zinc-400'>{c.label}</span></div>
+              {loading
+                ? <div className='h-7 w-24 bg-gray-100 dark:bg-zinc-800 rounded animate-pulse' />
+                : <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
+                    {c.value == null ? '—'
+                      : c.fmt === 'currency' ? fmtCurrency(c.value)
+                      : c.fmt === 'pct' ? fmtPct(c.value)
+                      : c.fmt === 'drr' ? fmtDec(c.value, 2)
+                      : fmt(c.value)}
+                  </p>
+              }
+            </div>
+          ))}
+        </div>
 
-          {/* Top 10 bar chart */}
-          <div className='lg:col-span-3 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-6'>
-            <h2 className='text-base font-semibold text-gray-900 dark:text-zinc-100 mb-1'>
-              Top 10 Performing Items
-            </h2>
-            <p className='text-xs text-gray-500 dark:text-zinc-400 mb-4'>By units sold · last 30 days</p>
+        {/* ── Global stock classification summary ── */}
+        {gsc && !loading && (
+          <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-5'>
+            <div className='flex items-center justify-between mb-3'>
+              <h2 className='text-sm font-semibold text-gray-900 dark:text-zinc-100'>
+                Portfolio Stock Classification  ·  {t?.sku_count} SKUs
+              </h2>
+              <span className='text-xs text-gray-400 dark:text-zinc-500'>
+                Reorder Risk = &lt;Lead Time · Healthy = 1–1.5× · Heavy = 1.5–2× · Overstock = 2–3× · Dead = &gt;3× or no sales
+              </span>
+            </div>
+            <ClassificationBar sc={gsc} />
+            <div className='flex flex-wrap gap-3 mt-3'>
+              {CLASS_ORDER.map((k) => {
+                const c = gsc.counts[k];
+                const p = gsc.pct[k];
+                const cfg = CLASS_CONFIG[k];
+                return (
+                  <div key={k} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+                    <span className={`w-2 h-2 rounded-full ${cfg.bar}`} />
+                    {cfg.label}: <span className='font-bold ml-1'>{c}</span> <span className='opacity-70'>({p}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-            {loading ? (
-              <div className='h-72 flex items-center justify-center'>
-                <Loader2 className='animate-spin h-8 w-8 text-blue-600' />
-              </div>
-            ) : chartData.length === 0 ? (
-              <div className='h-72 flex items-center justify-center flex-col gap-2'>
-                <Package className='h-12 w-12 text-gray-300 dark:text-zinc-600' />
-                <p className='text-sm text-gray-500 dark:text-zinc-400'>No data for this period</p>
-              </div>
-            ) : (
-              <div className='h-72'>
-                <ResponsiveContainer width='100%' height='100%'>
-                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray='3 3' stroke='#e5e7eb' />
-                    <XAxis
-                      dataKey='item'
-                      angle={-40}
-                      textAnchor='end'
-                      height={70}
-                      interval={0}
-                      tick={{ fontSize: 11, fill: '#6b7280' }}
-                    />
-                    <Tooltip content={<BarTooltip />} />
-                    <Bar dataKey='unitsSold' radius={[4, 4, 0, 0]}>
-                      {chartData.map((_, i) => (
-                        <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+        {/* ── Brand KPI table ── */}
+        <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden'>
+          <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between'>
+            <div>
+              <h2 className='text-base font-semibold text-gray-900 dark:text-zinc-100'>Stock Cover by Brand</h2>
+              <p className='text-xs text-gray-500 dark:text-zinc-400 mt-0.5'>
+                Click a row to see classification breakdown + lowest/highest 10 SKUs &nbsp;·&nbsp;
+                <span className='text-red-600 font-medium'>Red</span> = &lt;Lead Time &nbsp;·&nbsp;
+                <span className='text-amber-600 font-medium'>Yellow</span> = &lt;Target Days
+              </p>
+            </div>
+            {t && !loading && (
+              <span className='text-xs text-gray-400 dark:text-zinc-500'>
+                {t.brand_count} brands · {t.sku_count} SKUs
+              </span>
             )}
           </div>
 
-          {/* Brand distribution pie chart */}
-          <div className='lg:col-span-2 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-6'>
-            <h2 className='text-base font-semibold text-gray-900 dark:text-zinc-100 mb-1'>
-              Sales by Brand
-            </h2>
-            <p className='text-xs text-gray-500 dark:text-zinc-400 mb-4'>Units sold distribution · last 30 days</p>
+          {loading ? (
+            <div className='flex items-center justify-center py-16'>
+              <Loader2 className='animate-spin h-8 w-8 text-blue-600' />
+              <span className='ml-3 text-sm text-gray-500 dark:text-zinc-400'>Generating 90-day report…</span>
+            </div>
+          ) : !data || data.brands.length === 0 ? (
+            <div className='flex flex-col items-center justify-center py-16 gap-3'>
+              <Package className='h-12 w-12 text-gray-300 dark:text-zinc-600' />
+              <p className='text-sm text-gray-500 dark:text-zinc-400'>No data available</p>
+            </div>
+          ) : (
+            <div className='overflow-x-auto'>
+              <table className='w-full text-sm'>
+                <thead className='bg-gray-50 dark:bg-zinc-800 text-xs text-gray-500 dark:text-zinc-400 uppercase'>
+                  <tr>
+                    <th className='px-3 py-3 text-left font-medium w-8' />
+                    <th className='px-3 py-3 text-left font-medium whitespace-nowrap'>Brand</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>SKUs</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Net Sales</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Revenue</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>DRR</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Net Stock</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Transit</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>W.Avg Cover</th>
+                    <th className='px-3 py-3 text-left font-medium whitespace-nowrap'>Status</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Return %</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Growth %</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Miss./day (u)</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Miss./day (₹)</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Classification</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Totals row */}
+                  {t && (
+                    <tr className='bg-blue-50 dark:bg-blue-900/10 font-semibold text-gray-900 dark:text-zinc-100 border-b border-gray-200 dark:border-zinc-700'>
+                      <td className='px-3 py-3' />
+                      <td className='px-3 py-3 whitespace-nowrap'>All Brands</td>
+                      <td className='px-3 py-3 text-right'>{fmt(t.sku_count)}</td>
+                      <td className='px-3 py-3 text-right'>{fmt(t.net_sales)}</td>
+                      <td className='px-3 py-3 text-right'>{fmtCurrency(t.revenue)}</td>
+                      <td className='px-3 py-3 text-right'>{fmtDec(t.drr, 2)}</td>
+                      <td className='px-3 py-3 text-right'>{fmt(t.latest_net_stock)}</td>
+                      <td className='px-3 py-3 text-right'>{fmt(t.stock_in_transit)}</td>
+                      <td className='px-3 py-3 text-right font-bold'>{fmtDec(t.weighted_avg_days_cover, 1)}d</td>
+                      <td className='px-3 py-3' />
+                      <td className='px-3 py-3 text-right'>{fmtPct(t.return_pct)}</td>
+                      <td className='px-3 py-3 text-right'>—</td>
+                      <td className='px-3 py-3 text-right'>{fmtDec(t.missed_sales_daily_units, 1)}</td>
+                      <td className='px-3 py-3 text-right'>{fmtCurrency(t.missed_sales_daily_value)}</td>
+                      <td className='px-3 py-3' />
+                    </tr>
+                  )}
 
-            {loading ? (
-              <div className='h-72 flex items-center justify-center'>
-                <Loader2 className='animate-spin h-8 w-8 text-blue-600' />
-              </div>
-            ) : pieData.length === 0 ? (
-              <div className='h-72 flex items-center justify-center flex-col gap-2'>
-                <BarChart3 className='h-12 w-12 text-gray-300 dark:text-zinc-600' />
-                <p className='text-sm text-gray-500 dark:text-zinc-400'>No brand data</p>
-              </div>
-            ) : (
-              <div className='h-72'>
-                <ResponsiveContainer width='100%' height='100%'>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey='value'
-                      nameKey='name'
-                      cx='50%'
-                      cy='42%'
-                      outerRadius={85}
-                      label={({ name, percent }) =>
-                        `${name} ${(percent * 100).toFixed(0)}%`
-                      }
-                      labelLine={true}
-                    >
-                      {pieData.map((entry, i) => (
-                        <Cell key={i} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<PieTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
+                  {/* Brand rows */}
+                  {data.brands.map((b) => {
+                    const expanded = expandedBrands.has(b.brand);
+                    return (
+                      <React.Fragment key={b.brand}>
+                        <tr
+                          className={`${rowBg(b.alert_level)} transition-colors cursor-pointer border-b border-gray-100 dark:border-zinc-800`}
+                          onClick={() => toggleBrand(b.brand)}
+                        >
+                          <td className='px-3 py-3 text-gray-400 dark:text-zinc-500'>
+                            {expanded
+                              ? <ChevronDown className='w-4 h-4' />
+                              : <ChevronRight className='w-4 h-4' />}
+                          </td>
+                          <td className='px-3 py-3 font-medium text-gray-900 dark:text-zinc-100 whitespace-nowrap'>
+                            {b.brand}
+                          </td>
+                          <td className='px-3 py-3 text-right text-gray-600 dark:text-zinc-300'>{b.sku_count}</td>
+                          <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmt(b.net_sales)}</td>
+                          <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmtCurrency(b.revenue)}</td>
+                          <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmtDec(b.drr, 2)}</td>
+                          <td className='px-3 py-3 text-right'>
+                            <div className='text-gray-700 dark:text-zinc-200'>{fmt(b.latest_net_stock)}</div>
+                            <div className='text-xs text-gray-400 dark:text-zinc-500'>
+                              WH {fmt(b.latest_zoho_stock)} + FBA {fmt(b.latest_fba_stock)}
+                            </div>
+                          </td>
+                          <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmt(b.stock_in_transit)}</td>
+                          <td className='px-3 py-3 text-right'>
+                            <span className={`font-semibold ${
+                              b.alert_level === 2 ? 'text-red-600 dark:text-red-400'
+                              : b.alert_level === 1 ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-gray-700 dark:text-zinc-200'
+                            }`}>
+                              {b.alert_level === 3 ? '—' : `${fmtDec(b.weighted_avg_days_cover, 1)}d`}
+                            </span>
+                          </td>
+                          <td className='px-3 py-3 whitespace-nowrap'>
+                            <AlertBadge level={b.alert_level} targetDays={b.target_days} leadTime={b.lead_time} />
+                          </td>
+                          <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmtPct(b.return_pct)}</td>
+                          <td className='px-3 py-3 text-right'>
+                            {b.growth_rate == null ? (
+                              <span className='text-gray-400 dark:text-zinc-500'>—</span>
+                            ) : (
+                              <span className={b.growth_rate >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                                {b.growth_rate >= 0 ? '+' : ''}{fmtDec(b.growth_rate, 1)}%
+                              </span>
+                            )}
+                          </td>
+                          <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmtDec(b.missed_sales_daily_units, 1)}</td>
+                          <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmtCurrency(b.missed_sales_daily_value)}</td>
+                          <td className='px-3 py-3'>
+                            <div className='w-28'>
+                              <ClassificationBar sc={b.stock_classification} />
+                              <div className='text-xs text-gray-400 dark:text-zinc-500 mt-0.5 text-center'>
+                                {b.stock_classification.counts.reorder_risk > 0 && (
+                                  <span className='text-red-600 font-medium'>{b.stock_classification.counts.reorder_risk}↓ </span>
+                                )}
+                                {b.stock_classification.counts.dead > 0 && (
+                                  <span className='text-gray-500'>{b.stock_classification.counts.dead}💀</span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Expanded detail */}
+                        {expanded && (
+                          <tr className='border-b border-gray-200 dark:border-zinc-700'>
+                            <td colSpan={15} className='p-0'>
+                              <BrandDetail b={b} />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* ── Legend ── */}
+        <div className='text-xs text-gray-400 dark:text-zinc-500 flex flex-wrap gap-4'>
+          <span><b className='text-gray-600 dark:text-zinc-300'>DRR</b> = Net Sales ÷ 90 days</span>
+          <span><b className='text-gray-600 dark:text-zinc-300'>W.Avg Cover</b> = stock-weighted average of per-SKU days cover</span>
+          <span><b className='text-gray-600 dark:text-zinc-300'>Target</b> = Lead Time + Safety Days + 10</span>
+          <span><b className='text-gray-600 dark:text-zinc-300'>Net Stock</b> = Zoho WH + FBA (latest snapshot)</span>
+          <span><b className='text-gray-600 dark:text-zinc-300'>Net Sales</b> = Units Sold − Credit Notes − Transfer Orders</span>
+          <span><b className='text-gray-600 dark:text-zinc-300'>Net Inv. Value</b> = Net Stock × Selling Price</span>
         </div>
 
       </div>
     </div>
   );
 }
-
-export default Page;
