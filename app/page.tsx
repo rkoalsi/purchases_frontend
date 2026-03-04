@@ -24,9 +24,11 @@ interface SkuDetail {
   stock_class: string;
 }
 
+type StockClassKey = 'reorder_risk' | 'healthy' | 'heavy' | 'overstock' | 'dead';
+
 interface StockClassification {
-  counts: { reorder_risk: number; healthy: number; heavy: number; overstock: number; dead: number };
-  pct: { reorder_risk: number; healthy: number; heavy: number; overstock: number; dead: number };
+  counts: Record<StockClassKey, number>;
+  pct: Record<StockClassKey, number>;
 }
 
 interface BrandKPI {
@@ -129,12 +131,12 @@ const CLASS_CONFIG: Record<string, { label: string; color: string; bg: string; b
   overstock:    { label: 'Overstock',    color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-900/30', bar: 'bg-orange-500' },
   dead:         { label: 'Dead / No Sales', color: 'text-gray-500 dark:text-zinc-400', bg: 'bg-gray-100 dark:bg-zinc-800', bar: 'bg-gray-400' },
 };
-const CLASS_ORDER: (keyof typeof CLASS_CONFIG)[] = ['reorder_risk', 'healthy', 'heavy', 'overstock', 'dead'];
+const CLASS_ORDER: StockClassKey[] = ['reorder_risk', 'healthy', 'heavy', 'overstock', 'dead'];
 
 // ─── Alert badge ──────────────────────────────────────────────────────────────
 
-const AlertBadge = ({ level, daysCover, targetDays, leadTime }: {
-  level: number; daysCover: number; targetDays: number; leadTime: number;
+const AlertBadge = ({ level, targetDays, leadTime }: {
+  level: number; targetDays: number; leadTime: number;
 }) => {
   if (level === 3) return (
     <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400'>
@@ -624,7 +626,7 @@ export default function Page() {
                             </span>
                           </td>
                           <td className='px-3 py-3 whitespace-nowrap'>
-                            <AlertBadge level={b.alert_level} daysCover={b.days_cover} targetDays={b.target_days} leadTime={b.lead_time} />
+                            <AlertBadge level={b.alert_level} targetDays={b.target_days} leadTime={b.lead_time} />
                           </td>
                           <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmtPct(b.return_pct)}</td>
                           <td className='px-3 py-3 text-right'>
