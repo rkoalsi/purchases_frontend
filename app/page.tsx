@@ -126,10 +126,10 @@ const greeting = () => {
 
 const CLASS_CONFIG: Record<string, { label: string; color: string; bg: string; bar: string }> = {
   reorder_risk: { label: 'Reorder Risk', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-100 dark:bg-red-900/30', bar: 'bg-red-500' },
-  healthy:      { label: 'Healthy',      color: 'text-green-700 dark:text-green-300', bg: 'bg-green-100 dark:bg-green-900/30', bar: 'bg-green-500' },
-  heavy:        { label: 'Heavy',        color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-100 dark:bg-amber-900/30', bar: 'bg-amber-500' },
-  overstock:    { label: 'Overstock',    color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-900/30', bar: 'bg-orange-500' },
-  dead:         { label: 'Dead / No Sales', color: 'text-gray-500 dark:text-zinc-400', bg: 'bg-gray-100 dark:bg-zinc-800', bar: 'bg-gray-400' },
+  healthy: { label: 'Healthy', color: 'text-green-700 dark:text-green-300', bg: 'bg-green-100 dark:bg-green-900/30', bar: 'bg-green-500' },
+  heavy: { label: 'Heavy', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-100 dark:bg-amber-900/30', bar: 'bg-amber-500' },
+  overstock: { label: 'Overstock', color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-900/30', bar: 'bg-orange-500' },
+  dead: { label: 'Dead / No Sales', color: 'text-gray-500 dark:text-zinc-400', bg: 'bg-gray-100 dark:bg-zinc-800', bar: 'bg-gray-400' },
 };
 const CLASS_ORDER: StockClassKey[] = ['reorder_risk', 'healthy', 'heavy', 'overstock', 'dead'];
 
@@ -377,7 +377,7 @@ export default function Page() {
   const toggleBrand = (brand: string) =>
     setExpandedBrands((prev) => {
       const next = new Set(prev);
-      next.has(brand) ? next.delete(brand) : next.add(brand);
+      if (next.has(brand)) next.delete(brand); else next.add(brand);
       return next;
     });
 
@@ -454,11 +454,11 @@ export default function Page() {
               {loading
                 ? <div className='h-7 w-24 bg-gray-100 dark:bg-zinc-800 rounded animate-pulse' />
                 : <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
-                    {c.value == null ? '—'
-                      : c.fmt === 'drr' ? fmtDec(c.value, 2)
+                  {c.value == null ? '—'
+                    : c.fmt === 'drr' ? fmtDec(c.value, 2)
                       : c.fmt === 'days' ? `${fmtDec(c.value, 1)}d`
-                      : fmt(c.value)}
-                  </p>
+                        : fmt(c.value)}
+                </p>
               }
             </div>
           ))}
@@ -477,12 +477,12 @@ export default function Page() {
               {loading
                 ? <div className='h-7 w-24 bg-gray-100 dark:bg-zinc-800 rounded animate-pulse' />
                 : <p className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
-                    {c.value == null ? '—'
-                      : c.fmt === 'currency' ? fmtCurrency(c.value)
+                  {c.value == null ? '—'
+                    : c.fmt === 'currency' ? fmtCurrency(c.value)
                       : c.fmt === 'pct' ? fmtPct(c.value)
-                      : c.fmt === 'drr' ? fmtDec(c.value, 2)
-                      : fmt(c.value)}
-                  </p>
+                        : c.fmt === 'drr' ? fmtDec(c.value, 2)
+                          : fmt(c.value)}
+                </p>
               }
             </div>
           ))}
@@ -617,11 +617,10 @@ export default function Page() {
                           </td>
                           <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmt(b.stock_in_transit)}</td>
                           <td className='px-3 py-3 text-right'>
-                            <span className={`font-semibold ${
-                              b.alert_level === 2 ? 'text-red-600 dark:text-red-400'
-                              : b.alert_level === 1 ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-gray-700 dark:text-zinc-200'
-                            }`}>
+                            <span className={`font-semibold ${b.alert_level === 2 ? 'text-red-600 dark:text-red-400'
+                                : b.alert_level === 1 ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-gray-700 dark:text-zinc-200'
+                              }`}>
                               {b.alert_level === 3 ? '—' : `${fmtDec(b.weighted_avg_days_cover, 1)}d`}
                             </span>
                           </td>
