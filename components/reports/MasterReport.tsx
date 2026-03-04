@@ -1039,9 +1039,17 @@ function MasterReportsPage() {
                                             </td>
                                             {/* Movement */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.mover_class === 1 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : item.mover_class === 2 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>
-                                                    {item.movement || 'N/A'}
-                                                </span>
+                                                <div className='flex items-center space-x-1'>
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.mover_class === 1 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : item.mover_class === 2 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'}`}>
+                                                        {item.movement || 'N/A'}
+                                                    </span>
+                                                    {item.drr_source === 'previous_period' && (
+                                                        <span
+                                                            className='text-xs text-yellow-600 dark:text-yellow-400 font-medium cursor-help'
+                                                            title={`Ranked using max(current, lookback) sales — only ${item.combined_metrics.total_days_in_stock} days in stock. Lookback: ${item.drr_lookback_sales ?? 0} units (${item.drr_lookback_period})`}
+                                                        >*</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             {/* Safety Days */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
@@ -1080,7 +1088,23 @@ function MasterReportsPage() {
                                             </td>
                                             {/* Missed Sales DRR */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{(item.missed_sales_drr || 0).toFixed(2)}</div>
+                                                {(() => {
+                                                    const drr = item.combined_metrics.avg_daily_run_rate || 0;
+                                                    const missedDrr = item.missed_sales_drr || 0;
+                                                    const cap = parseFloat((0.5 * drr).toFixed(4));
+                                                    const isCapped = missedDrr > 0 && drr > 0 && Math.abs(missedDrr - cap) < 0.0005;
+                                                    return (
+                                                        <div className='flex items-center space-x-1'>
+                                                            <span className='text-sm text-gray-900 dark:text-zinc-100'>{missedDrr.toFixed(2)}</span>
+                                                            {isCapped && (
+                                                                <span
+                                                                    className='text-xs text-orange-500 dark:text-orange-400 font-medium cursor-help'
+                                                                    title={`Capped at 50% of DRR (${cap.toFixed(2)}) to prevent overstock`}
+                                                                >⌀</span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
                                             {/* Extra Qty */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
