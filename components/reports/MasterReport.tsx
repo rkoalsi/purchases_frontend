@@ -854,9 +854,6 @@ function MasterReportsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('latest_fba_stock')}>
                                             <div className='flex items-center space-x-1'><span>FBA Stock ({latestFbaLabel})</span>{getSortIcon('latest_fba_stock')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('combined_metrics.avg_days_of_coverage')}>
-                                            <div className='flex items-center space-x-1'><span>Avg Days of Coverage</span>{getSortIcon('combined_metrics.avg_days_of_coverage')}</div>
-                                        </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>In Stock</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('mover_class')}>
                                             <div className='flex items-center space-x-1'><span>Movement</span>{getSortIcon('mover_class')}</div>
@@ -1034,10 +1031,6 @@ function MasterReportsPage() {
                                             {/* FBA Stock (latest) */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>{formatNumber(item.latest_fba_stock || 0)}</div>
-                                            </td>
-                                            {/* Avg Days of Coverage */}
-                                            <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.combined_metrics.avg_days_of_coverage?.toFixed(1) || '0'}</div>
                                             </td>
                                             {/* In Stock */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
