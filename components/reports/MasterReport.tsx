@@ -45,6 +45,8 @@ interface MasterReportItem {
     mover_class?: number;
     safety_days?: number;
     lead_time?: number;
+    order_processing?: number;
+    net_target_days?: number;
     on_hand_days_coverage?: number;
     stock_in_transit_1?: number;
     stock_in_transit_2?: number;
@@ -865,6 +867,10 @@ function MasterReportsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('lead_time')}>
                                             <div className='flex items-center space-x-1'><span>Lead Time</span>{getSortIcon('lead_time')}</div>
                                         </th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Order Processing</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('target_days')}>
+                                            <div className='flex items-center space-x-1'><span>Target Days</span>{getSortIcon('target_days')}</div>
+                                        </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('on_hand_days_coverage')}>
                                             <div className='flex items-center space-x-1'><span>On-Hand Days</span>{getSortIcon('on_hand_days_coverage')}</div>
                                         </th>
@@ -881,7 +887,9 @@ function MasterReportsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('extra_qty')}>
                                             <div className='flex items-center space-x-1'><span>Extra Qty</span>{getSortIcon('extra_qty')}</div>
                                         </th>
-                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Target Days</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('net_target_days')}>
+                                            <div className='flex items-center space-x-1'><span>Net Target Days</span>{getSortIcon('net_target_days')}</div>
+                                        </th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800' onClick={() => handleSort('excess_or_order')}>
                                             <div className='flex items-center space-x-1'><span>Excess / Order</span>{getSortIcon('excess_or_order')}</div>
                                         </th>
@@ -1059,6 +1067,14 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.lead_time || 0}</div>
                                             </td>
+                                            {/* Order Processing */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.order_processing ?? 10}</div>
+                                            </td>
+                                            {/* Target Days */}
+                                            <td className='px-6 py-4 whitespace-nowrap'>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.target_days || 0}</div>
+                                            </td>
                                             {/* On-Hand Days Coverage */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.on_hand_days_coverage?.toFixed(1) || '0'}</div>
@@ -1110,9 +1126,9 @@ function MasterReportsPage() {
                                             <td className='px-6 py-4 whitespace-nowrap'>
                                                 <div className='text-sm text-gray-900 dark:text-zinc-100'>{(item.extra_qty || 0).toFixed(2)}</div>
                                             </td>
-                                            {/* Target Days */}
+                                            {/* Net Target Days */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
-                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{item.target_days || 0}</div>
+                                                <div className='text-sm text-gray-900 dark:text-zinc-100'>{(item.net_target_days || 0).toFixed(2)}</div>
                                             </td>
                                             {/* Excess / Order */}
                                             <td className='px-6 py-4 whitespace-nowrap'>
