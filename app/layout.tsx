@@ -48,10 +48,10 @@ export default function RootLayout({
   return (
     <html lang='en' className={darkMode ? 'dark' : ''}>
       <head>
-        <title>Dashboard Application</title>
+        <title>Pupscribe Purchase Portal</title>
         <meta
           name='description'
-          content='Modern dashboard application built with Next.js and Tailwind CSS'
+          content='Pupscribe Purchase Portal'
         />
       </head>
       <body
