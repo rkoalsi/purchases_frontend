@@ -216,11 +216,12 @@ export default function SeasonalReport() {
                     {/* What's inside the report */}
                     <div className="rounded-md bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 p-4 text-sm text-purple-800 dark:text-purple-300 space-y-1">
                         <p className="font-semibold mb-2">The Excel file contains (12 rows per SKU):</p>
-                        <p>① Historical Avg Units — same calendar month averaged over the last 2 years</p>
-                        <p>② Overall Monthly Avg — <code className="font-mono text-xs">= SUM(Jan…Dec Avg) / 12</code></p>
-                        <p>③ Seasonal Index — <code className="font-mono text-xs">= Month Avg / Overall Avg</code></p>
-                        <p>④ Base DRR — units sold in selected period / days in period</p>
-                        <p>⑤ Seasonal DRR — <code className="font-mono text-xs">= Base DRR × Seasonal Index</code></p>
+                        <p>① Year Columns — Zoho invoice units for that calendar month in each respective year</p>
+                        <p>② Monthly Avg — <code className="font-mono text-xs">= AVERAGE(year cols)</code> — average units for that month across years</p>
+                        <p>③ Avg Monthly Demand — <code className="font-mono text-xs">= SUM(Jan Avg … Dec Avg) / 12</code> — average of the 12 monthly averages</p>
+                        <p>④ Seasonal Index — <code className="font-mono text-xs">= Month Avg / Avg Monthly Demand</code> — (1.0 = normal; &gt;1.0 = above avg; &lt;1.0 = below avg)</p>
+                        <p>⑤ Base DRR — total Zoho units sold in selected period / number of days in the period</p>
+                        <p>⑥ Seasonal DRR — <code className="font-mono text-xs">= Base DRR × Seasonal Index</code> — projected daily run rate adjusted for seasonality</p>
                     </div>
 
                     {/* Download button */}
