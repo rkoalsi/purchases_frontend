@@ -4,42 +4,45 @@ import { useAuth } from '@/components/context/AuthContext';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 
-const PRESETS = [
-    { label: 'This Month', getDates: () => {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        return { start: fmt(start), end: fmt(now) };
-    }},
-    { label: 'Last Month', getDates: () => {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const end = new Date(now.getFullYear(), now.getMonth(), 0);
-        return { start: fmt(start), end: fmt(end) };
-    }},
-    { label: 'Last 3 Months', getDates: () => {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-        return { start: fmt(start), end: fmt(now) };
-    }},
-    { label: 'Last 6 Months', getDates: () => {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-        return { start: fmt(start), end: fmt(now) };
-    }},
-    { label: 'Last 90 Days', getDates: () => {
-        const now = new Date();
-        const start = new Date(now.getTime() - 89 * 24 * 60 * 60 * 1000);
-        return { start: fmt(start), end: fmt(now) };
-    }},
-    { label: 'This Year', getDates: () => {
-        const now = new Date();
-        const start = new Date(now.getFullYear(), 0, 1);
-        return { start: fmt(start), end: fmt(now) };
-    }},
-];
+function buildYearPresets() {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const presets = [];
+
+    // This Year: Jan 1 → today
+    presets.push({
+        label: 'This Year',
+        year: currentYear,
+        getDates: () => ({
+            start: fmt(new Date(currentYear, 0, 1)),
+            end: fmt(now),
+        }),
+    });
+
+    // Last Year + prior years back to 2021: full Jan 1 – Dec 31
+    const offsetLabels = ['Last Year', '2 Years Ago', '3 Years Ago', '4 Years Ago', '5 Years Ago'];
+    for (let offset = 1; currentYear - offset >= 2021; offset++) {
+        const yr = currentYear - offset;
+        presets.push({
+            label: offsetLabels[offset - 1] || String(yr),
+            year: yr,
+            getDates: () => ({
+                start: fmt(new Date(yr, 0, 1)),
+                end: fmt(now),
+            }),
+        });
+    }
+
+    return presets;
+}
+
+const PRESETS = buildYearPresets();
 
 function fmt(d: Date) {
-    return d.toISOString().split('T')[0];
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 }
 
 export default function SeasonalReport() {
@@ -138,16 +141,21 @@ export default function SeasonalReport() {
                     {/* Quick presets */}
                     <div>
                         <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                            Quick Presets
+                            Select Year
                         </p>
                         <div className="flex flex-wrap gap-2">
                             {PRESETS.map((p) => (
                                 <button
                                     key={p.label}
                                     onClick={() => applyPreset(p)}
-                                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                    className="flex flex-col items-center px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors group min-w-[72px]"
                                 >
-                                    {p.label}
+                                    <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 group-hover:text-purple-700 dark:group-hover:text-purple-300 leading-tight">
+                                        {p.year}
+                                    </span>
+                                    <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5">
+                                        {p.label}
+                                    </span>
                                 </button>
                             ))}
                         </div>
