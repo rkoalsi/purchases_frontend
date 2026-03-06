@@ -5,30 +5,19 @@ import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 
 function buildYearPresets() {
-    const now = new Date();
-    const currentYear = now.getFullYear();
+    const currentYear = new Date().getFullYear();
     const presets = [];
 
-    // This Year: Jan 1 → today
-    presets.push({
-        label: 'This Year',
-        year: currentYear,
-        getDates: () => ({
-            start: fmt(new Date(currentYear, 0, 1)),
-            end: fmt(now),
-        }),
-    });
-
-    // Last Year + prior years back to 2021: full Jan 1 – Dec 31
-    const offsetLabels = ['Last Year', '2 Years Ago', '3 Years Ago', '4 Years Ago', '5 Years Ago'];
-    for (let offset = 1; currentYear - offset >= 2021; offset++) {
+    // This Year + prior years back to 2021: full Jan 1 – Dec 31
+    const offsetLabels = ['This Year', 'Last Year', '2 Years Ago', '3 Years Ago', '4 Years Ago', '5 Years Ago'];
+    for (let offset = 0; currentYear - offset >= 2021; offset++) {
         const yr = currentYear - offset;
         presets.push({
-            label: offsetLabels[offset - 1] || String(yr),
+            label: offsetLabels[offset] || String(yr),
             year: yr,
             getDates: () => ({
                 start: fmt(new Date(yr, 0, 1)),
-                end: fmt(now),
+                end: fmt(new Date(yr, 11, 31)),
             }),
         });
     }
@@ -184,6 +173,13 @@ export default function SeasonalReport() {
                                 onChange={(e) => setEndDate(e.target.value)}
                                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setEndDate(fmt(new Date()))}
+                                className="mt-1 text-xs text-purple-600 dark:text-purple-400 hover:underline"
+                            >
+                                Today
+                            </button>
                         </div>
                     </div>
 
