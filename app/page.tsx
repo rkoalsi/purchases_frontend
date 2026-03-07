@@ -185,47 +185,55 @@ const ClassificationBar = ({ sc }: { sc: StockClassification }) => (
   </div>
 );
 
-// ─── SKU detail table (lowest / highest 10) ───────────────────────────────────
+// ─── SKU detail table (lowest + highest combined) ─────────────────────────────
 
-const SkuTable = ({ skus, title, dimClass }: { skus: SkuDetail[]; title: string; dimClass?: string }) => {
-  if (!skus.length) return null;
+const SkuTable = ({ lowest, highest }: { lowest: SkuDetail[]; highest: SkuDetail[] }) => {
+  if (!lowest.length && !highest.length) return null;
+  const rows = [
+    ...lowest.map((s) => ({ ...s, _type: 'risk' as const })),
+    ...highest.map((s) => ({ ...s, _type: 'over' as const })),
+  ];
   return (
-    <div className='flex-1 min-w-0'>
-      <h4 className={`text-xs font-semibold mb-2 ${dimClass || 'text-gray-700 dark:text-zinc-200'}`}>{title}</h4>
-      <div className='overflow-x-auto rounded-lg border border-gray-200 dark:border-zinc-700'>
-        <table className='w-full text-xs'>
-          <thead className='bg-gray-50 dark:bg-zinc-800'>
-            <tr>
-              <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>SKU / Name</th>
-              <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>DRR</th>
-              <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>Stock</th>
-              <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>Days Cover</th>
-              <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>Class</th>
-            </tr>
-          </thead>
-          <tbody className='divide-y divide-gray-100 dark:divide-zinc-700'>
-            {skus.map((s) => {
-              const cfg = CLASS_CONFIG[s.stock_class] || CLASS_CONFIG['healthy'];
-              return (
-                <tr key={s.sku_code} className='hover:bg-gray-50 dark:hover:bg-zinc-800/50'>
-                  <td className='px-2 py-1.5'>
-                    <div className='font-medium text-gray-800 dark:text-zinc-200'>{s.sku_code}</div>
-                    <div className='text-gray-400 dark:text-zinc-500 truncate max-w-[180px]'>{s.item_name}</div>
-                  </td>
-                  <td className='px-2 py-1.5 text-right text-gray-700 dark:text-zinc-300'>{fmtDec(s.drr, 2)}</td>
-                  <td className='px-2 py-1.5 text-right text-gray-700 dark:text-zinc-300'>{fmt(s.net_stock)}</td>
-                  <td className={`px-2 py-1.5 text-right font-semibold ${cfg.color}`}>{fmtDec(s.days_cover, 1)}d</td>
-                  <td className='px-2 py-1.5'>
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${cfg.bg} ${cfg.color}`}>
-                      {cfg.label}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div className='rounded-lg border border-gray-200 dark:border-zinc-700'>
+      <table className='w-full text-xs'>
+        <thead className='bg-gray-50 dark:bg-zinc-800'>
+          <tr>
+            <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>SKU / Name</th>
+            <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>Type</th>
+            <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>DRR</th>
+            <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>Stock</th>
+            <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>Days Cover</th>
+            <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>Class</th>
+          </tr>
+        </thead>
+        <tbody className='divide-y divide-gray-100 dark:divide-zinc-700'>
+          {rows.map((s) => {
+            const cfg = CLASS_CONFIG[s.stock_class] || CLASS_CONFIG['healthy'];
+            return (
+              <tr key={`${s._type}-${s.sku_code}`} className='hover:bg-gray-50 dark:hover:bg-zinc-800/50'>
+                <td className='px-2 py-1.5'>
+                  <div className='font-medium text-gray-800 dark:text-zinc-200'>{s.sku_code}</div>
+                  <div className='text-gray-400 dark:text-zinc-500 truncate max-w-[180px]'>{s.item_name}</div>
+                </td>
+                <td className='px-2 py-1.5'>
+                  {s._type === 'risk'
+                    ? <span className='px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'>At Risk</span>
+                    : <span className='px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'>Overstocked</span>
+                  }
+                </td>
+                <td className='px-2 py-1.5 text-right text-gray-700 dark:text-zinc-300'>{fmtDec(s.drr, 2)}</td>
+                <td className='px-2 py-1.5 text-right text-gray-700 dark:text-zinc-300'>{fmt(s.net_stock)}</td>
+                <td className={`px-2 py-1.5 text-right font-semibold ${cfg.color}`}>{fmtDec(s.days_cover, 1)}d</td>
+                <td className='px-2 py-1.5'>
+                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${cfg.bg} ${cfg.color}`}>
+                    {cfg.label}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 };
@@ -335,10 +343,7 @@ const BrandDetail = ({ b }: { b: BrandKPI }) => (
     </div>
 
     {/* Lowest / highest 10 SKUs */}
-    <div className='flex flex-col lg:flex-row gap-4'>
-      <SkuTable skus={b.sku_lowest_10} title='⚠ Lowest Days Cover (most at risk)' dimClass='text-red-600 dark:text-red-400' />
-      <SkuTable skus={b.sku_highest_10} title='↑ Highest Days Cover (most overstocked)' dimClass='text-blue-600 dark:text-blue-400' />
-    </div>
+    <SkuTable lowest={b.sku_lowest_10} highest={b.sku_highest_10} />
   </div>
 );
 
