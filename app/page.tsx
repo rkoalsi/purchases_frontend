@@ -198,7 +198,7 @@ const SkuTable = ({ lowest, highest }: { lowest: SkuDetail[]; highest: SkuDetail
       <table className='w-full text-xs'>
         <thead className='bg-gray-50 dark:bg-zinc-800'>
           <tr>
-            <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>SKU / Name</th>
+            <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>Name / SKU Code </th>
             <th className='px-2 py-1.5 text-left text-gray-500 dark:text-zinc-400 font-medium'>Type</th>
             <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>DRR</th>
             <th className='px-2 py-1.5 text-right text-gray-500 dark:text-zinc-400 font-medium'>Stock</th>
@@ -212,8 +212,8 @@ const SkuTable = ({ lowest, highest }: { lowest: SkuDetail[]; highest: SkuDetail
             return (
               <tr key={`${s._type}-${s.sku_code}`} className='hover:bg-gray-50 dark:hover:bg-zinc-800/50'>
                 <td className='px-2 py-1.5'>
-                  <div className='font-medium text-gray-800 dark:text-zinc-200'>{s.sku_code}</div>
-                  <div className='text-gray-400 dark:text-zinc-500 truncate max-w-[180px]'>{s.item_name}</div>
+                  <div className='font-medium text-gray-800 dark:text-zinc-200'>{s.item_name}</div>
+                  <div className='text-gray-400 dark:text-zinc-500 max-w-[180px]'>{s.sku_code}</div>
                 </td>
                 <td className='px-2 py-1.5'>
                   {s._type === 'risk'
@@ -305,7 +305,7 @@ const BrandDetail = ({ b }: { b: BrandKPI }) => (
     <div className='mb-5'>
       <div className='flex items-center justify-between mb-2'>
         <span className='text-xs font-semibold text-gray-700 dark:text-zinc-200'>
-          Stock Classification  ·  Weighted Avg Days Cover: {fmtDec(b.weighted_avg_days_cover, 1)}d
+          Stock Classification  ·  W.Avg Cover: {fmtDec(b.weighted_avg_days_cover, 1)}d  ·  Cur. Cover: {fmtDec(b.current_days_coverage, 1)}d
         </span>
         <span className='text-xs text-gray-400 dark:text-zinc-500'>
           Lead Time: {b.lead_time}d  ·  Target: {b.target_days}d  (lead + {b.safety_days}d safety + 10d review)
@@ -563,6 +563,7 @@ export default function Page() {
                     <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Net Stock</th>
                     <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Transit</th>
                     <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>W.Avg Cover</th>
+                    <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Cur. Cover</th>
                     <th className='px-3 py-3 text-left font-medium whitespace-nowrap'>Status</th>
                     <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Return %</th>
                     <th className='px-3 py-3 text-right font-medium whitespace-nowrap'>Growth %</th>
@@ -584,6 +585,7 @@ export default function Page() {
                       <td className='px-3 py-3 text-right'>{fmt(t.latest_net_stock)}</td>
                       <td className='px-3 py-3 text-right'>{fmt(t.stock_in_transit)}</td>
                       <td className='px-3 py-3 text-right font-bold'>{fmtDec(t.weighted_avg_days_cover, 1)}d</td>
+                      <td className='px-3 py-3 text-right font-bold'>{fmtDec(t.current_days_coverage, 1)}d</td>
                       <td className='px-3 py-3' />
                       <td className='px-3 py-3 text-right'>{fmtPct(t.return_pct)}</td>
                       <td className='px-3 py-3 text-right'>—</td>
@@ -623,10 +625,18 @@ export default function Page() {
                           <td className='px-3 py-3 text-right text-gray-700 dark:text-zinc-200'>{fmt(b.stock_in_transit)}</td>
                           <td className='px-3 py-3 text-right'>
                             <span className={`font-semibold ${b.alert_level === 2 ? 'text-red-600 dark:text-red-400'
-                                : b.alert_level === 1 ? 'text-amber-600 dark:text-amber-400'
-                                  : 'text-gray-700 dark:text-zinc-200'
+                              : b.alert_level === 1 ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-gray-700 dark:text-zinc-200'
                               }`}>
                               {b.alert_level === 3 ? '—' : `${fmtDec(b.weighted_avg_days_cover, 1)}d`}
+                            </span>
+                          </td>
+                          <td className='px-3 py-3 text-right'>
+                            <span className={`font-semibold ${b.alert_level === 2 ? 'text-red-600 dark:text-red-400'
+                              : b.alert_level === 1 ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-gray-700 dark:text-zinc-200'
+                              }`}>
+                              {b.alert_level === 3 ? '—' : `${fmtDec(b.current_days_coverage, 1)}d`}
                             </span>
                           </td>
                           <td className='px-3 py-3 whitespace-nowrap'>
@@ -662,7 +672,7 @@ export default function Page() {
                         {/* Expanded detail */}
                         {expanded && (
                           <tr className='border-b border-gray-200 dark:border-zinc-700'>
-                            <td colSpan={15} className='p-0'>
+                            <td colSpan={16} className='p-0'>
                               <BrandDetail b={b} />
                             </td>
                           </tr>
@@ -678,8 +688,9 @@ export default function Page() {
 
         {/* ── Legend ── */}
         <div className='text-xs text-gray-400 dark:text-zinc-500 flex flex-wrap gap-4'>
-          <span><b className='text-gray-600 dark:text-zinc-300'>DRR</b> = Net Sales ÷ 90 days</span>
+          <span><b className='text-gray-600 dark:text-zinc-300'>DRR</b> = Σ per-SKU (Units Sold − Credit Notes) ÷ Days In Stock — matches master report</span>
           <span><b className='text-gray-600 dark:text-zinc-300'>W.Avg Cover</b> = stock-weighted average of per-SKU days cover</span>
+          <span><b className='text-gray-600 dark:text-zinc-300'>Cur. Cover</b> = (Net Stock + Transit) ÷ DRR</span>
           <span><b className='text-gray-600 dark:text-zinc-300'>Target</b> = Lead Time + Safety Days + 10</span>
           <span><b className='text-gray-600 dark:text-zinc-300'>Net Stock</b> = Zoho WH + FBA (latest snapshot)</span>
           <span><b className='text-gray-600 dark:text-zinc-300'>Net Sales</b> = Units Sold − Credit Notes − Transfer Orders</span>
