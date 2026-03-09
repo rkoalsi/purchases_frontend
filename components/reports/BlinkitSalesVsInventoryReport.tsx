@@ -46,7 +46,7 @@ interface ReportItem {
   city: string;
   item_name: string;
   item_id: number;
-  warehouse: string;
+  warehouse?: string;
   last_90_days_dates?: string;
   metrics: {
     avg_daily_on_stock_days: number;
@@ -79,17 +79,17 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
 
   // File upload state
   const [salesFile, setSalesFile] = useState<File | null>(null);
+  const [returnsFile, setReturnsFile] = useState<File | null>(null);
   const [inventoryFile, setInventoryFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [downloading, setDownloading] = useState<boolean>(false);
 
   // Refs for file inputs
   const salesFileInputRef = useRef<HTMLInputElement>(null);
+  const returnsFileInputRef = useRef<HTMLInputElement>(null);
   const inventoryFileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [cityFilter, setCityFilter] = useState<string>('');
-  const [warehouseFilter, setWarehouseFilter] = useState<string>('');
-  const [anyLast90Days, setAnyLast90Days] = useState<boolean>(false);
   const [sortConfig, setSortConfig] = useState<{
     key: string | null;
     direction: 'asc' | 'desc';
@@ -100,14 +100,10 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
       const matchesSearch =
         item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sku_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.warehouse.toLowerCase().includes(searchTerm.toLowerCase());
+        item.city.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesCity = !cityFilter || item.city === cityFilter;
-      const matchesWarehouse =
-        !warehouseFilter || item.warehouse === warehouseFilter;
-
-      return matchesSearch && matchesCity && matchesWarehouse;
+      return matchesSearch && matchesCity;
     });
 
     // Apply sorting
@@ -141,15 +137,12 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
     }
 
     return filteredData;
-  }, [reportData, searchTerm, cityFilter, warehouseFilter, sortConfig]);
+  }, [reportData, searchTerm, cityFilter, sortConfig]);
 
   const uniqueCities = useMemo(() => {
     return [...new Set(reportData.map((item) => item.city))].sort();
   }, [reportData]);
 
-  const uniqueWarehouses = useMemo(() => {
-    return [...new Set(reportData.map((item) => item.warehouse))].sort();
-  }, [reportData]);
 
   // Sort handler
   const handleSort = (key: string) => {
@@ -242,7 +235,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
   // ===== DATA FETCHING =====
   useEffect(() => {
     fetchReportData();
-  }, [startDate, endDate, anyLast90Days]);
+  }, [startDate, endDate]);
 
   const fetchReportData = async () => {
     setLoading(true);
@@ -260,7 +253,7 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
 
       // Use the new date range API endpoint
       const r = await axios.get(
-        `${apiUrl}/blinkit/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=${anyLast90Days}`
+        `${apiUrl}/blinkit/get_report_data_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=false`
       );
       const re = await axios.get(
         `${apiUrl}/blinkit/status?start_date=${startDateStr}&end_date=${endDateStr}`
@@ -286,6 +279,16 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
     }
   };
 
+  const handleReturnsFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setReturnsFile(file);
+      event.target.value = '';
+    }
+  };
+
   const handleInventoryFileChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -298,8 +301,8 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
 
 const handleUpload = async () => {
   // Check if at least one file is selected
-  if (!salesFile && !inventoryFile) {
-    alert('Please select at least one file (Sales or Inventory).');
+  if (!salesFile && !returnsFile && !inventoryFile) {
+    alert('Please select at least one file (Forward Orders, Return Cancelled, or Inventory).');
     return;
   }
 
@@ -320,73 +323,58 @@ const handleUpload = async () => {
     const maxFileSize = 50 * 1024 * 1024; // 50MB limit
     const validExtensions = ['.xlsx', '.xls'];
 
-    // Validate sales file if provided
-    if (salesFile) {
-      if (salesFile.size > maxFileSize) {
-        throw new Error('Sales file size exceeds 50MB limit. Please compress your file.');
+    const validateFile = (file: File, label: string) => {
+      if (file.size > maxFileSize) {
+        throw new Error(`${label} file size exceeds 50MB limit. Please compress your file.`);
       }
-      
-      const salesExt = salesFile.name
-        .toLowerCase()
-        .slice(salesFile.name.lastIndexOf('.'));
-        
-      if (!validExtensions.includes(salesExt)) {
-        throw new Error('Sales file must be an Excel file (.xlsx or .xls)');
+      const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+      if (!validExtensions.includes(ext)) {
+        throw new Error(`${label} file must be an Excel file (.xlsx or .xls)`);
       }
-    }
+    };
 
-    // Validate inventory file if provided
-    if (inventoryFile) {
-      if (inventoryFile.size > maxFileSize) {
-        throw new Error('Inventory file size exceeds 50MB limit. Please compress your file.');
-      }
-      
-      const inventoryExt = inventoryFile.name
-        .toLowerCase()
-        .slice(inventoryFile.name.lastIndexOf('.'));
-        
-      if (!validExtensions.includes(inventoryExt)) {
-        throw new Error('Inventory file must be an Excel file (.xlsx or .xls)');
-      }
-    }
+    if (salesFile) validateFile(salesFile, 'Forward Orders');
+    if (returnsFile) validateFile(returnsFile, 'Return Cancelled');
+    if (inventoryFile) validateFile(inventoryFile, 'Inventory');
 
     // Set up fetch options with timeout and optimized settings
     const fetchOptions = {
       method: 'POST',
       signal: abortController.signal,
-      // Add timeout after 5 minutes
       timeout: 300000,
-      // Keep connection alive for better performance
       keepalive: true,
     };
 
-    // Upload sales files if provided
+    // Upload Forward Orders file (sales data)
     if (salesFile) {
       const salesFormData = new FormData();
       salesFormData.append('file', salesFile);
 
-      console.log('Uploading sales data...');
+      console.log('Uploading Forward Orders (sales) data...');
       const salesResponse = await fetch(`${apiUrl}/blinkit/upload_sales_data`, {
         ...fetchOptions,
         body: salesFormData,
       });
-      
+
       if (!salesResponse.ok) {
         const salesError = await salesResponse.json();
         throw new Error(
-          `Blinkit Sales upload failed: ${
+          `Forward Orders upload failed: ${
             salesError.detail || salesResponse.statusText
           }`
         );
       }
 
       const salesResult = await salesResponse.json();
-      console.log(`Sales data uploaded: ${salesResult.message}`);
+      console.log(`Forward Orders data uploaded: ${salesResult.message}`);
+    }
 
-      // Upload return sales data using the same sales file
-      console.log('Uploading Return Sales data...');
+    // Upload Return Cancelled file (returns data)
+    if (returnsFile) {
       const returnSalesFormData = new FormData();
-      returnSalesFormData.append('file', salesFile);
+      returnSalesFormData.append('file', returnsFile);
+
+      console.log('Uploading Return Cancelled data...');
       const returnSalesResponse = await fetch(`${apiUrl}/blinkit/upload_return_data`, {
         ...fetchOptions,
         body: returnSalesFormData,
@@ -395,14 +383,14 @@ const handleUpload = async () => {
       if (!returnSalesResponse.ok) {
         const returnSalesError = await returnSalesResponse.json();
         throw new Error(
-          `Return Sales upload failed: ${
+          `Return Cancelled upload failed: ${
             returnSalesError.detail || returnSalesResponse.statusText
           }`
         );
       }
 
       const returnSalesResult = await returnSalesResponse.json();
-      console.log(`Return Sales data uploaded: ${returnSalesResult.message}`);
+      console.log(`Return Cancelled data uploaded: ${returnSalesResult.message}`);
     }
 
     // Upload inventory file if provided
@@ -427,7 +415,7 @@ const handleUpload = async () => {
           }`
         );
       }
-      
+
       const inventoryResult = await inventoryResponse.json();
       console.log(`Inventory data uploaded: ${inventoryResult.message}`);
     }
@@ -445,7 +433,7 @@ const handleUpload = async () => {
     );
 
     const generateResponse = await fetch(
-      `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=${anyLast90Days}`,
+      `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=false`,
       {
         method: 'GET',
         signal: abortController.signal,
@@ -463,22 +451,20 @@ const handleUpload = async () => {
 
     // Reset file inputs
     setSalesFile(null);
+    setReturnsFile(null);
     setInventoryFile(null);
     if (salesFileInputRef.current) salesFileInputRef.current.value = '';
+    if (returnsFileInputRef.current) returnsFileInputRef.current.value = '';
     if (inventoryFileInputRef.current) inventoryFileInputRef.current.value = '';
 
     console.log('Report generated successfully!');
-    
+
     // Show success message based on what was uploaded
-    let successMessage = 'Report generated successfully!';
-    if (salesFile && inventoryFile) {
-      successMessage = 'Sales and Inventory data uploaded successfully!';
-    } else if (salesFile) {
-      successMessage = 'Sales data uploaded successfully!';
-    } else if (inventoryFile) {
-      successMessage = 'Inventory data uploaded successfully!';
-    }
-    
+    const uploaded = [salesFile && 'Forward Orders', returnsFile && 'Returns', inventoryFile && 'Inventory'].filter(Boolean);
+    const successMessage = uploaded.length > 0
+      ? `${uploaded.join(', ')} data uploaded and report generated successfully!`
+      : 'Report generated successfully!';
+
     toast.success(successMessage);
     
     // Fetch the updated report data
@@ -519,7 +505,7 @@ const handleUpload = async () => {
       const endDateStr = dateUtils.format(endDate, 'yyyy-MM-dd');
 
       const response = await fetch(
-        `${apiUrl}/blinkit/download_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=${anyLast90Days}`
+        `${apiUrl}/blinkit/download_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=false`
       );
 
       if (!response.ok) {
@@ -633,20 +619,6 @@ const handleUpload = async () => {
                 </div>
               </div>
 
-              {/* Any Last 90 Days Checkbox */}
-              <div className="mt-4 flex items-center">
-                <input
-                  type="checkbox"
-                  id="anyLast90Days"
-                  checked={anyLast90Days}
-                  onChange={(e) => setAnyLast90Days(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
-                />
-                <label htmlFor="anyLast90Days" className="ml-2 text-sm text-gray-700 dark:text-zinc-300 cursor-pointer">
-                  Any Last 90 days in stock
-                  <span className="ml-1 text-xs text-gray-500 dark:text-zinc-400">(Show last 90 days item was in stock, regardless of when)</span>
-                </label>
-              </div>
             </div>
             {/* Action Buttons Section */}
             <div className='flex flex-col sm:flex-row gap-3'>
@@ -736,8 +708,10 @@ const handleUpload = async () => {
           isOpen={showUploadModal}
           onClose={() => setShowUploadModal(false)}
           salesFile={salesFile}
+          returnsFile={returnsFile}
           inventoryFile={inventoryFile}
           onSalesFileChange={handleSalesFileChange}
+          onReturnsFileChange={handleReturnsFileChange}
           onInventoryFileChange={handleInventoryFileChange}
           onUpload={handleUpload}
           uploading={uploading}
@@ -812,7 +786,7 @@ const handleUpload = async () => {
                 </div>
                 <input
                   type='text'
-                  placeholder='Search items, SKU, city, warehouse...'
+                  placeholder='Search items, SKU, city...'
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className='block w-full text-black pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm dark:text-zinc-100 dark:bg-zinc-800 dark:border-zinc-700'
@@ -857,28 +831,12 @@ const handleUpload = async () => {
                 </select>
               </div>
 
-              <div className='min-w-0 flex-1'>
-                <select
-                  value={warehouseFilter}
-                  onChange={(e) => setWarehouseFilter(e.target.value)}
-                  className='block w-full px-3 py-2 text-black text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:text-zinc-100 dark:bg-zinc-800 dark:border-zinc-700'
-                >
-                  <option value=''>All Warehouses</option>
-                  {uniqueWarehouses.map((warehouse) => (
-                    <option key={warehouse} value={warehouse}>
-                      {warehouse}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* Clear Filters Button */}
-              {(searchTerm || cityFilter || warehouseFilter) && (
+              {(searchTerm || cityFilter) && (
                 <button
                   onClick={() => {
                     setSearchTerm('');
                     setCityFilter('');
-                    setWarehouseFilter('');
                   }}
                   className='px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors dark:text-zinc-300 dark:bg-zinc-800 dark:border-zinc-700 dark:hover:bg-zinc-700'
                 >
@@ -983,15 +941,6 @@ const handleUpload = async () => {
                   </th>
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[120px]'>
                     <button
-                      onClick={() => handleSort('warehouse')}
-                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
-                    >
-                      Warehouse
-                      <SortIcon column='warehouse' />
-                    </button>
-                  </th>
-                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[120px]'>
-                    <button
                       onClick={() =>
                         handleSort('metrics.avg_daily_on_stock_days')
                       }
@@ -1072,11 +1021,6 @@ const handleUpload = async () => {
                       <SortIcon column='metrics.closing_stock' />
                     </button>
                   </th>
-                  {anyLast90Days && (
-                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[200px]'>
-                      Last 90 Days In Stock
-                    </th>
-                  )}
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[130px]'>
                     Past 7 day Sales
                   </th>
@@ -1109,7 +1053,7 @@ const handleUpload = async () => {
                 {filteredAndSortedData.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={anyLast90Days ? 22 : 21}
+                      colSpan={21}
                       className='px-4 py-8 text-center text-sm text-gray-500 dark:text-zinc-400'
                     >
                       No items match your search criteria
@@ -1152,9 +1096,6 @@ const handleUpload = async () => {
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                           {item.city}
                         </td>
-                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
-                          {item.warehouse}
-                        </td>
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics.avg_daily_on_stock_days.toFixed(2)}
                         </td>
@@ -1179,11 +1120,6 @@ const handleUpload = async () => {
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics.closing_stock?.toFixed(2)}
                         </td>
-                        {anyLast90Days && (
-                          <td className='px-4 py-3 text-sm text-gray-900 max-w-md dark:text-zinc-100'>
-                            {item.last_90_days_dates || 'N/A'}
-                          </td>
-                        )}
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics?.sales_last_7_days_ending_lcd?.toFixed(
                             2

@@ -7,8 +7,10 @@ interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   salesFile: File | null;
+  returnsFile: File | null;
   inventoryFile: File | null;
   onSalesFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onReturnsFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onInventoryFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onUpload: () => void;
   uploading: boolean;
@@ -18,15 +20,18 @@ const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
   onClose,
   salesFile,
+  returnsFile,
   inventoryFile,
   onSalesFileChange,
+  onReturnsFileChange,
   onInventoryFileChange,
   onUpload,
   uploading,
 }) => {
   if (!isOpen) return null;
 
-  const oneFileUploaded = salesFile || inventoryFile;
+  const selectedCount = [salesFile, returnsFile, inventoryFile].filter(Boolean).length;
+  const oneFileUploaded = selectedCount > 0;
 
   return (
     <div className='fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 animate-fadeIn'>
@@ -52,7 +57,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
             <div>
               <h3 className='text-xl font-bold text-gray-800'>Upload Files</h3>
               <p className='text-sm text-gray-500'>
-                Select your sales and inventory data files
+                Select your sales, returns, and inventory data files
               </p>
             </div>
           </div>
@@ -79,16 +84,24 @@ const UploadModal: React.FC<UploadModalProps> = ({
         {/* File Upload Section */}
         <div className='space-y-6'>
           <EnhancedFileInput
-            label='Sales Data'
-            description='Upload your sales data file (Excel format)'
+            label='Forward Orders (Sales)'
+            description='Upload Forward Orders.xlsx from the payout folder'
             file={salesFile}
             onChange={onSalesFileChange}
             accept='.xlsx, .xls'
             icon='📊'
           />
           <EnhancedFileInput
-            label='Inventory Data'
-            description='Upload your inventory data file (Excel format)'
+            label='Return Cancelled (Returns)'
+            description='Upload Return Cancelled.xlsx from the payout folder'
+            file={returnsFile}
+            onChange={onReturnsFileChange}
+            accept='.xlsx, .xls'
+            icon='🔄'
+          />
+          <EnhancedFileInput
+            label='Ageing Inventory'
+            description='Upload Ageing Inventory.xlsx from the payout folder'
             file={inventoryFile}
             onChange={onInventoryFileChange}
             accept='.xlsx, .xls'
@@ -101,21 +114,18 @@ const UploadModal: React.FC<UploadModalProps> = ({
           <div className='flex items-center justify-between text-sm mb-2'>
             <span className='text-gray-600'>Upload Progress</span>
             <span className='text-gray-600'>
-              {salesFile && inventoryFile
-                ? '2/2'
-                : salesFile || inventoryFile
-                ? '1/2'
-                : '0/2'}{' '}
-              files selected
+              {selectedCount}/3 files selected
             </span>
           </div>
           <div className='w-full bg-gray-200 rounded-full h-2'>
             <div
               className={`h-2 rounded-full transition-all duration-500 ${
-                oneFileUploaded
+                selectedCount === 3
                   ? 'bg-green-500 w-full'
-                  : salesFile || inventoryFile
-                  ? 'bg-blue-500 w-1/2'
+                  : selectedCount === 2
+                  ? 'bg-blue-500 w-2/3'
+                  : selectedCount === 1
+                  ? 'bg-blue-500 w-1/3'
                   : 'bg-gray-300 w-0'
               }`}
             ></div>
@@ -195,11 +205,11 @@ const UploadModal: React.FC<UploadModalProps> = ({
               />
             </svg>
             <div className='text-sm text-blue-800'>
-              <p className='font-medium mb-1'>Supported formats:</p>
+              <p className='font-medium mb-1'>Payout folder files:</p>
               <ul className='space-y-1 text-xs'>
-                <li>• Excel files (.xlsx, .xls) with properly formatted data headers</li>
-                <li>• Inventory: Both legacy format and new Blinkit format (with timestamp) are supported</li>
-                <li>• Files are automatically detected and processed accordingly</li>
+                <li>• <strong>Forward Orders.xlsx</strong> → Sales data</li>
+                <li>• <strong>Return Cancelled.xlsx</strong> → Returns data</li>
+                <li>• <strong>Ageing Inventory.xlsx</strong> → Inventory data (Daily Ageing sheet, state-level)</li>
               </ul>
             </div>
           </div>
