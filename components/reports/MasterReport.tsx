@@ -79,11 +79,23 @@ export default function MasterReport() {
     const { accessToken } = useAuth();
 
     const [startDate, setStartDate] = useState(() => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - 1);
-        return fmt(d);
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const daysSinceSunday = dayOfWeek === 0 ? 7 : dayOfWeek;
+        const prevSunday = new Date(today);
+        prevSunday.setDate(today.getDate() - daysSinceSunday);
+        const start = new Date(prevSunday);
+        start.setDate(prevSunday.getDate() - 89);
+        return fmt(start);
     });
-    const [endDate, setEndDate] = useState(() => fmt(new Date()));
+    const [endDate, setEndDate] = useState(() => {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const daysSinceSunday = dayOfWeek === 0 ? 7 : dayOfWeek;
+        const prevSunday = new Date(today);
+        prevSunday.setDate(today.getDate() - daysSinceSunday);
+        return fmt(prevSunday);
+    });
 
     const [brands, setBrands] = useState<{ value: string; label: string }[]>([]);
     const [selectedBrand, setSelectedBrand] = useState('');
