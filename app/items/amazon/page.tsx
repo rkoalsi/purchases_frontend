@@ -244,7 +244,7 @@ const SkuMappingComponent = () => {
               className='w-full text-black dark:text-zinc-100 px-3 py-2 border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
             />
             <p className='text-sm text-gray-700 dark:text-zinc-400 mt-1'>
-              Expected columns: ASIN, SKU Code, Item Name
+              Expected columns: ASIN, SKU, Item Name
             </p>
           </div>
           <button
