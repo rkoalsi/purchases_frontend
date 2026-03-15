@@ -143,9 +143,12 @@ export default function MasterReport() {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
+            const _now = new Date();
+            const _pad = (n: number) => String(n).padStart(2, '0');
+            const generatedAt = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(_now.getDate())}_${_pad(_now.getHours())}-${_pad(_now.getMinutes())}-${_pad(_now.getSeconds())}`;
             let filename = `master_report_${startDate}_to_${endDate}`;
             if (selectedBrand) filename += `_${selectedBrand.replace(/\s+/g, '_')}`;
-            filename += '.xlsx';
+            filename += `_generated_${generatedAt}.xlsx`;
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
