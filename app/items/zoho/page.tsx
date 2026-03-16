@@ -1,318 +1,338 @@
 'use client';
 
 import { useAuth } from '@/components/context/AuthContext';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { ChevronLeft, ChevronRight, BookOpen, Search, RefreshCw } from 'lucide-react';
 
-function Page() {
-  const { email, isLoading, accessToken, user } = useAuth();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]: any = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
-  const [limit] = useState(10); // Items per page
+const API = `${process.env.NEXT_PUBLIC_API_URL}/zoho`;
+const PAGE_SIZE = 10;
 
-  useEffect(() => {
-    if (accessToken) {
-      fetchProducts();
-    }
-  }, [accessToken, currentPage]);
+type Tab = 'products' | 'composites';
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/products`, {
-        params: {
-          page: currentPage,
-          limit: limit,
-        },
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      setProducts(response.data.products);
-      setTotalPages(response.data.pagination.totalPages);
-      setTotalProducts(response.data.pagination.totalProducts);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch products');
-      console.error('Error fetching products:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const formatCurrency = (amount: number, currency = 'INR') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'INR',
-    }).format(amount || 0);
-  };
-
-  if (isLoading) {
-    return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
-        <span className='ml-2 text-gray-600 dark:text-zinc-400'>Loading user data...</span>
-      </div>
-    );
-  }
-
-  if (!accessToken) {
-    return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <div className='text-center'>
-          <div className='w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center'>
-            <svg
-              className='w-8 h-8 text-gray-400'
-              fill='none'
-              stroke='currentColor'
-              viewBox='0 0 24 24'
-            >
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                strokeWidth={2}
-                d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
-              />
-            </svg>
-          </div>
-          <p className='text-lg text-gray-600 dark:text-zinc-400'>
-            Please log in to see this content.
-          </p>
-        </div>
-      </div>
-    );
-  }
+function Pagination({
+  currentPage,
+  totalPages,
+  onChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onChange: (p: number) => void;
+}) {
+  const pages = (() => {
+    const arr: number[] = [];
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, start + 4);
+    for (let i = start; i <= end; i++) arr.push(i);
+    return arr;
+  })();
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 py-8'>
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-        {/* Header */}
-        <div className='mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900 dark:text-zinc-100'>Zoho Products</h1>
-          <p className='mt-2 text-gray-600 dark:text-zinc-400'>View your Zoho products</p>
-        </div>
+    <div className='flex items-center gap-1'>
+      <button
+        onClick={() => onChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className='p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+      >
+        <ChevronLeft className='w-4 h-4' />
+      </button>
+      {pages.map((pg) => (
+        <button
+          key={pg}
+          onClick={() => onChange(pg)}
+          className={`w-8 h-8 text-sm rounded-md font-medium transition-colors ${
+            currentPage === pg
+              ? 'bg-blue-600 text-white'
+              : 'text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
+          }`}
+        >
+          {pg}
+        </button>
+      ))}
+      <button
+        onClick={() => onChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className='p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+      >
+        <ChevronRight className='w-4 h-4' />
+      </button>
+    </div>
+  );
+}
 
-        {/* Products Section */}
-        <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800'>
-          <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
-            <div className='flex items-center justify-between'>
-              <h2 className='text-xl font-semibold text-gray-900 dark:text-zinc-100'>Products</h2>
-              <div className='text-sm text-gray-500 dark:text-zinc-400'>
-                {totalProducts} total products
-              </div>
+export default function ZohoItemsPage() {
+  const { isLoading, accessToken } = useAuth();
+  const [tab, setTab] = useState<Tab>('products');
+
+  // Products state
+  const [products, setProducts] = useState<any[]>([]);
+  const [prodSearch, setProdSearch] = useState('');
+  const [prodPage, setProdPage] = useState(1);
+  const [prodTotal, setProdTotal] = useState(0);
+  const [prodTotalPages, setProdTotalPages] = useState(1);
+  const [prodLoading, setProdLoading] = useState(false);
+
+  // Composite state
+  const [composites, setComposites] = useState<any[]>([]);
+  const [compSearch, setCompSearch] = useState('');
+  const [compPage, setCompPage] = useState(1);
+  const [compTotal, setCompTotal] = useState(0);
+  const [compTotalPages, setCompTotalPages] = useState(1);
+  const [compLoading, setCompLoading] = useState(false);
+
+  const fetchProducts = useCallback(async () => {
+    setProdLoading(true);
+    try {
+      const res = await axios.get(`${API}/products`, {
+        params: { page: prodPage, limit: PAGE_SIZE, search: prodSearch || undefined },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      setProducts(res.data.products);
+      setProdTotal(res.data.pagination.totalProducts);
+      setProdTotalPages(res.data.pagination.totalPages);
+    } finally {
+      setProdLoading(false);
+    }
+  }, [prodPage, prodSearch, accessToken]);
+
+  const fetchComposites = useCallback(async () => {
+    setCompLoading(true);
+    try {
+      const res = await axios.get(`${API}/composite-products`, {
+        params: { page: compPage, limit: PAGE_SIZE, search: compSearch || undefined },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      setComposites(res.data.items);
+      setCompTotal(res.data.pagination.totalItems);
+      setCompTotalPages(res.data.pagination.totalPages);
+    } finally {
+      setCompLoading(false);
+    }
+  }, [compPage, compSearch, accessToken]);
+
+  useEffect(() => { if (accessToken) fetchProducts(); }, [fetchProducts, accessToken]);
+  useEffect(() => { if (accessToken) fetchComposites(); }, [fetchComposites, accessToken]);
+
+  // Reset to page 1 when search changes
+  useEffect(() => { setProdPage(1); }, [prodSearch]);
+  useEffect(() => { setCompPage(1); }, [compSearch]);
+
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+
+  if (isLoading) return (
+    <div className='flex items-center justify-center py-24 gap-3 text-gray-400 dark:text-zinc-500'>
+      <div className='animate-spin rounded-full h-5 w-5 border-2 border-gray-300 dark:border-zinc-600 border-t-blue-500' />
+      Loading…
+    </div>
+  );
+
+  if (!accessToken) return (
+    <div className='flex flex-col items-center justify-center py-24 text-gray-400 dark:text-zinc-500'>
+      <BookOpen className='w-10 h-10 mb-3 opacity-40' />
+      <p className='font-medium'>Please log in to view this page</p>
+    </div>
+  );
+
+  return (
+    <div className='space-y-6'>
+      {/* Header */}
+      <div className='flex items-start justify-between'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg'>
+            <BookOpen className='w-5 h-5 text-blue-600 dark:text-blue-400' />
+          </div>
+          <div>
+            <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>Zoho Products</h1>
+            <p className='text-sm text-gray-500 dark:text-zinc-400 mt-0.5'>
+              Synced from Zoho Books
+            </p>
+          </div>
+        </div>
+        <div className='flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 px-3 py-1.5 rounded-full'>
+          <RefreshCw className='w-3 h-3' />
+          Updated daily
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className='flex gap-1 border-b border-gray-200 dark:border-zinc-800'>
+        {([['products', 'Products', prodTotal], ['composites', 'Composite Items', compTotal]] as const).map(([id, label, count]) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === id
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
+                : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200'
+            }`}
+          >
+            {label}
+            {count > 0 && (
+              <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+                tab === id ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400'
+              }`}>
+                {count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Products tab */}
+      {tab === 'products' && (
+        <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden'>
+          <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-4'>
+            <h2 className='text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider shrink-0'>Products</h2>
+            <div className='relative flex-1 max-w-sm'>
+              <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400' />
+              <input
+                type='text'
+                value={prodSearch}
+                onChange={(e) => setProdSearch(e.target.value)}
+                placeholder='Search by name or SKU…'
+                className='w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+              />
             </div>
           </div>
 
-          {loading ? (
-            <div className='flex items-center justify-center py-12'>
-              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
-              <span className='ml-2 text-gray-600 dark:text-zinc-400'>Loading products...</span>
-            </div>
-          ) : error ? (
-            <div className='flex items-center justify-center py-12'>
-              <div className='text-center'>
-                <div className='w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center'>
-                  <svg
-                    className='w-8 h-8 text-red-400'
-                    fill='none'
-                    stroke='currentColor'
-                    viewBox='0 0 24 24'
-                  >
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      strokeWidth={2}
-                      d='M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
-                    />
-                  </svg>
-                </div>
-                <p className='text-red-600'>{error}</p>
-                <button
-                  onClick={fetchProducts}
-                  className='mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors'
-                >
-                  Try Again
-                </button>
-              </div>
+          {prodLoading ? (
+            <div className='flex items-center justify-center py-16 gap-3 text-gray-400 dark:text-zinc-500'>
+              <div className='animate-spin rounded-full h-5 w-5 border-2 border-gray-300 dark:border-zinc-600 border-t-blue-500' />
+              Loading…
             </div>
           ) : products.length === 0 ? (
-            <div className='flex items-center justify-center py-12'>
-              <div className='text-center'>
-                <div className='w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-zinc-800 rounded-full flex items-center justify-center'>
-                  <svg
-                    className='w-8 h-8 text-gray-400'
-                    fill='none'
-                    stroke='currentColor'
-                    viewBox='0 0 24 24'
-                  >
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      strokeWidth={2}
-                      d='M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4'
-                    />
-                  </svg>
-                </div>
-                <p className='text-gray-600 dark:text-zinc-400'>No products found</p>
-              </div>
+            <div className='flex flex-col items-center justify-center py-16 text-gray-400 dark:text-zinc-500'>
+              <BookOpen className='w-10 h-10 mb-3 opacity-40' />
+              <p className='font-medium'>{prodSearch ? `No results for "${prodSearch}"` : 'No products found'}</p>
             </div>
           ) : (
             <>
-              {/* Products Table */}
               <div className='overflow-x-auto'>
-                <table className='w-full'>
-                  <thead className='bg-gray-50 dark:bg-zinc-800'>
-                    <tr>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                        Product
-                      </th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                        SKU
-                      </th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                        Price
-                      </th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                        Stock
-                      </th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                        Status
-                      </th>
+                <table className='w-full text-sm'>
+                  <thead>
+                    <tr className='bg-gray-50 dark:bg-zinc-800/60'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Product</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Price</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Stock</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Status</th>
                     </tr>
                   </thead>
-                  <tbody className='bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800'>
-                    {products.map((product: any, index) => (
-                      <tr
-                        key={product._id || index}
-                        className='hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors'
-                      >
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='flex items-center'>
-                            <div className='flex-shrink-0 h-10 w-10'>
-                              <div className='h-10 w-10 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-center'>
-                                <span className='text-white font-medium text-sm'>
-                                  {product.name
-                                    ? product.name.charAt(0).toUpperCase()
-                                    : 'P'}
-                                </span>
-                              </div>
+                  <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
+                    {products.map((p: any, i) => (
+                      <tr key={p._id || i} className='hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors'>
+                        <td className='px-6 py-3.5'>
+                          <div className='flex items-center gap-3'>
+                            <div className='w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shrink-0'>
+                              <span className='text-white text-xs font-semibold'>{(p.name || 'P').charAt(0).toUpperCase()}</span>
                             </div>
-                            <div className='ml-4'>
-                              <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
-                                {product.name || 'Unnamed Product'}
-                              </div>
-                            </div>
+                            <span className='font-medium text-gray-800 dark:text-zinc-200'>{p.name || 'Unnamed'}</span>
                           </div>
                         </td>
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='text-sm text-gray-900 dark:text-zinc-100 font-mono'>
-                            {product.sku || product.item_id || 'N/A'}
-                          </div>
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='text-sm font-medium text-gray-900 dark:text-zinc-100'>
-                            {formatCurrency(product.rate || product.price)}
-                          </div>
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <div className='text-sm text-gray-900 dark:text-zinc-100'>
-                            {product.stock ? product.stock : 0}
-                          </div>
-                        </td>
-                        <td className='px-6 py-4 whitespace-nowrap'>
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              product.status === 'active' || product.is_active
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-                            }`}
-                          >
-                            {product.status === 'active' || product.is_active
-                              ? 'Active'
-                              : 'Inactive'}
+                        <td className='px-6 py-3.5 font-mono text-xs text-gray-500 dark:text-zinc-400'>{p.sku || p.item_id || '—'}</td>
+                        <td className='px-6 py-3.5 font-medium text-gray-800 dark:text-zinc-200'>{fmt(p.rate || p.price)}</td>
+                        <td className='px-6 py-3.5 text-gray-600 dark:text-zinc-300'>{p.stock ?? 0}</td>
+                        <td className='px-6 py-3.5'>
+                          <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full ${
+                            p.status === 'active' || p.is_active
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          }`}>
+                            {p.status === 'active' || p.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                {
-                  <div className='px-6 py-4 border-t border-gray-200 dark:border-zinc-800'>
-                    <div className='flex items-center justify-between'>
-                      <div className='text-sm text-gray-500 dark:text-zinc-400'>
-                        Showing {(currentPage - 1) * limit + 1} to{' '}
-                        {Math.min(currentPage * limit, totalProducts)} of{' '}
-                        {totalProducts} products
-                      </div>
-                      <div className='flex items-center space-x-2'>
-                        <button
-                          onClick={() => handlePageChange(currentPage - 1)}
-                          disabled={currentPage === 1}
-                          className='px-3 py-2 text-sm font-medium text-gray-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-                        >
-                          Previous
-                        </button>
-
-                        <div className='flex items-center space-x-1'>
-                          {Array.from(
-                            { length: Math.min(5, totalPages) },
-                            (_, i) => {
-                              let pageNum;
-                              if (totalPages <= 5) {
-                                pageNum = i + 1;
-                              } else if (currentPage <= 3) {
-                                pageNum = i + 1;
-                              } else if (currentPage >= totalPages - 2) {
-                                pageNum = totalPages - 4 + i;
-                              } else {
-                                pageNum = currentPage - 2 + i;
-                              }
-
-                              return (
-                                <button
-                                  key={pageNum}
-                                  onClick={() => handlePageChange(pageNum)}
-                                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                                    currentPage === pageNum
-                                      ? 'bg-blue-600 text-white'
-                                      : 'text-gray-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-700'
-                                  }`}
-                                >
-                                  {pageNum}
-                                </button>
-                              );
-                            }
-                          )}
-                        </div>
-
-                        <button
-                          onClick={() => handlePageChange(currentPage + 1)}
-                          disabled={currentPage === totalPages}
-                          className='px-3 py-2 text-sm font-medium text-gray-500 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                }
               </div>
-              {/* Pagination */}
+              <div className='px-6 py-4 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between'>
+                <p className='text-xs text-gray-400 dark:text-zinc-500'>
+                  {(prodPage - 1) * PAGE_SIZE + 1}–{Math.min(prodPage * PAGE_SIZE, prodTotal)} of {prodTotal}
+                </p>
+                <Pagination currentPage={prodPage} totalPages={prodTotalPages} onChange={setProdPage} />
+              </div>
             </>
           )}
         </div>
-      </div>
+      )}
+
+      {/* Composite items tab */}
+      {tab === 'composites' && (
+        <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden'>
+          <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-4'>
+            <h2 className='text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider shrink-0'>Composite Items</h2>
+            <div className='relative flex-1 max-w-sm'>
+              <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400' />
+              <input
+                type='text'
+                value={compSearch}
+                onChange={(e) => setCompSearch(e.target.value)}
+                placeholder='Search by name or SKU…'
+                className='w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+              />
+            </div>
+          </div>
+
+          {compLoading ? (
+            <div className='flex items-center justify-center py-16 gap-3 text-gray-400 dark:text-zinc-500'>
+              <div className='animate-spin rounded-full h-5 w-5 border-2 border-gray-300 dark:border-zinc-600 border-t-blue-500' />
+              Loading…
+            </div>
+          ) : composites.length === 0 ? (
+            <div className='flex flex-col items-center justify-center py-16 text-gray-400 dark:text-zinc-500'>
+              <BookOpen className='w-10 h-10 mb-3 opacity-40' />
+              <p className='font-medium'>{compSearch ? `No results for "${compSearch}"` : 'No composite items found'}</p>
+            </div>
+          ) : (
+            <>
+              <div className='overflow-x-auto'>
+                <table className='w-full text-sm'>
+                  <thead>
+                    <tr className='bg-gray-50 dark:bg-zinc-800/60'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Name</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU Code</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Components</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Last Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
+                    {composites.map((c: any, i) => (
+                      <tr key={c._id || i} className='hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors'>
+                        <td className='px-6 py-3.5 font-medium text-gray-800 dark:text-zinc-200'>{c.name}</td>
+                        <td className='px-6 py-3.5'>
+                          <span className='inline-block font-mono text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded'>
+                            {c.sku_code || '—'}
+                          </span>
+                        </td>
+                        <td className='px-6 py-3.5'>
+                          <div className='flex flex-wrap gap-1'>
+                            {(c.components || []).map((comp: any, ci: number) => (
+                              <span key={ci} className='text-xs bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 px-2 py-0.5 rounded'>
+                                {comp.name}{comp.quantity > 1 ? ` ×${comp.quantity}` : ''}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className='px-6 py-3.5 text-xs text-gray-400 dark:text-zinc-500'>
+                          {c.last_updated ? new Date(c.last_updated).toLocaleDateString('en-IN') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className='px-6 py-4 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between'>
+                <p className='text-xs text-gray-400 dark:text-zinc-500'>
+                  {(compPage - 1) * PAGE_SIZE + 1}–{Math.min(compPage * PAGE_SIZE, compTotal)} of {compTotal}
+                </p>
+                <Pagination currentPage={compPage} totalPages={compTotalPages} onChange={setCompPage} />
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
-
-export default Page;
