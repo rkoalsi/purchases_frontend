@@ -1,397 +1,173 @@
-'use client'; // This component needs to be client-side
+'use client';
 
 import { useAuth } from '@/components/context/AuthContext';
 import BlinkitItemsTable from '@/components/inventory/BlinkitItemsTable';
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import { Plus, X, Zap, Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { toast } from 'react-toastify';
 
-function Page() {
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/blinkit`;
+
+export default function BlinkitItemsPage() {
   const { isLoading, accessToken } = useAuth();
-  const [skuData, setSkuData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState(''); // 'success' or 'error'
-
-  // Modal states
+  const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [formData, setFormData] = useState({
-    item_id: '',
-    sku_code: '',
-    item_name: '',
-  });
-  const [formErrors, setFormErrors]: any = useState({});
-
-  const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/blinkit`;
-
-  // Fetch SKU mapping data on component mount
-  useEffect(() => {
-    fetchSkuData();
-  }, []);
-
-  const fetchSkuData = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(
-        `${API_BASE_URL}/get_blinkit_sku_mapping`
-      );
-      setSkuData(response.data);
-      setMessage('');
-    } catch (error) {
-      console.error('Error fetching SKU data:', error);
-      setMessage('Failed to fetch SKU mapping data');
-      setMessageType('error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileSelect = (event: any) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        setMessage('Please select an Excel file (.xlsx or .xls)');
-        setMessageType('error');
-        setSelectedFile(null);
-        return;
-      }
-      setSelectedFile(file);
-      setMessage('');
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      setMessage('Please select a file first');
-      setMessageType('error');
-      return;
-    }
-
-    try {
-      setUploading(true);
-      setMessage('');
-
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      const response = await axios.post(
-        `${API_BASE_URL}/upload-sku-mapping`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-
-      setMessage(response.data.message || 'File uploaded successfully!');
-      setMessageType('success');
-      setSelectedFile(null);
-
-      // Reset file input
-      const fileInput: any = document.getElementById('file-input');
-      if (fileInput) fileInput.value = '';
-
-      // Refresh the data
-      await fetchSkuData();
-    } catch (error: any) {
-      console.error('Error uploading file:', error);
-      const errorMessage =
-        error.response?.data?.detail || 'Failed to upload file';
-      setMessage(errorMessage);
-      setMessageType('error');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Modal functions
-  const openModal = () => {
-    setIsModalOpen(true);
-    setFormData({ item_id: '', sku_code: '', item_name: '' });
-    setFormErrors({});
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setFormData({ item_id: '', sku_code: '', item_name: '' });
-    setFormErrors({});
-  };
-
-  const handleInputChange = (e: any) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error for this field when user starts typing
-    if (formErrors[name]) {
-      setFormErrors((prev: any) => ({
-        ...prev,
-        [name]: '',
-      }));
-    }
-  };
-
-  const validateForm = () => {
-    const errors: any = {};
-
-    if (!formData.item_id.trim()) {
-      errors.item_id = 'Item ID is required';
-    }
-
-    if (!formData.sku_code.trim()) {
-      errors.sku_code = 'SKU Code is required';
-    }
-
-    if (!formData.item_name.trim()) {
-      errors.item_name = 'Item Name is required';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  const [formData, setFormData] = useState({ item_id: '', sku_code: '', item_name: '' });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const handleCreateItem = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    const errors: Record<string, string> = {};
+    if (!formData.item_id.trim()) errors.item_id = 'Item ID is required';
+    if (!formData.sku_code.trim()) errors.sku_code = 'SKU Code is required';
+    if (!formData.item_name.trim()) errors.item_name = 'Item Name is required';
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
 
     try {
       setCreating(true);
-
-      const response = await axios.post(
-        `${API_BASE_URL}/create_single_item`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      setMessage(response.data.message || 'Item created successfully!');
-      setMessageType('success');
-      closeModal();
-
-      // Refresh the data
-      await fetchSkuData();
-    } catch (error: any) {
-      console.error('Error creating item:', error);
-      const errorMessage =
-        error.response?.data?.detail ||
-        error.response?.data?.message ||
-        'Failed to create item';
-      setMessage(errorMessage);
-      setMessageType('error');
+      await axios.post(`${API_BASE}/create_single_item`, formData);
+      toast.success('Item created');
+      setIsModalOpen(false);
+      setFormData({ item_id: '', sku_code: '', item_name: '' });
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to create item');
     } finally {
       setCreating(false);
     }
   };
 
   if (isLoading) {
-    return <p>Loading user data...</p>;
+    return (
+      <div className='flex items-center justify-center py-24 gap-3 text-gray-400 dark:text-zinc-500'>
+        <div className='animate-spin rounded-full h-5 w-5 border-2 border-gray-300 dark:border-zinc-600 border-t-green-500' />
+        Loading…
+      </div>
+    );
   }
 
   if (!accessToken) {
-    return <p>Please log in to see this content.</p>;
+    return (
+      <div className='flex flex-col items-center justify-center py-24 text-gray-400 dark:text-zinc-500'>
+        <div className='w-14 h-14 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center mb-4'>
+          <svg className='w-7 h-7' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2}
+              d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' />
+          </svg>
+        </div>
+        <p className='font-medium'>Please log in to view this page</p>
+      </div>
+    );
   }
 
   return (
-    <>
-      <div className='bg-gray-50 dark:bg-zinc-900 rounded-lg p-6 mb-8'>
-        <div className='mb-8 flex justify-between items-start'>
+    <div className='space-y-6'>
+      {/* Page header */}
+      <div className='flex items-start justify-between'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2 rounded-lg' style={{ backgroundColor: 'rgba(255, 211, 76, 0.2)' }}>
+            <Zap className='w-5 h-5' style={{ color: '#FFD34C' }} />
+          </div>
           <div>
-            <h1 className='text-3xl font-bold text-black dark:text-zinc-100 mb-2'>
-              Blinkit SKU Mapping Management
+            <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
+              Blinkit SKU Mapping
             </h1>
-            <p className='text-black dark:text-zinc-400'>
-              Upload and manage Blinkit Item and Sku Codes
+            <p className='text-sm text-gray-500 dark:text-zinc-400 mt-0.5'>
+              Manage Blinkit item ID → SKU code mappings
             </p>
           </div>
-          <button
-            onClick={openModal}
-            className='bg-green-600 text-white px-4 py-2 rounded-md font-medium hover:bg-green-700 transition-colors'
-          >
-            Create New Item
-          </button>
         </div>
-
-        {/* Display messages */}
-        {message && (
-          <div
-            className={`mb-4 p-3 rounded-md ${
-              messageType === 'success'
-                ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-800'
-                : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800'
-            }`}
-          >
-            {message}
-          </div>
-        )}
-
-        <h2 className='text-xl font-semibold text-gray-800 dark:text-zinc-100 mb-4'>
-          Upload SKU Mapping
-        </h2>
-        <div className='flex flex-col sm:flex-row gap-4 items-start'>
-          <div className='flex-1'>
+        <div className='flex items-center gap-2'>
+          <div className='relative'>
+            <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500' />
             <input
-              id='file-input'
-              type='file'
-              accept='.xlsx,.xls'
-              onChange={handleFileSelect}
-              className='w-full text-black dark:text-zinc-100 px-3 py-2 border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+              type='text'
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder='Search by item ID, SKU or name…'
+              className='pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent w-64'
             />
-            <p className='text-sm text-gray-700 dark:text-zinc-400 mt-1'>
-              Expected columns: Item ID, SKU Code, Item Name
-            </p>
           </div>
           <button
-            onClick={handleUpload}
-            disabled={!selectedFile || uploading}
-            className={`px-6 py-2 rounded-md font-medium transition-colors ${
-              !selectedFile || uploading
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+            onClick={() => { setIsModalOpen(true); setFormErrors({}); }}
+            className='flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-opacity hover:opacity-90 text-gray-900'
+            style={{ backgroundColor: '#FFD34C' }}
           >
-            {uploading ? 'Uploading...' : 'Upload'}
+            <Plus className='w-4 h-4' />
+            Add Item
           </button>
         </div>
       </div>
 
-      <BlinkitItemsTable />
+      {/* Table */}
+      <BlinkitItemsTable search={search} />
 
-      {/* Modal */}
+      {/* Create modal */}
       {isModalOpen && (
-        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md mx-4'>
-            <div className='flex justify-between items-center mb-4'>
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-zinc-100'>
-                Create New Item
-              </h3>
+        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
+          <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md border border-gray-200 dark:border-zinc-800'>
+            <div className='flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800'>
+              <h3 className='font-semibold text-gray-900 dark:text-zinc-100'>Add Item</h3>
               <button
-                onClick={closeModal}
-                className='text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300'
+                onClick={() => setIsModalOpen(false)}
+                className='p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors'
               >
-                <svg
-                  className='w-6 h-6'
-                  fill='none'
-                  stroke='currentColor'
-                  viewBox='0 0 24 24'
-                >
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth={2}
-                    d='M6 18L18 6M6 6l12 12'
-                  />
-                </svg>
+                <X className='w-5 h-5' />
               </button>
             </div>
-
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleCreateItem();
-              }}
+              className='p-6 space-y-4'
+              onSubmit={(e) => { e.preventDefault(); handleCreateItem(); }}
             >
-              <div className='space-y-4'>
-                <div>
-                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
-                    Item ID
+              {[
+                { name: 'item_id', label: 'Item ID', placeholder: 'Blinkit item ID' },
+                { name: 'sku_code', label: 'SKU Code', placeholder: 'e.g. PS-DOG-001' },
+                { name: 'item_name', label: 'Item Name', placeholder: 'Product title' },
+              ].map(({ name, label, placeholder }) => (
+                <div key={name}>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1'>
+                    {label}
                   </label>
                   <input
                     type='text'
-                    name='item_id'
-                    value={formData.item_id}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 text-black dark:text-zinc-100 dark:bg-zinc-800 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.item_id ? 'border-red-300' : 'border-gray-300 dark:border-zinc-700'
+                    name={name}
+                    value={formData[name as keyof typeof formData]}
+                    onChange={(e) => {
+                      setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
+                      setFormErrors((p) => ({ ...p, [e.target.name]: '' }));
+                    }}
+                    placeholder={placeholder}
+                    className={`w-full px-3 py-2 text-sm rounded-lg border bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent ${
+                      formErrors[name] ? 'border-red-400' : 'border-gray-300 dark:border-zinc-700'
                     }`}
-                    placeholder='Enter Item ID'
                   />
-                  {formErrors.item_id && (
-                    <p className='text-red-500 text-sm mt-1'>
-                      {formErrors.item_id}
-                    </p>
+                  {formErrors[name] && (
+                    <p className='text-xs text-red-500 mt-1'>{formErrors[name]}</p>
                   )}
                 </div>
-
-                <div>
-                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
-                    SKU Code
-                  </label>
-                  <input
-                    type='text'
-                    name='sku_code'
-                    value={formData.sku_code}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 text-black dark:text-zinc-100 dark:bg-zinc-800 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.sku_code ? 'border-red-300' : 'border-gray-300 dark:border-zinc-700'
-                    }`}
-                    placeholder='Enter SKU Code'
-                  />
-                  {formErrors.sku_code && (
-                    <p className='text-red-500 text-sm mt-1'>
-                      {formErrors.sku_code}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
-                    Item Name
-                  </label>
-                  <input
-                    type='text'
-                    name='item_name'
-                    value={formData.item_name}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border text-black dark:text-zinc-100 dark:bg-zinc-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.item_name
-                        ? 'border-red-300'
-                        : 'border-gray-300 dark:border-zinc-700'
-                    }`}
-                    placeholder='Enter Item Name'
-                  />
-                  {formErrors.item_name && (
-                    <p className='text-red-500 text-sm mt-1'>
-                      {formErrors.item_name}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className='flex gap-3 mt-6'>
+              ))}
+              <div className='flex gap-3 pt-2'>
                 <button
                   type='button'
-                  onClick={closeModal}
-                  className='flex-1 px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'
+                  onClick={() => setIsModalOpen(false)}
+                  className='flex-1 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'
                 >
                   Cancel
                 </button>
                 <button
                   type='submit'
                   disabled={creating}
-                  className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
-                    creating
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                  className='flex-1 px-4 py-2 text-sm font-medium rounded-lg hover:opacity-90 disabled:opacity-60 text-gray-900 transition-opacity'
+                  style={{ backgroundColor: '#FFD34C' }}
                 >
-                  {creating ? 'Creating...' : 'Create Item'}
+                  {creating ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
-
-export default Page;

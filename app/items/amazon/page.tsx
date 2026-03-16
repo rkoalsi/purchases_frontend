@@ -2,471 +2,334 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2 } from 'lucide-react';
+import { Trash2, RefreshCw, Plus, X, Package, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 
-const SkuMappingComponent = () => {
-  const [skuData, setSkuData] = useState([]);
+const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/amazon`;
+const PAGE_SIZE = 25;
+
+type SkuItem = {
+  _id: string;
+  item_id: string;
+  sku_code: string;
+  item_name: string;
+  seller_sku?: string;
+};
+
+type SyncResult = {
+  message: string;
+  inserted: number;
+  updated: number;
+  unchanged: number;
+  total_sp_listings: number;
+};
+
+export default function AmazonSkuMappingPage() {
+  const [skuData, setSkuData] = useState<SkuItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [formData, setFormData] = useState({
-    item_id: '',
-    sku_code: '',
-    item_name: '',
+  const [formData, setFormData] = useState({ item_id: '', sku_code: '', item_name: '' });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => { fetchSkuData(); }, []);
+
+  const filtered = skuData.filter((item) => {
+    const q = search.toLowerCase();
+    return (
+      item.item_id.toLowerCase().includes(q) ||
+      item.sku_code.toLowerCase().includes(q) ||
+      item.item_name.toLowerCase().includes(q)
+    );
   });
-  const [formErrors, setFormErrors]: any = useState({});
 
-  const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL}/amazon`;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Fetch SKU mapping data on component mount
-  useEffect(() => {
-    fetchSkuData();
-  }, []);
-  const openModal = () => {
-    setIsModalOpen(true);
-    setFormData({ item_id: '', sku_code: '', item_name: '' });
-    setFormErrors({});
-  };
+  // Reset to page 1 when search changes
+  useEffect(() => { setPage(1); }, [search]);
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setFormData({ item_id: '', sku_code: '', item_name: '' });
-    setFormErrors({});
-  };
   const fetchSkuData = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        `${API_BASE_URL}/get_amazon_sku_mapping`
-      );
-      setSkuData(response.data);
-      setMessage('');
-    } catch (error) {
-      console.error('Error fetching SKU data:', error);
-      setMessage('Failed to fetch SKU mapping data');
-      setMessageType('error');
+      const res = await axios.get(`${API_BASE}/get_amazon_sku_mapping`);
+      setSkuData(res.data);
+    } catch {
+      toast.error('Failed to load SKU mapping data');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileSelect = (event: any) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        setMessage('Please select an Excel file (.xlsx or .xls)');
-        setMessageType('error');
-        setSelectedFile(null);
-        return;
-      }
-      setSelectedFile(file);
-      setMessage('');
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      setMessage('Please select a file first');
-      setMessageType('error');
-      return;
-    }
-
+  const handleSync = async () => {
+    setSyncing(true);
     try {
-      setUploading(true);
-      setMessage('');
-
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      const response = await axios.post(
-        `${API_BASE_URL}/upload-sku-mapping`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-
-      setMessage(response.data.message || 'File uploaded successfully!');
-      setMessageType('success');
-      setSelectedFile(null);
-
-      // Reset file input
-      const fileInput: any = document.getElementById('file-input');
-      if (fileInput) fileInput.value = '';
-
-      // Refresh the data
+      const res = await axios.post<SyncResult>(`${API_BASE}/sync-sku-mapping`);
+      const d = res.data;
+      toast.success(`Sync complete — ${d.inserted} added, ${d.updated} updated, ${d.unchanged} unchanged`);
       await fetchSkuData();
-    } catch (error: any) {
-      console.error('Error uploading file:', error);
-      const errorMessage =
-        error.response?.data?.detail || 'Failed to upload file';
-      setMessage(errorMessage);
-      setMessageType('error');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Sync failed');
     } finally {
-      setUploading(false);
+      setSyncing(false);
     }
   };
 
   const handleCreateItem = async () => {
-    if (!validateForm()) {
-      return;
-    }
+    const errors: Record<string, string> = {};
+    if (!formData.item_id.trim()) errors.item_id = 'ASIN is required';
+    if (!formData.sku_code.trim()) errors.sku_code = 'SKU Code is required';
+    if (!formData.item_name.trim()) errors.item_name = 'Item Name is required';
+    setFormErrors(errors);
+    if (Object.keys(errors).length) return;
 
     try {
       setCreating(true);
-
-      const response = await axios.post(
-        `${API_BASE_URL}/create_single_item`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      setMessage(response.data.message || 'Item created successfully!');
-      setMessageType('success');
-      closeModal();
-
-      // Refresh the data
+      await axios.post(`${API_BASE}/create_single_item`, formData);
+      toast.success('Item created');
+      setIsModalOpen(false);
+      setFormData({ item_id: '', sku_code: '', item_name: '' });
       await fetchSkuData();
-    } catch (error: any) {
-      console.error('Error creating item:', error);
-      const errorMessage =
-        error.response?.data?.detail ||
-        error.response?.data?.message ||
-        'Failed to create item';
-      setMessage(errorMessage);
-      setMessageType('error');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to create item');
     } finally {
       setCreating(false);
     }
   };
-  const handleInputChange = (e: any) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-    // Clear error for this field when user starts typing
-    if (formErrors[name]) {
-      setFormErrors((prev: any) => ({
-        ...prev,
-        [name]: '',
-      }));
-    }
-  };
 
-  const validateForm = () => {
-    const errors: any = {};
-
-    if (!formData.item_id.trim()) {
-      errors.item_id = 'Item ID is required';
-    }
-
-    if (!formData.sku_code.trim()) {
-      errors.sku_code = 'SKU Code is required';
-    }
-
-    if (!formData.item_name.trim()) {
-      errors.item_name = 'Item Name is required';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-  const deleteItem = async (item: any) => {
+  const deleteItem = async (item: SkuItem) => {
     try {
-      const response = await axios.delete(
-        `${API_BASE_URL}/delete_item/${item._id}`
-      );
-      if (response.status == 200) {
-        toast.success(`Item Deleted Successfully`);
-        fetchSkuData();
-      }
-    } catch (error: any) {
-      console.log(error);
-      toast.error(`Error Deleting Item: `, error.message);
+      await axios.delete(`${API_BASE}/delete_item/${item._id}`);
+      toast.success('Item deleted');
+      fetchSkuData();
+    } catch {
+      toast.error('Failed to delete item');
     }
   };
+
   return (
-    <>
-      <div className='bg-gray-50 dark:bg-zinc-900 rounded-lg p-6 mb-8'>
-        <div className='mb-8 flex justify-between items-start'>
+    <div className='space-y-6'>
+      {/* Page header */}
+      <div className='flex items-start justify-between'>
+        <div className='flex items-center gap-3'>
+          <div className='p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg'>
+            <Package className='w-5 h-5 text-orange-600 dark:text-orange-400' />
+          </div>
           <div>
-            <h1 className='text-3xl font-bold text-black dark:text-zinc-100 mb-2'>
-              Amazon SKU Mapping Management
+            <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
+              Amazon SKU Mapping
             </h1>
-            <p className='text-black dark:text-zinc-400'>
-              Upload and manage Amazon ASIN and Sku Codes
+            <p className='text-sm text-gray-500 dark:text-zinc-400 mt-0.5'>
+              Manage ASIN → SKU code mappings synced from Amazon SP-API
             </p>
           </div>
-          <button
-            onClick={openModal}
-            className='bg-green-600 text-white px-4 py-2 rounded-md font-medium hover:bg-green-700 transition-colors'
-          >
-            Create New Item
-          </button>
         </div>
-
-        {/* Display messages */}
-        {message && (
-          <div
-            className={`mb-4 p-3 rounded-md ${
-              messageType === 'success'
-                ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-800'
-                : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800'
-            }`}
-          >
-            {message}
-          </div>
-        )}
-
-        <h2 className='text-xl font-semibold text-gray-800 dark:text-zinc-100 mb-4'>
-          Upload SKU Mapping
-        </h2>
-        <div className='flex flex-col sm:flex-row gap-4 items-start'>
-          <div className='flex-1'>
-            <input
-              id='file-input'
-              type='file'
-              accept='.xlsx,.xls'
-              onChange={handleFileSelect}
-              className='w-full text-black dark:text-zinc-100 px-3 py-2 border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-            />
-            <p className='text-sm text-gray-700 dark:text-zinc-400 mt-1'>
-              Expected columns: ASIN, SKU, Item Name
-            </p>
-          </div>
+        <div className='flex items-center gap-2'>
           <button
-            onClick={handleUpload}
-            disabled={!selectedFile || uploading}
-            className={`px-6 py-2 rounded-md font-medium transition-colors ${
-              !selectedFile || uploading
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+            onClick={handleSync}
+            disabled={syncing}
+            className='flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white rounded-lg font-medium text-sm transition-colors'
           >
-            {uploading ? 'Uploading...' : 'Upload'}
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync from Amazon'}
+          </button>
+          <button
+            onClick={() => { setIsModalOpen(true); setFormErrors({}); }}
+            className='flex items-center gap-2 px-4 py-2 bg-gray-900 dark:bg-zinc-100 hover:bg-gray-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 rounded-lg font-medium text-sm transition-colors'
+          >
+            <Plus className='w-4 h-4' />
+            Add Item
           </button>
         </div>
       </div>
 
-      {/* Message Display */}
-      {message && (
-        <div
-          className={`mb-6 p-4 rounded-md ${
-            messageType === 'success'
-              ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800'
-              : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800'
-          }`}
-        >
-          {message}
-        </div>
-      )}
-
-      {/* Data Table Section */}
-      <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-sm'>
-        <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center'>
-          <h2 className='text-xl font-semibold text-gray-800 dark:text-zinc-100'>
-            All Amazon Product Details and Mappings
+      {/* Table card */}
+      <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden'>
+        <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between gap-4'>
+          <h2 className='text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider shrink-0'>
+            All Mappings
           </h2>
+          <div className='relative flex-1 max-w-sm'>
+            <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-zinc-500' />
+            <input
+              type='text'
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder='Search by ASIN, SKU code or name…'
+              className='w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent'
+            />
+          </div>
+          {!loading && (
+            <span className='text-xs text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 px-2.5 py-1 rounded-full shrink-0'>
+              {filtered.length}{filtered.length !== skuData.length ? ` / ${skuData.length}` : ''} items
+            </span>
+          )}
         </div>
 
         {loading ? (
-          <div className='p-8 text-center'>
-            <div className='inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
-            <p className='mt-4 text-gray-600'>Loading SKU mapping data...</p>
+          <div className='flex items-center justify-center py-16 gap-3 text-gray-400 dark:text-zinc-500'>
+            <div className='animate-spin rounded-full h-5 w-5 border-2 border-gray-300 dark:border-zinc-600 border-t-orange-500' />
+            Loading…
           </div>
         ) : skuData.length === 0 ? (
-          <div className='p-8 text-center text-gray-500'>
-            <p>No SKU mapping data found.</p>
-            <p className='text-sm'>Upload an Excel file to get started.</p>
+          <div className='flex flex-col items-center justify-center py-16 text-gray-400 dark:text-zinc-500'>
+            <Package className='w-10 h-10 mb-3 opacity-40' />
+            <p className='font-medium'>No items yet</p>
+            <p className='text-sm mt-1'>Sync from Amazon or add items manually</p>
           </div>
         ) : (
           <div className='overflow-x-auto'>
-            <table className='w-full'>
-              <thead className='bg-gray-50 dark:bg-zinc-800'>
-                <tr>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                    ASIN
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                    SKU Code
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                    Item Name
-                  </th>
-                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
-                    Actions
-                  </th>
+            <table className='w-full text-sm'>
+              <thead>
+                <tr className='bg-gray-50 dark:bg-zinc-800/60'>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>ASIN</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU Code</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Item Name</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider w-16'></th>
                 </tr>
               </thead>
-              <tbody className='bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800'>
-                {skuData.map((item: any, index) => (
-                  <tr key={index} className='hover:bg-gray-50 dark:hover:bg-zinc-800/50'>
-                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100'>
+              <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
+                {paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
+                      {search ? `No results for "${search}"` : 'No items yet'}
+                    </td>
+                  </tr>
+                ) : paginated.map((item) => (
+                  <tr key={item._id} className='hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors'>
+                    <td className='px-6 py-3.5 font-mono text-xs text-gray-600 dark:text-zinc-300'>
                       {item.item_id}
                     </td>
-                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100'>
-                      {item.sku_code}
+                    <td className='px-6 py-3.5'>
+                      <span className='inline-block font-mono text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded'>
+                        {item.sku_code}
+                      </span>
                     </td>
-                    <td className='px-6 py-4 text-sm text-gray-900 dark:text-zinc-100'>
+                    <td className='px-6 py-3.5 text-gray-800 dark:text-zinc-200 max-w-md'>
                       {item.item_name}
                     </td>
-                    <td className='px-6 py-4 text-sm text-gray-900 dark:text-zinc-100'>
-                      <Trash2 onClick={() => deleteItem(item)} />
+                    <td className='px-6 py-3.5'>
+                      <button
+                        onClick={() => deleteItem(item)}
+                        className='p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors'
+                      >
+                        <Trash2 className='w-4 h-4' />
+                      </button>
                     </td>
                   </tr>
                 ))}
+
               </tbody>
             </table>
           </div>
         )}
-
-        {skuData.length > 0 && (
-          <div className='px-6 py-3 border-t border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50'>
-            <p className='text-sm text-gray-600 dark:text-zinc-400'>
-              Total records: {skuData.length}
+        {!loading && filtered.length > PAGE_SIZE && (
+          <div className='px-6 py-4 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between'>
+            <p className='text-xs text-gray-400 dark:text-zinc-500'>
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
             </p>
+            <div className='flex items-center gap-1'>
+              <button
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page === 1}
+                className='p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+              >
+                <ChevronLeft className='w-4 h-4' />
+              </button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const start = Math.max(1, page - 2);
+                const actual = Math.max(1, Math.min(totalPages, start + i));
+                return (
+                  <button
+                    key={actual}
+                    onClick={() => setPage(actual)}
+                    className={`w-8 h-8 text-sm rounded-md font-medium transition-colors ${
+                      page === actual ? 'bg-orange-600 text-white' : 'text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    {actual}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page === totalPages}
+                className='p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors'
+              >
+                <ChevronRight className='w-4 h-4' />
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Create modal */}
       {isModalOpen && (
-        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md mx-4'>
-            <div className='flex justify-between items-center mb-4'>
-              <h3 className='text-lg font-semibold text-gray-900 dark:text-zinc-100'>
-                Create New Item
-              </h3>
+        <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
+          <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md border border-gray-200 dark:border-zinc-800'>
+            <div className='flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800'>
+              <h3 className='font-semibold text-gray-900 dark:text-zinc-100'>Add Item</h3>
               <button
-                onClick={closeModal}
-                className='text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300'
+                onClick={() => setIsModalOpen(false)}
+                className='p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 transition-colors'
               >
-                <svg
-                  className='w-6 h-6'
-                  fill='none'
-                  stroke='currentColor'
-                  viewBox='0 0 24 24'
-                >
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    strokeWidth={2}
-                    d='M6 18L18 6M6 6l12 12'
-                  />
-                </svg>
+                <X className='w-5 h-5' />
               </button>
             </div>
-
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleCreateItem();
-              }}
+              className='p-6 space-y-4'
+              onSubmit={(e) => { e.preventDefault(); handleCreateItem(); }}
             >
-              <div className='space-y-4'>
-                <div>
-                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
-                    ASIN
+              {[
+                { name: 'item_id', label: 'ASIN', placeholder: 'e.g. B09XYZ1234' },
+                { name: 'sku_code', label: 'SKU Code', placeholder: 'e.g. PS-DOG-001' },
+                { name: 'item_name', label: 'Item Name', placeholder: 'Product title' },
+              ].map(({ name, label, placeholder }) => (
+                <div key={name}>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1'>
+                    {label}
                   </label>
                   <input
                     type='text'
-                    name='item_id'
-                    value={formData.item_id}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 text-black dark:text-zinc-100 dark:bg-zinc-800 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.item_id ? 'border-red-300' : 'border-gray-300 dark:border-zinc-700'
+                    name={name}
+                    value={formData[name as keyof typeof formData]}
+                    onChange={(e) => {
+                      setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
+                      setFormErrors((p) => ({ ...p, [e.target.name]: '' }));
+                    }}
+                    placeholder={placeholder}
+                    className={`w-full px-3 py-2 text-sm rounded-lg border bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
+                      formErrors[name] ? 'border-red-400' : 'border-gray-300 dark:border-zinc-700'
                     }`}
-                    placeholder='Enter ASIN'
                   />
-                  {formErrors.item_id && (
-                    <p className='text-red-500 text-sm mt-1'>
-                      {formErrors.item_id}
-                    </p>
+                  {formErrors[name] && (
+                    <p className='text-xs text-red-500 mt-1'>{formErrors[name]}</p>
                   )}
                 </div>
-
-                <div>
-                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
-                    SKU Code
-                  </label>
-                  <input
-                    type='text'
-                    name='sku_code'
-                    value={formData.sku_code}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 text-black dark:text-zinc-100 dark:bg-zinc-800 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.sku_code ? 'border-red-300' : 'border-gray-300 dark:border-zinc-700'
-                    }`}
-                    placeholder='Enter SKU Code'
-                  />
-                  {formErrors.sku_code && (
-                    <p className='text-red-500 text-sm mt-1'>
-                      {formErrors.sku_code}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className='block text-sm font-medium text-black dark:text-zinc-100 mb-1'>
-                    Item Name
-                  </label>
-                  <input
-                    type='text'
-                    name='item_name'
-                    value={formData.item_name}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border text-black dark:text-zinc-100 dark:bg-zinc-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      formErrors.item_name
-                        ? 'border-red-300'
-                        : 'border-gray-300 dark:border-zinc-700'
-                    }`}
-                    placeholder='Enter Item Name'
-                  />
-                  {formErrors.item_name && (
-                    <p className='text-red-500 text-sm mt-1'>
-                      {formErrors.item_name}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className='flex gap-3 mt-6'>
+              ))}
+              <div className='flex gap-3 pt-2'>
                 <button
                   type='button'
-                  onClick={closeModal}
-                  className='flex-1 px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'
+                  onClick={() => setIsModalOpen(false)}
+                  className='flex-1 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'
                 >
                   Cancel
                 </button>
                 <button
                   type='submit'
                   disabled={creating}
-                  className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
-                    creating
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                  className='flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white transition-colors'
                 >
-                  {creating ? 'Creating...' : 'Create Item'}
+                  {creating ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
-};
-
-export default SkuMappingComponent;
+}
