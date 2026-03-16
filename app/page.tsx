@@ -10,6 +10,10 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import {
+  PieChart, Pie, Cell, Tooltip as ReTooltip,
+  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList,
+} from 'recharts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -347,6 +351,97 @@ const BrandDetail = ({ b }: { b: BrandKPI }) => (
   </div>
 );
 
+// ─── Brand colours ────────────────────────────────────────────────────────────
+
+const BRAND_COLORS = [
+  '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444',
+  '#06b6d4', '#f97316', '#84cc16', '#ec4899', '#14b8a6',
+  '#6366f1', '#a78bfa', '#34d399', '#fb923c', '#f87171',
+];
+
+// ─── Revenue donut chart ───────────────────────────────────────────────────────
+
+const RevenueDonut = ({ brands }: { brands: BrandKPI[] }) => {
+  const chartData = brands
+    .filter((b) => b.revenue > 0)
+    .map((b, i) => ({ name: b.brand, value: b.revenue, color: BRAND_COLORS[i % BRAND_COLORS.length] }));
+  const total = chartData.reduce((s, d) => s + d.value, 0);
+  if (!chartData.length) return null;
+  return (
+    <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-5'>
+      <h2 className='text-sm font-semibold text-gray-900 dark:text-zinc-100 mb-3'>Revenue by Brand</h2>
+      <ResponsiveContainer width='100%' height={220}>
+        <PieChart>
+          <Pie data={chartData} cx='50%' cy='50%' innerRadius={65} outerRadius={95} dataKey='value' paddingAngle={2}>
+            {chartData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+          </Pie>
+          <ReTooltip
+            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, color: '#111827' }}
+            itemStyle={{ color: '#374151' }}
+            labelStyle={{ color: '#111827', fontWeight: 600 }}
+            formatter={(val: number, name: string) => [
+              `₹${val.toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${((val / total) * 100).toFixed(1)}%)`,
+              name,
+            ]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className='flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-1'>
+        {chartData.map((d) => (
+          <div key={d.name} className='flex items-center gap-1.5 text-xs text-gray-600 dark:text-zinc-400'>
+            <span className='w-2.5 h-2.5 rounded-sm flex-shrink-0' style={{ backgroundColor: d.color }} />
+            <span>{d.name}</span>
+            <span className='text-gray-400 dark:text-zinc-500'>({((d.value / total) * 100).toFixed(1)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── Days cover vs target bar chart ───────────────────────────────────────────
+
+const DaysCoverChart = ({ brands }: { brands: BrandKPI[] }) => {
+  const chartData = [...brands]
+    .sort((a, b) => a.brand.localeCompare(b.brand))
+    .filter((b) => b.alert_level !== 3)
+    .map((b) => ({
+      brand: b.brand.length > 14 ? b.brand.slice(0, 14) + '…' : b.brand,
+      fullBrand: b.brand,
+      cover: Math.round(b.weighted_avg_days_cover * 10) / 10,
+      target: b.target_days,
+      alert: b.alert_level,
+    }));
+  if (!chartData.length) return null;
+  const h = Math.max(200, chartData.length * 48 + 40);
+  return (
+    <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-5'>
+      <h2 className='text-sm font-semibold text-gray-900 dark:text-zinc-100 mb-1'>W.Avg Days Cover vs Target</h2>
+      <p className='text-xs text-gray-400 dark:text-zinc-500 mb-3'>Gray = target days  ·  colored = current weighted-avg cover</p>
+      <ResponsiveContainer width='100%' height={h}>
+        <BarChart data={chartData} layout='vertical' margin={{ top: 0, right: 48, left: 0, bottom: 0 }} barGap={4}>
+          <XAxis type='number' tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+          <YAxis type='category' dataKey='brand' width={110} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+          <ReTooltip
+            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, color: '#111827' }}
+            itemStyle={{ color: '#374151' }}
+            labelStyle={{ color: '#111827', fontWeight: 600 }}
+            formatter={(val: number, name: string) => [`${val}d`, name === 'cover' ? 'W.Avg Cover' : 'Target']}
+            labelFormatter={(_: string, payload: any[]) => payload?.[0]?.payload?.fullBrand ?? _}
+          />
+          <Bar dataKey='target' fill='#e5e7eb' radius={[0, 4, 4, 0]} maxBarSize={10} />
+          <Bar dataKey='cover' radius={[0, 4, 4, 0]} maxBarSize={22}>
+            {chartData.map((d, i) => (
+              <Cell key={i} fill={d.alert === 2 ? '#ef4444' : d.alert === 1 ? '#f59e0b' : '#10b981'} />
+            ))}
+            <LabelList dataKey='cover' position='right' formatter={(v: number) => `${v}d`} style={{ fontSize: 10, fill: '#6b7280' }} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Page() {
@@ -492,6 +587,14 @@ export default function Page() {
             </div>
           ))}
         </div>
+
+        {/* ── Charts ── */}
+        {data && !loading && (
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+            <RevenueDonut brands={data.brands} />
+            <DaysCoverChart brands={data.brands} />
+          </div>
+        )}
 
         {/* ── Global stock classification summary ── */}
         {gsc && !loading && (
