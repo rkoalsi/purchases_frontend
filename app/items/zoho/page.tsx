@@ -56,6 +56,26 @@ function Pagination({
       >
         <ChevronRight className='w-4 h-4' />
       </button>
+      <div className='flex items-center gap-1 ml-2 pl-2 border-l border-gray-200 dark:border-zinc-700'>
+        <span className='text-xs text-gray-400 dark:text-zinc-500'>Go to</span>
+        <input
+          type='number'
+          min={1}
+          max={totalPages}
+          placeholder='…'
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const v = parseInt(e.currentTarget.value);
+              if (v >= 1 && v <= totalPages) {
+                onChange(v);
+                e.currentTarget.value = '';
+              }
+            }
+          }}
+          className='w-12 px-1.5 py-1 text-center text-xs rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+        />
+        <span className='text-xs text-gray-400 dark:text-zinc-500'>of {totalPages}</span>
+      </div>
     </div>
   );
 }
@@ -64,6 +84,10 @@ export default function ZohoItemsPage() {
   const { isLoading, accessToken } = useAuth();
   const [tab, setTab] = useState<Tab>('products');
 
+  // Brands
+  const [brands, setBrands] = useState<{ value: string; label: string }[]>([]);
+  const [prodBrand, setProdBrand] = useState('');
+
   // Products state
   const [products, setProducts] = useState<any[]>([]);
   const [prodSearch, setProdSearch] = useState('');
@@ -71,6 +95,7 @@ export default function ZohoItemsPage() {
   const [prodTotal, setProdTotal] = useState(0);
   const [prodTotalPages, setProdTotalPages] = useState(1);
   const [prodLoading, setProdLoading] = useState(false);
+  const [prodShowInactive, setProdShowInactive] = useState(false);
 
   // Composite state
   const [composites, setComposites] = useState<any[]>([]);
@@ -80,11 +105,28 @@ export default function ZohoItemsPage() {
   const [compTotalPages, setCompTotalPages] = useState(1);
   const [compLoading, setCompLoading] = useState(false);
 
+  // Fetch brands
+  useEffect(() => {
+    if (!accessToken) return;
+    axios
+      .get(`${process.env.NEXT_PUBLIC_API_URL}/master/brands`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      .then((res) => setBrands(res.data.brands || []))
+      .catch(() => {});
+  }, [accessToken]);
+
   const fetchProducts = useCallback(async () => {
     setProdLoading(true);
     try {
       const res = await axios.get(`${API}/products`, {
-        params: { page: prodPage, limit: PAGE_SIZE, search: prodSearch || undefined },
+        params: {
+          page: prodPage,
+          limit: PAGE_SIZE,
+          search: prodSearch || undefined,
+          status: prodShowInactive ? undefined : 'active',
+          brand: prodBrand || undefined,
+        },
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       setProducts(res.data.products);
@@ -93,7 +135,7 @@ export default function ZohoItemsPage() {
     } finally {
       setProdLoading(false);
     }
-  }, [prodPage, prodSearch, accessToken]);
+  }, [prodPage, prodSearch, prodShowInactive, prodBrand, accessToken]);
 
   const fetchComposites = useCallback(async () => {
     setCompLoading(true);
@@ -113,8 +155,8 @@ export default function ZohoItemsPage() {
   useEffect(() => { if (accessToken) fetchProducts(); }, [fetchProducts, accessToken]);
   useEffect(() => { if (accessToken) fetchComposites(); }, [fetchComposites, accessToken]);
 
-  // Reset to page 1 when search changes
-  useEffect(() => { setProdPage(1); }, [prodSearch]);
+  // Reset to page 1 when filters change
+  useEffect(() => { setProdPage(1); }, [prodSearch, prodShowInactive, prodBrand]);
   useEffect(() => { setCompPage(1); }, [compSearch]);
 
   const fmt = (n: number) =>
@@ -182,9 +224,9 @@ export default function ZohoItemsPage() {
       {/* Products tab */}
       {tab === 'products' && (
         <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden'>
-          <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-4'>
+          <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3 flex-wrap'>
             <h2 className='text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider shrink-0'>Products</h2>
-            <div className='relative flex-1 max-w-sm'>
+            <div className='relative flex-1 min-w-[160px] max-w-sm'>
               <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400' />
               <input
                 type='text'
@@ -194,6 +236,28 @@ export default function ZohoItemsPage() {
                 className='w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
               />
             </div>
+            {brands.length > 0 && (
+              <select
+                value={prodBrand}
+                onChange={(e) => setProdBrand(e.target.value)}
+                className='shrink-0 pl-3 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer'
+              >
+                <option value=''>All Brands</option>
+                {brands.map((b) => (
+                  <option key={b.value} value={b.value}>{b.label}</option>
+                ))}
+              </select>
+            )}
+            <button
+              onClick={() => setProdShowInactive((v) => !v)}
+              className={`shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                prodShowInactive
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400'
+                  : 'border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-400 hover:text-gray-400 dark:hover:text-zinc-400'
+              }`}
+            >
+              {prodShowInactive ? 'Showing all' : 'Active only'}
+            </button>
           </div>
 
           {prodLoading ? (
@@ -212,6 +276,7 @@ export default function ZohoItemsPage() {
                 <table className='w-full text-sm'>
                   <thead>
                     <tr className='bg-gray-50 dark:bg-zinc-800/60'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider w-12'>#</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Product</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Price</th>
@@ -222,6 +287,7 @@ export default function ZohoItemsPage() {
                   <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
                     {products.map((p: any, i) => (
                       <tr key={p._id || i} className='hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors'>
+                        <td className='px-6 py-3.5 text-sm text-gray-400 dark:text-zinc-500'>{(prodPage - 1) * PAGE_SIZE + i + 1}</td>
                         <td className='px-6 py-3.5'>
                           <div className='flex items-center gap-3'>
                             <div className='w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shrink-0'>
@@ -230,7 +296,11 @@ export default function ZohoItemsPage() {
                             <span className='font-medium text-gray-800 dark:text-zinc-200'>{p.name || 'Unnamed'}</span>
                           </div>
                         </td>
-                        <td className='px-6 py-3.5 font-mono text-xs text-gray-500 dark:text-zinc-400'>{p.sku || p.item_id || '—'}</td>
+                        <td className='px-6 py-3.5'>
+                          <span className='inline-block font-mono text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded'>
+                            {p.sku || p.item_id || '—'}
+                          </span>
+                        </td>
                         <td className='px-6 py-3.5 font-medium text-gray-800 dark:text-zinc-200'>{fmt(p.rate || p.price)}</td>
                         <td className='px-6 py-3.5 text-gray-600 dark:text-zinc-300'>{p.stock ?? 0}</td>
                         <td className='px-6 py-3.5'>
@@ -291,6 +361,7 @@ export default function ZohoItemsPage() {
                 <table className='w-full text-sm'>
                   <thead>
                     <tr className='bg-gray-50 dark:bg-zinc-800/60'>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider w-12'>#</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Name</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU Code</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Components</th>
@@ -300,6 +371,7 @@ export default function ZohoItemsPage() {
                   <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
                     {composites.map((c: any, i) => (
                       <tr key={c._id || i} className='hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors'>
+                        <td className='px-6 py-3.5 text-sm text-gray-400 dark:text-zinc-500'>{(compPage - 1) * PAGE_SIZE + i + 1}</td>
                         <td className='px-6 py-3.5 font-medium text-gray-800 dark:text-zinc-200'>{c.name}</td>
                         <td className='px-6 py-3.5'>
                           <span className='inline-block font-mono text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded'>
