@@ -364,21 +364,22 @@ const BRAND_COLORS = [
 const RevenueDonut = ({ brands }: { brands: BrandKPI[] }) => {
   const chartData = brands
     .filter((b) => b.revenue > 0)
+    .sort((a, b) => b.revenue - a.revenue)
     .map((b, i) => ({ name: b.brand, value: b.revenue, color: BRAND_COLORS[i % BRAND_COLORS.length] }));
   const total = chartData.reduce((s, d) => s + d.value, 0);
   if (!chartData.length) return null;
   return (
-    <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-5'>
+    <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-5 flex flex-col'>
       <h2 className='text-sm font-semibold text-gray-900 dark:text-zinc-100 mb-3'>Revenue by Brand</h2>
-      <ResponsiveContainer width='100%' height={220}>
+      <ResponsiveContainer width='100%' height={260}>
         <PieChart>
-          <Pie data={chartData} cx='50%' cy='50%' innerRadius={65} outerRadius={95} dataKey='value' paddingAngle={2}>
+          <Pie data={chartData} cx='50%' cy='50%' innerRadius={75} outerRadius={110} dataKey='value' paddingAngle={2}>
             {chartData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
           </Pie>
           <ReTooltip
-            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, color: '#111827' }}
-            itemStyle={{ color: '#374151' }}
-            labelStyle={{ color: '#111827', fontWeight: 600 }}
+            contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, color: '#f4f4f5' }}
+            itemStyle={{ color: '#a1a1aa' }}
+            labelStyle={{ color: '#f4f4f5', fontWeight: 600 }}
             formatter={(val: number, name: string) => [
               `₹${val.toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${((val / total) * 100).toFixed(1)}%)`,
               name,
@@ -386,11 +387,11 @@ const RevenueDonut = ({ brands }: { brands: BrandKPI[] }) => {
           />
         </PieChart>
       </ResponsiveContainer>
-      <div className='flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-1'>
+      <div className='flex flex-wrap gap-x-5 gap-y-2 justify-center mt-3'>
         {chartData.map((d) => (
           <div key={d.name} className='flex items-center gap-1.5 text-xs text-gray-600 dark:text-zinc-400'>
             <span className='w-2.5 h-2.5 rounded-sm flex-shrink-0' style={{ backgroundColor: d.color }} />
-            <span>{d.name}</span>
+            <span className='font-medium text-gray-700 dark:text-zinc-300'>{d.name}</span>
             <span className='text-gray-400 dark:text-zinc-500'>({((d.value / total) * 100).toFixed(1)}%)</span>
           </div>
         ))}
@@ -406,35 +407,51 @@ const DaysCoverChart = ({ brands }: { brands: BrandKPI[] }) => {
     .sort((a, b) => a.brand.localeCompare(b.brand))
     .filter((b) => b.alert_level !== 3)
     .map((b) => ({
-      brand: b.brand.length > 14 ? b.brand.slice(0, 14) + '…' : b.brand,
-      fullBrand: b.brand,
+      brand: b.brand,
       cover: Math.round(b.weighted_avg_days_cover * 10) / 10,
       target: b.target_days,
       alert: b.alert_level,
     }));
   if (!chartData.length) return null;
-  const h = Math.max(200, chartData.length * 48 + 40);
+  const h = Math.max(200, chartData.length * 52 + 40);
+  const coverColor = (alert: number) =>
+    alert === 2 ? '#f87171' : alert === 1 ? '#fbbf24' : '#34d399';
   return (
     <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-5'>
-      <h2 className='text-sm font-semibold text-gray-900 dark:text-zinc-100 mb-1'>W.Avg Days Cover vs Target</h2>
-      <p className='text-xs text-gray-400 dark:text-zinc-500 mb-3'>Gray = target days  ·  colored = current weighted-avg cover</p>
+      <h2 className='text-sm font-semibold text-gray-900 dark:text-zinc-100 mb-1'>W. Avg Days of Cover vs Target</h2>
+      <div className='flex items-center gap-4 mb-3'>
+        <span className='flex items-center gap-1.5 text-xs text-gray-400 dark:text-zinc-500'>
+          <span className='inline-block w-3 h-2 rounded-sm bg-slate-500 opacity-60' />
+          Target days
+        </span>
+        <span className='flex items-center gap-1.5 text-xs text-gray-400 dark:text-zinc-500'>
+          <span className='inline-block w-3 h-2 rounded-sm bg-emerald-400' />
+          Healthy &nbsp;
+          <span className='inline-block w-3 h-2 rounded-sm bg-amber-400' />
+          Caution &nbsp;
+          <span className='inline-block w-3 h-2 rounded-sm bg-red-400' />
+          Critical
+        </span>
+      </div>
       <ResponsiveContainer width='100%' height={h}>
-        <BarChart data={chartData} layout='vertical' margin={{ top: 0, right: 48, left: 0, bottom: 0 }} barGap={4}>
-          <XAxis type='number' tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-          <YAxis type='category' dataKey='brand' width={110} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+        <BarChart data={chartData} layout='vertical' margin={{ top: 0, right: 72, left: 0, bottom: 0 }} barGap={6} barCategoryGap='30%'>
+          <XAxis type='number' tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+          <YAxis type='category' dataKey='brand' width={150} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
           <ReTooltip
-            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, color: '#111827' }}
-            itemStyle={{ color: '#374151' }}
-            labelStyle={{ color: '#111827', fontWeight: 600 }}
+            contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, color: '#f4f4f5', fontSize: 12 }}
+            itemStyle={{ color: '#a1a1aa' }}
+            labelStyle={{ color: '#f4f4f5', fontWeight: 600, marginBottom: 4 }}
             formatter={(val: number, name: string) => [`${val}d`, name === 'cover' ? 'W.Avg Cover' : 'Target']}
-            labelFormatter={(_: string, payload: any[]) => payload?.[0]?.payload?.fullBrand ?? _}
+            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
           />
-          <Bar dataKey='target' fill='#e5e7eb' radius={[0, 4, 4, 0]} maxBarSize={10} />
-          <Bar dataKey='cover' radius={[0, 4, 4, 0]} maxBarSize={22}>
+          <Bar dataKey='target' fill='#475569' fillOpacity={0.55} radius={[0, 3, 3, 0]} maxBarSize={12}>
+            <LabelList dataKey='target' position='right' formatter={(v: number) => `${v}d`} style={{ fontSize: 9, fill: '#6b7280' }} />
+          </Bar>
+          <Bar dataKey='cover' radius={[0, 3, 3, 0]} maxBarSize={20}>
             {chartData.map((d, i) => (
-              <Cell key={i} fill={d.alert === 2 ? '#ef4444' : d.alert === 1 ? '#f59e0b' : '#10b981'} />
+              <Cell key={i} fill={coverColor(d.alert)} />
             ))}
-            <LabelList dataKey='cover' position='right' formatter={(v: number) => `${v}d`} style={{ fontSize: 10, fill: '#6b7280' }} />
+            <LabelList dataKey='cover' position='right' formatter={(v: number) => `${v}d`} style={{ fontSize: 10, fill: '#d1d5db', fontWeight: 600 }} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -590,7 +607,7 @@ export default function Page() {
 
         {/* ── Charts ── */}
         {data && !loading && (
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 items-start'>
             <RevenueDonut brands={data.brands} />
             <DaysCoverChart brands={data.brands} />
           </div>
