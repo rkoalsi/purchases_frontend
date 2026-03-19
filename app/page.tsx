@@ -244,7 +244,7 @@ const SkuTable = ({ lowest, highest }: { lowest: SkuDetail[]; highest: SkuDetail
 
 // ─── Download button with dropdown ────────────────────────────────────────────
 
-const DownloadButton = ({ accessToken, API }: { accessToken: string; API: string }) => {
+const DownloadButton = ({ accessToken, API, startDate, endDate }: { accessToken: string; API: string; startDate: string; endDate: string }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -252,7 +252,7 @@ const DownloadButton = ({ accessToken, API }: { accessToken: string; API: string
     setLoading(breakdown);
     setOpen(false);
     try {
-      const res = await fetch(`${API}/master/dashboard-kpi/download?breakdown=${breakdown}`, {
+      const res = await fetch(`${API}/master/dashboard-kpi/download?breakdown=${breakdown}&start_date=${startDate}&end_date=${endDate}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!res.ok) throw new Error(res.statusText);
@@ -459,6 +459,52 @@ const DaysCoverChart = ({ brands }: { brands: BrandKPI[] }) => {
   );
 };
 
+// ─── Date helpers & presets ────────────────────────────────────────────────────
+
+const fmtDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+/** Return the most recent Sunday that is not today */
+const prevSundayDate = () => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=Sun
+  const daysSinceSunday = dayOfWeek === 0 ? 7 : dayOfWeek;
+  const d = new Date(today);
+  d.setDate(today.getDate() - daysSinceSunday);
+  return d;
+};
+
+const DATE_PRESETS = [
+  {
+    label: 'Last 30 Days', sub: '30 days',
+    getDates: () => { const e = new Date(); const s = new Date(); s.setDate(s.getDate() - 29); return { start: fmtDate(s), end: fmtDate(e) }; },
+  },
+  {
+    label: 'Last Month', sub: 'prev month',
+    getDates: () => { const e = new Date(); e.setDate(0); const s = new Date(e.getFullYear(), e.getMonth(), 1); return { start: fmtDate(s), end: fmtDate(e) }; },
+  },
+  {
+    label: 'Last 90 Days', sub: 'ends Sunday',
+    getDates: () => { const ps = prevSundayDate(); const s = new Date(ps); s.setDate(ps.getDate() - 89); return { start: fmtDate(s), end: fmtDate(ps) }; },
+  },
+  {
+    label: 'Last 6 Months', sub: '180 days',
+    getDates: () => { const e = new Date(); const s = new Date(); s.setMonth(s.getMonth() - 6); return { start: fmtDate(s), end: fmtDate(e) }; },
+  },
+  {
+    label: 'This Year', sub: 'Jan – today',
+    getDates: () => { const e = new Date(); const s = new Date(e.getFullYear(), 0, 1); return { start: fmtDate(s), end: fmtDate(e) }; },
+  },
+  {
+    label: 'Last Year', sub: 'full year',
+    getDates: () => { const yr = new Date().getFullYear() - 1; return { start: fmtDate(new Date(yr, 0, 1)), end: fmtDate(new Date(yr, 11, 31)) }; },
+  },
+];
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Page() {
@@ -470,14 +516,25 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
 
+  // Default: last 90 days ending previous Sunday (matches master report default)
+  const [startDate, setStartDate] = useState(() => {
+    const ps = prevSundayDate();
+    const s = new Date(ps);
+    s.setDate(ps.getDate() - 89);
+    return fmtDate(s);
+  });
+  const [endDate, setEndDate] = useState(() => fmtDate(prevSundayDate()));
+
   const API = process.env.NEXT_PUBLIC_API_URL!;
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (sd?: string, ed?: string) => {
     if (!accessToken) return;
+    const s = sd ?? startDate;
+    const e = ed ?? endDate;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/master/dashboard-kpi`, {
+      const res = await fetch(`${API}/master/dashboard-kpi?start_date=${s}&end_date=${e}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!res.ok) throw new Error(res.statusText);
@@ -487,7 +544,7 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, API]);
+  }, [accessToken, API, startDate, endDate]);
 
   useEffect(() => { if (accessToken) fetchData(); }, [accessToken]);
 
@@ -518,7 +575,6 @@ export default function Page() {
   }
 
   const t = data?.totals;
-  const period = data?.period;
   const gsc = data?.global_stock_classification;
 
   return (
@@ -526,26 +582,80 @@ export default function Page() {
       <div className='max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6'>
 
         {/* ── Header ── */}
-        <div className='flex items-center justify-between'>
-          <div>
-            <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
-              {greeting()}, {user?.name}!
-            </h1>
-            <p className='text-sm text-gray-500 dark:text-zinc-400 mt-0.5'>
-              Stock Cover KPI · Last 90 days
-              {period && ` · ${period.start_date} → ${period.end_date}`}
-            </p>
+        <div className='space-y-3'>
+          <div className='flex items-center justify-between'>
+            <div>
+              <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
+                {greeting()}, {user?.name}!
+              </h1>
+              <p className='text-sm text-gray-500 dark:text-zinc-400 mt-0.5'>
+                Stock Cover KPI · {startDate} → {endDate}
+              </p>
+            </div>
+            <div className='flex items-center gap-2'>
+              <button
+                onClick={() => fetchData()}
+                disabled={loading}
+                className='flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors'
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              {accessToken && <DownloadButton accessToken={accessToken} API={API} startDate={startDate} endDate={endDate} />}
+            </div>
           </div>
-          <div className='flex items-center gap-2'>
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className='flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors'
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-            {accessToken && <DownloadButton accessToken={accessToken} API={API} />}
+
+          {/* ── Date picker ── */}
+          <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-3 flex flex-wrap items-center gap-3'>
+            {/* Preset buttons */}
+            <div className='flex flex-wrap gap-1.5'>
+              {DATE_PRESETS.map((p) => {
+                const d = p.getDates();
+                const active = d.start === startDate && d.end === endDate;
+                return (
+                  <button
+                    key={p.label}
+                    onClick={() => {
+                      setStartDate(d.start);
+                      setEndDate(d.end);
+                      fetchData(d.start, d.end);
+                    }}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                      active
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700'
+                    }`}
+                  >
+                    {p.label}
+                    <span className='ml-1 opacity-60'>{p.sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Manual date inputs */}
+            <div className='flex items-center gap-2 ml-auto'>
+              <input
+                type='date'
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className='px-2 py-1 text-sm rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
+              />
+              <span className='text-xs text-gray-400 dark:text-zinc-500'>to</span>
+              <input
+                type='date'
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className='px-2 py-1 text-sm rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
+              />
+              <button
+                onClick={() => fetchData()}
+                disabled={loading}
+                className='px-3 py-1 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors'
+              >
+                Apply
+              </button>
+            </div>
           </div>
         </div>
 
@@ -554,7 +664,7 @@ export default function Page() {
           <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3'>
             <XCircle className='h-5 w-5 text-red-500 flex-shrink-0' />
             <p className='text-sm text-red-700 dark:text-red-300'>{error}</p>
-            <button onClick={fetchData} className='ml-auto text-sm text-red-600 dark:text-red-400 underline'>Retry</button>
+            <button onClick={() => fetchData()} className='ml-auto text-sm text-red-600 dark:text-red-400 underline'>Retry</button>
           </div>
         )}
 
