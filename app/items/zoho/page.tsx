@@ -97,6 +97,27 @@ export default function ZohoItemsPage() {
   const [prodLoading, setProdLoading] = useState(false);
   const [prodShowInactive, setProdShowInactive] = useState(false);
 
+  // Purchase status updating
+  const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
+
+  const updatePurchaseStatus = async (itemId: string, newStatus: string) => {
+    setUpdatingStatus((prev) => ({ ...prev, [itemId]: true }));
+    try {
+      await axios.patch(
+        `${API}/products/${itemId}/purchase-status`,
+        { purchase_status: newStatus },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      setProducts((prev) =>
+        prev.map((p) => (p._id === itemId ? { ...p, purchase_status: newStatus } : p))
+      );
+    } catch {
+      // silently ignore — row will retain old value
+    } finally {
+      setUpdatingStatus((prev) => ({ ...prev, [itemId]: false }));
+    }
+  };
+
   // Composite state
   const [composites, setComposites] = useState<any[]>([]);
   const [compSearch, setCompSearch] = useState('');
@@ -282,6 +303,7 @@ export default function ZohoItemsPage() {
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Price</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Stock</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Status</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Purchase Status</th>
                     </tr>
                   </thead>
                   <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
@@ -311,6 +333,27 @@ export default function ZohoItemsPage() {
                           }`}>
                             {p.status === 'active' || p.is_active ? 'Active' : 'Inactive'}
                           </span>
+                        </td>
+                        <td className='px-6 py-3.5'>
+                          <select
+                            value={p.purchase_status || ''}
+                            disabled={updatingStatus[p._id]}
+                            onChange={(e) => updatePurchaseStatus(p._id, e.target.value)}
+                            className={`text-xs rounded-md border px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                              p.purchase_status === 'active'
+                                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                                : p.purchase_status === 'inactive'
+                                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                                : p.purchase_status === 'discontinued until stock lasts'
+                                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
+                                : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500'
+                            } disabled:opacity-60 disabled:cursor-not-allowed`}
+                          >
+                            <option value=''>— not set —</option>
+                            <option value='active'>Active</option>
+                            <option value='inactive'>Inactive</option>
+                            <option value='discontinued until stock lasts'>Discontinued until stock lasts</option>
+                          </select>
                         </td>
                       </tr>
                     ))}
