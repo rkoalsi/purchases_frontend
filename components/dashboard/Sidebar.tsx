@@ -47,28 +47,28 @@ interface SidebarProps {
 }
 
 // Permission requirements for navigation items
-// Format: { permissionName: requiredAction } or null for always accessible
+// null = always visible (parent groups derive visibility from their children)
 const PERMISSION_REQUIREMENTS = {
   DASHBOARD: { name: 'dashboard' },
-  INVENTORY: { name: 'items' },
-  REPORTS: { name: 'reports' },
   USERS: { name: 'users' },
-  SETTINGS: null, // null means always visible
+  SETTINGS: null,
   // Item-specific permissions
-  AMAZON_ITEMS: { name: 'items' },
-  BLINKIT_ITEMS: { name: 'items' },
-  ZOHO_ITEMS: { name: 'items' },
+  AMAZON_ITEMS: { name: 'items_amazon' },
+  BLINKIT_ITEMS: { name: 'items_blinkit' },
+  ZOHO_ITEMS: { name: 'items_zoho' },
   // Report-specific permissions
-  AMAZON_REPORTS: { name: 'reports' },
-  AMAZON_SETTLEMENTS: { name: 'reports' },
-  BLINKIT_REPORTS: { name: 'reports' },
-  BLINKIT_ADS_REPORTS: { name: 'reports' },
-  ZOHO_REPORTS: { name: 'reports' },
-  MASTER_REPORTS: { name: 'reports' },
-  SALES_REPORTS: { name: 'reports' },
-  PI_CL_REPORTS: { name: 'reports' },
-  ESTIMATES_VS_INVOICES: { name: 'reports' },
-  MISSED_SALES: { name: 'reports' },
+  AMAZON_REPORTS: { name: 'reports_amazon' },
+  AMAZON_SETTLEMENTS: { name: 'reports_amazon_settlements' },
+  BLINKIT_REPORTS: { name: 'reports_blinkit' },
+  BLINKIT_ADS_REPORTS: { name: 'reports_blinkit_ads' },
+  ZOHO_REPORTS: { name: 'reports_zoho' },
+  MASTER_REPORTS: { name: 'reports_master' },
+  SEASONAL_REPORTS: { name: 'reports_seasonal' },
+  ESTIMATES_VS_INVOICES: { name: 'reports_estimates_vs_invoices' },
+  SALES_REPORTS: { name: 'reports_sales_by_customer' },
+  PI_CL_REPORTS: { name: 'reports_pi_vs_cl' },
+  MISSED_SALES: { name: 'reports_missed_sales' },
+  AMAZON_LISTING_VALIDATION: { name: 'reports_amazon_listing_validation' },
 };
 
 // Navigation items with required permissions
@@ -83,25 +83,25 @@ const navigation = [
     name: 'Items',
     href: '/inventory',
     icon: Package,
-    requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY,
+    requiredPermission: null, // visible if any child is accessible
     children: [
       {
         name: 'Amazon',
         href: '/items/amazon',
         icon: AmazonIcon,
-        requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY,
+        requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_ITEMS,
       },
       {
         name: 'Blinkit',
         href: '/items/blinkit',
         icon: Zap,
-        requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY,
+        requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_ITEMS,
       },
       {
         name: 'Zoho',
         href: '/items/zoho',
         icon: Building2,
-        requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY,
+        requiredPermission: PERMISSION_REQUIREMENTS.ZOHO_ITEMS,
       },
     ],
   },
@@ -109,12 +109,12 @@ const navigation = [
     name: 'Reports',
     href: '/reports',
     icon: BarChart3,
-    requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+    requiredPermission: null, // visible if any child is accessible
     children: [
       {
         name: 'Amazon Reports',
         icon: AmazonIcon,
-        requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+        requiredPermission: null,
         children: [
           {
             name: 'Amazon',
@@ -133,7 +133,7 @@ const navigation = [
       {
         name: 'Blinkit Reports',
         icon: Zap,
-        requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+        requiredPermission: null,
         children: [
           {
             name: 'Blinkit',
@@ -152,7 +152,7 @@ const navigation = [
       {
         name: 'Retail Reports',
         icon: ShoppingCart,
-        requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+        requiredPermission: null,
         children: [
           {
             name: 'Retail',
@@ -170,7 +170,7 @@ const navigation = [
             name: 'Seasonal DRR',
             href: '/reports/seasonal',
             icon: TrendingUp,
-            requiredPermission: PERMISSION_REQUIREMENTS.MASTER_REPORTS,
+            requiredPermission: PERMISSION_REQUIREMENTS.SEASONAL_REPORTS,
           },
           {
             name: 'Estimates vs Invoices',
@@ -183,7 +183,7 @@ const navigation = [
       {
         name: 'Verification Reports',
         icon: CheckSquare,
-        requiredPermission: PERMISSION_REQUIREMENTS.REPORTS,
+        requiredPermission: null,
         children: [
           {
             name: 'Sales By Customer',
@@ -202,6 +202,12 @@ const navigation = [
             href: '/reports/missed_sales',
             icon: TrendingDown,
             requiredPermission: PERMISSION_REQUIREMENTS.MISSED_SALES,
+          },
+          {
+            name: 'Amazon Listing Validation',
+            href: '/reports/amazon_listing_validation',
+            icon: CheckSquare,
+            requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_LISTING_VALIDATION,
           },
         ],
       },
@@ -322,26 +328,23 @@ export default function Sidebar({
     return hasAccess;
   };
 
-  // Filter navigation items based on permissions
+  // Filter navigation items based on permissions.
+  // Parent groups are visible only if they have at least one accessible child.
+  // Leaf items are visible only if the user has the required permission.
   const filteredNavigation = useMemo(() => {
     if (permissionsLoading) return []; // Hide navigation while loading
 
     const filterItems = (items: any[]): any[] => {
       return items
-        .filter((item) => hasPermission(item.requiredPermission))
         .map((item) => {
           if (item.children) {
             const filteredChildren = filterItems(item.children);
-            // Only show parent if it has accessible children or if the parent itself is accessible
-            if (filteredChildren.length > 0) {
-              return { ...item, children: filteredChildren };
-            }
-            // If parent has permission but no accessible children, show it without children
-            return hasPermission(item.requiredPermission)
-              ? { ...item, children: [] }
-              : null;
+            // Parent is shown only when it has accessible children
+            if (filteredChildren.length === 0) return null;
+            return { ...item, children: filteredChildren };
           }
-          return item;
+          // Leaf item: check permission
+          return hasPermission(item.requiredPermission) ? item : null;
         })
         .filter(Boolean);
     };

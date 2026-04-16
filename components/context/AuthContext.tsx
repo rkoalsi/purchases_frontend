@@ -21,6 +21,7 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updatedUser: any) => void;
   isLoading: boolean;
 }
 
@@ -142,6 +143,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // Update the stored user object (e.g. after permissions change)
+  const updateUser = (updatedUser: any) => {
+    setAuth((prev) => ({ ...prev, user: updatedUser }));
+  };
+
   // Logout function
   const logout = () => {
     setAuth(defaultAuthState);
@@ -153,6 +159,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     ...auth,
     login,
     logout,
+    updateUser,
     isLoading,
   };
 

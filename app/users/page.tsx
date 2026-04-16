@@ -24,7 +24,7 @@ import axios from 'axios';
 import { useAuth } from '@/components/context/AuthContext';
 
 export default function UserManagementPage() {
-  const { accessToken, user: currentUser } = useAuth();
+  const { accessToken, user: currentUser, updateUser } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<string | null>(null);
@@ -173,6 +173,11 @@ export default function UserManagementPage() {
         { permissions },
         authHeaders
       );
+      // If the updated user is the currently logged-in user, refresh the auth
+      // context so the sidebar reflects the new permissions immediately.
+      if (userId === currentUser?._id) {
+        updateUser({ ...currentUser, permissions });
+      }
       toast.success('Permissions updated');
     } catch (error: any) {
       console.error('Failed to save permissions:', error);
@@ -216,6 +221,23 @@ export default function UserManagementPage() {
     return activePermissions.filter(
       (p: any) => !user.permissions?.includes(p._id)
     );
+  };
+
+  // Group a permission list by category prefix (e.g. "reports_amazon" → "reports")
+  const groupPermissionsByCategory = (permissions: any[]) => {
+    const groups: Record<string, any[]> = {};
+    permissions.forEach((p) => {
+      const prefix = p.name.includes('_') ? p.name.split('_')[0] : 'general';
+      if (!groups[prefix]) groups[prefix] = [];
+      groups[prefix].push(p);
+    });
+    return groups;
+  };
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    reports: 'Reports',
+    items: 'Items',
+    general: 'General',
   };
 
   const handleCreateUser = async () => {
@@ -900,76 +922,88 @@ export default function UserManagementPage() {
                             Assigned Permissions (
                             {user.permissions?.length || 0})
                           </h4>
-                          <div className='flex flex-wrap gap-2'>
-                            {user.permissions?.map(
-                              (permissionId: string) => {
-                                const permission =
-                                  getPermissionDetails(permissionId);
-                                if (!permission) return null;
-                                return (
-                                  <span
-                                    key={permissionId}
-                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                                      permission.is_active !== false
-                                        ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
-                                        : 'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400'
-                                    }`}
-                                  >
-                                    <Check className='h-3 w-3' />
-                                    {permission.name}
-                                    {permission.is_active === false && (
-                                      <span className='text-[10px] opacity-60'>
-                                        (inactive)
-                                      </span>
-                                    )}
-                                    <button
-                                      onClick={() =>
-                                        removePermission(
-                                          user._id,
-                                          permissionId
-                                        )
-                                      }
-                                      className='ml-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full p-0.5 transition-colors'
-                                    >
-                                      <X className='h-2.5 w-2.5' />
-                                    </button>
+                          {(!user.permissions || user.permissions.length === 0) ? (
+                            <span className='text-xs text-gray-400 italic'>
+                              No permissions assigned
+                            </span>
+                          ) : (
+                            <div className='space-y-2.5'>
+                              {Object.entries(
+                                groupPermissionsByCategory(
+                                  user.permissions
+                                    .map((id: string) => getPermissionDetails(id))
+                                    .filter(Boolean)
+                                )
+                              ).map(([category, perms]) => (
+                                <div key={category}>
+                                  <span className='text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 block'>
+                                    {CATEGORY_LABELS[category] ?? category}
                                   </span>
-                                );
-                              }
-                            )}
-                            {(!user.permissions ||
-                              user.permissions.length === 0) && (
-                              <span className='text-xs text-gray-400 italic'>
-                                No permissions assigned
-                              </span>
-                            )}
-                          </div>
+                                  <div className='flex flex-wrap gap-1.5'>
+                                    {(perms as any[]).map((permission: any) => (
+                                      <span
+                                        key={permission._id}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${
+                                          permission.is_active !== false
+                                            ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                                            : 'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400'
+                                        }`}
+                                      >
+                                        <Check className='h-3 w-3' />
+                                        {permission.name}
+                                        {permission.is_active === false && (
+                                          <span className='text-[10px] opacity-60'>
+                                            (inactive)
+                                          </span>
+                                        )}
+                                        <button
+                                          onClick={() =>
+                                            removePermission(user._id, permission._id)
+                                          }
+                                          className='ml-0.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full p-0.5 transition-colors'
+                                        >
+                                          <X className='h-2.5 w-2.5' />
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         {/* Available Permissions to Add */}
-                        {getAvailablePermissionsForUser(user).length >
-                          0 && (
+                        {getAvailablePermissionsForUser(user).length > 0 && (
                           <div>
                             <h4 className='text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2.5'>
                               Available Permissions
                             </h4>
-                            <div className='flex flex-wrap gap-2'>
-                              {getAvailablePermissionsForUser(
-                                user
-                              ).map((permission: any) => (
-                                <button
-                                  key={permission._id}
-                                  onClick={() =>
-                                    addPermission(
-                                      user._id,
-                                      permission._id
-                                    )
-                                  }
-                                  className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/10 transition-colors'
-                                >
-                                  <Plus className='h-3 w-3' />
-                                  {permission.name}
-                                </button>
+                            <div className='space-y-2.5'>
+                              {Object.entries(
+                                groupPermissionsByCategory(
+                                  getAvailablePermissionsForUser(user)
+                                )
+                              ).map(([category, perms]) => (
+                                <div key={category}>
+                                  <span className='text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 block'>
+                                    {CATEGORY_LABELS[category] ?? category}
+                                  </span>
+                                  <div className='flex flex-wrap gap-1.5'>
+                                    {(perms as any[]).map((permission: any) => (
+                                      <button
+                                        key={permission._id}
+                                        onClick={() =>
+                                          addPermission(user._id, permission._id)
+                                        }
+                                        className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/10 transition-colors'
+                                      >
+                                        <Plus className='h-3 w-3' />
+                                        {permission.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -1006,71 +1040,80 @@ export default function UserManagementPage() {
                 All Permissions
               </h2>
             </div>
-            <div className='p-4'>
-              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5'>
-                {availablePermissions.map((permission: any) => (
-                  <div
-                    key={permission._id}
-                    className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
-                      permission.is_active !== false
-                        ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50'
-                        : 'border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10 opacity-60'
-                    }`}
-                  >
-                    <div className='min-w-0'>
-                      <div
-                        className={`text-sm font-medium truncate ${
-                          permission.is_active !== false
-                            ? 'text-gray-900 dark:text-white'
-                            : 'text-red-500 dark:text-red-400 line-through'
-                        }`}
-                      >
-                        {permission.name}
-                      </div>
-                      {permission.description && (
-                        <div className='text-xs text-gray-400 truncate mt-0.5'>
-                          {permission.description}
+            <div className='p-4 space-y-5'>
+              {Object.entries(groupPermissionsByCategory(availablePermissions)).map(
+                ([category, perms]) => (
+                  <div key={category}>
+                    <h3 className='text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2.5'>
+                      {CATEGORY_LABELS[category] ?? category}
+                    </h3>
+                    <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5'>
+                      {(perms as any[]).map((permission: any) => (
+                        <div
+                          key={permission._id}
+                          className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
+                            permission.is_active !== false
+                              ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50'
+                              : 'border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10 opacity-60'
+                          }`}
+                        >
+                          <div className='min-w-0'>
+                            <div
+                              className={`text-sm font-medium truncate ${
+                                permission.is_active !== false
+                                  ? 'text-gray-900 dark:text-white'
+                                  : 'text-red-500 dark:text-red-400 line-through'
+                              }`}
+                            >
+                              {permission.name}
+                            </div>
+                            {permission.description && (
+                              <div className='text-xs text-gray-400 truncate mt-0.5'>
+                                {permission.description}
+                              </div>
+                            )}
+                          </div>
+                          {isAdminOrPurchaseAdmin ? (
+                            <button
+                              onClick={() => togglePermissionActive(permission)}
+                              className={`shrink-0 ml-3 p-1.5 rounded-lg transition-colors ${
+                                permission.is_active !== false
+                                  ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                  : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                              }`}
+                              title={
+                                permission.is_active !== false
+                                  ? 'Deactivate'
+                                  : 'Activate'
+                              }
+                            >
+                              {permission.is_active !== false ? (
+                                <ToggleRight className='h-5 w-5' />
+                              ) : (
+                                <ToggleLeft className='h-5 w-5' />
+                              )}
+                            </button>
+                          ) : (
+                            <span
+                              className={`shrink-0 ml-3 p-1.5 ${
+                                permission.is_active !== false
+                                  ? 'text-emerald-400'
+                                  : 'text-gray-300 dark:text-gray-600'
+                              }`}
+                            >
+                              {permission.is_active !== false ? (
+                                <ToggleRight className='h-5 w-5' />
+                              ) : (
+                                <ToggleLeft className='h-5 w-5' />
+                              )}
+                            </span>
+                          )}
                         </div>
-                      )}
+                      ))}
                     </div>
-                    {isAdminOrPurchaseAdmin ? (
-                      <button
-                        onClick={() => togglePermissionActive(permission)}
-                        className={`shrink-0 ml-3 p-1.5 rounded-lg transition-colors ${
-                          permission.is_active !== false
-                            ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                            : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                        }`}
-                        title={
-                          permission.is_active !== false
-                            ? 'Deactivate'
-                            : 'Activate'
-                        }
-                      >
-                        {permission.is_active !== false ? (
-                          <ToggleRight className='h-5 w-5' />
-                        ) : (
-                          <ToggleLeft className='h-5 w-5' />
-                        )}
-                      </button>
-                    ) : (
-                      <span
-                        className={`shrink-0 ml-3 p-1.5 ${
-                          permission.is_active !== false
-                            ? 'text-emerald-400'
-                            : 'text-gray-300 dark:text-gray-600'
-                        }`}
-                      >
-                        {permission.is_active !== false ? (
-                          <ToggleRight className='h-5 w-5' />
-                        ) : (
-                          <ToggleLeft className='h-5 w-5' />
-                        )}
-                      </span>
-                    )}
                   </div>
-                ))}
-              </div>
+                )
+              )}
             </div>
           </div>
         )}
