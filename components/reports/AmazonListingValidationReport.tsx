@@ -33,7 +33,7 @@ interface SCResult {
   hsn: FieldStatus | null;
   gst: FieldStatus | null;
   mrp: FieldStatus | null;
-  sp: { file: string } | null;
+  sp: { file: string; mrp_file: string; match: boolean } | null;
 }
 
 interface VCResult {
@@ -617,9 +617,22 @@ const AmazonListingValidationReport: React.FC = () => {
                         <FieldCell field={row.mrp} found={row.found} />
                       </td>
                       <td className={TABLE_CLASSES.td}>
-                        <span className='font-mono text-xs text-zinc-500 dark:text-zinc-400'>
-                          {row.sp?.file || '—'}
-                        </span>
+                        {row.found && row.sp ? (
+                          <div
+                            className={`inline-flex flex-col gap-0.5 px-2 py-1 rounded text-xs font-mono ${
+                              row.sp.match
+                                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                                : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                            }`}
+                          >
+                            <span className='font-medium'>{row.sp.file || '—'}</span>
+                            <span className='text-zinc-400 dark:text-zinc-500 font-normal'>
+                              mrp: {row.sp.mrp_file || '—'}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className='text-xs text-zinc-400 dark:text-zinc-500 font-mono'>—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
