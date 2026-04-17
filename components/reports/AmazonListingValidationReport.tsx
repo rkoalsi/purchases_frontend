@@ -13,16 +13,37 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react';
-import { SortIcon, TABLE_CLASSES } from './TableStyles';
+import { TABLE_CLASSES } from './TableStyles';
 
-interface Mismatch {
-  source: string;
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface FieldStatus {
+  file: string;
+  db: string;
+  match: boolean;
+  issue?: string | null;
+}
+
+interface SCResult {
+  source: 'Seller Central';
   sku: string;
-  item_name?: string;
-  field: string;
-  file_value: string;
-  db_value: string;
-  issue: string;
+  item_name: string;
+  found: boolean;
+  has_mismatch: boolean;
+  hsn: FieldStatus | null;
+  gst: FieldStatus | null;
+  mrp: FieldStatus | null;
+  sp: { file: string } | null;
+}
+
+interface VCResult {
+  source: 'Vendor Central';
+  sku: string;
+  item_name: string;
+  found: boolean;
+  has_mismatch: boolean;
+  hsn: FieldStatus | null;
+  mrp: FieldStatus | null;
 }
 
 interface ValidationSummary {
@@ -32,18 +53,35 @@ interface ValidationSummary {
   vendor_central_mismatches: number;
 }
 
-type SortKey = keyof Mismatch;
-type SortDir = 'asc' | 'desc';
 type ActiveTab = 'seller_central' | 'vendor_central';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const FIELD_BADGE: Record<string, string> = {
-  HSN: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  GST: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-  MRP: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  SP: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-  SKU: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+// ─── Field cell ───────────────────────────────────────────────────────────────
+
+const FieldCell: React.FC<{ field: FieldStatus | null; found: boolean }> = ({ field, found }) => {
+  if (!found || !field) {
+    return (
+      <span className='text-xs text-red-400 dark:text-red-500 font-mono'>—</span>
+    );
+  }
+  const { file, db, match } = field;
+  return (
+    <div
+      className={`inline-flex flex-col gap-0.5 px-2 py-1 rounded text-xs font-mono min-w-0 ${
+        match
+          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+          : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+      }`}
+    >
+      <span className='font-medium truncate max-w-[160px]' title={file || '—'}>
+        {file || '—'}
+      </span>
+      <span className='text-zinc-400 dark:text-zinc-500 font-normal truncate max-w-[160px]' title={db}>
+        db: {db}
+      </span>
+    </div>
+  );
 };
 
 // ─── File Upload Card ─────────────────────────────────────────────────────────
@@ -58,7 +96,7 @@ interface FileCardProps {
   onClear: () => void;
   onValidate: () => void;
   onDownload: () => void;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   resultRows?: number;
   resultMismatches?: number;
@@ -171,7 +209,7 @@ const FileCard: React.FC<FileCardProps> = ({
           onClick={onDownload}
           disabled={!canRun || downloading}
           className='flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
-          title='Download mismatch report as Excel'
+          title='Download full validation report as Excel'
         >
           {downloading ? (
             <RefreshCw className='w-3.5 h-3.5 animate-spin' />
@@ -205,8 +243,8 @@ const AmazonListingValidationReport: React.FC = () => {
   const [vendorFile, setVendorFile] = useState<File | null>(null);
 
   const [summary, setSummary] = useState<ValidationSummary | null>(null);
-  const [scMismatches, setScMismatches] = useState<Mismatch[]>([]);
-  const [vcMismatches, setVcMismatches] = useState<Mismatch[]>([]);
+  const [scResults, setScResults] = useState<SCResult[]>([]);
+  const [vcResults, setVcResults] = useState<VCResult[]>([]);
 
   const [scLoading, setScLoading] = useState(false);
   const [vcLoading, setVcLoading] = useState(false);
@@ -216,8 +254,8 @@ const AmazonListingValidationReport: React.FC = () => {
   const [vcValidated, setVcValidated] = useState(false);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('seller_central');
-  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDir } | null>(null);
   const [search, setSearch] = useState('');
+  const [mismatchOnly, setMismatchOnly] = useState(false);
 
   const sellerInputRef = useRef<HTMLInputElement>(null);
   const vendorInputRef = useRef<HTMLInputElement>(null);
@@ -232,8 +270,8 @@ const AmazonListingValidationReport: React.FC = () => {
     );
     return res.data as {
       summary: ValidationSummary;
-      seller_central: Mismatch[];
-      vendor_central: Mismatch[];
+      seller_central: SCResult[];
+      vendor_central: VCResult[];
     };
   };
 
@@ -268,7 +306,7 @@ const AmazonListingValidationReport: React.FC = () => {
         vendor_central_rows: prev?.vendor_central_rows ?? 0,
         vendor_central_mismatches: prev?.vendor_central_mismatches ?? 0,
       }));
-      setScMismatches(data.seller_central);
+      setScResults(data.seller_central);
       setScValidated(true);
       setActiveTab('seller_central');
       const n = data.summary.seller_central_mismatches;
@@ -311,7 +349,7 @@ const AmazonListingValidationReport: React.FC = () => {
         seller_central_rows: prev?.seller_central_rows ?? 0,
         seller_central_mismatches: prev?.seller_central_mismatches ?? 0,
       }));
-      setVcMismatches(data.vendor_central);
+      setVcResults(data.vendor_central);
       setVcValidated(true);
       setActiveTab('vendor_central');
       const n = data.summary.vendor_central_mismatches;
@@ -339,50 +377,21 @@ const AmazonListingValidationReport: React.FC = () => {
     }
   };
 
-  // ── Table ─────────────────────────────────────────────────────────────────
+  // ── Table data ────────────────────────────────────────────────────────────
 
-  const handleSort = (key: SortKey) =>
-    setSortConfig((prev) =>
-      prev?.key === key
-        ? { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' }
-        : { key, direction: 'asc' }
-    );
-
-  const activeData = activeTab === 'seller_central' ? scMismatches : vcMismatches;
+  const activeData = activeTab === 'seller_central' ? scResults : vcResults;
 
   const filteredData = useMemo(() => {
+    let data = activeData as (SCResult | VCResult)[];
+    if (mismatchOnly) data = data.filter((r) => r.has_mismatch);
     const term = search.toLowerCase();
-    if (!term) return activeData;
-    return activeData.filter(
+    if (!term) return data;
+    return data.filter(
       (r) =>
         r.sku.toLowerCase().includes(term) ||
-        (r.item_name?.toLowerCase().includes(term) ?? false) ||
-        r.field.toLowerCase().includes(term) ||
-        r.issue.toLowerCase().includes(term) ||
-        r.file_value.toLowerCase().includes(term) ||
-        r.db_value.toLowerCase().includes(term)
+        r.item_name.toLowerCase().includes(term)
     );
-  }, [activeData, search]);
-
-  const sortedData = useMemo(() => {
-    if (!sortConfig) return filteredData;
-    return [...filteredData].sort((a, b) => {
-      const av = a[sortConfig.key] ?? '';
-      const bv = b[sortConfig.key] ?? '';
-      if (av < bv) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (av > bv) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [filteredData, sortConfig]);
-
-  const columns: { key: SortKey; label: string }[] = [
-    { key: 'sku', label: 'SKU' },
-    { key: 'item_name', label: 'Item Name' },
-    { key: 'field', label: 'Field' },
-    { key: 'file_value', label: 'File Value' },
-    { key: 'db_value', label: 'DB Value' },
-    { key: 'issue', label: 'Issue' },
-  ];
+  }, [activeData, search, mismatchOnly]);
 
   const hasAnyResults = scValidated || vcValidated;
 
@@ -417,7 +426,7 @@ const AmazonListingValidationReport: React.FC = () => {
           onClear={() => {
             setSellerFile(null);
             setScValidated(false);
-            setScMismatches([]);
+            setScResults([]);
             setSummary((prev) =>
               prev ? { ...prev, seller_central_rows: 0, seller_central_mismatches: 0 } : null
             );
@@ -441,7 +450,7 @@ const AmazonListingValidationReport: React.FC = () => {
           onClear={() => {
             setVendorFile(null);
             setVcValidated(false);
-            setVcMismatches([]);
+            setVcResults([]);
             setSummary((prev) =>
               prev ? { ...prev, vendor_central_rows: 0, vendor_central_mismatches: 0 } : null
             );
@@ -466,13 +475,15 @@ const AmazonListingValidationReport: React.FC = () => {
                 {
                   key: 'seller_central' as ActiveTab,
                   label: 'Seller Central',
-                  count: scMismatches.length,
+                  mismatches: summary?.seller_central_mismatches ?? 0,
+                  total: summary?.seller_central_rows ?? 0,
                   show: scValidated,
                 },
                 {
                   key: 'vendor_central' as ActiveTab,
                   label: 'Vendor Central',
-                  count: vcMismatches.length,
+                  mismatches: summary?.vendor_central_mismatches ?? 0,
+                  total: summary?.vendor_central_rows ?? 0,
                   show: vcValidated,
                 },
               ] as const
@@ -484,7 +495,7 @@ const AmazonListingValidationReport: React.FC = () => {
                   onClick={() => {
                     setActiveTab(tab.key);
                     setSearch('');
-                    setSortConfig(null);
+                    setMismatchOnly(false);
                   }}
                   className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
                     activeTab === tab.key
@@ -495,107 +506,187 @@ const AmazonListingValidationReport: React.FC = () => {
                   {tab.label}
                   <span
                     className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${
-                      tab.count > 0
+                      tab.mismatches > 0
                         ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
                         : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                     }`}
                   >
-                    {tab.count}
+                    {tab.mismatches > 0 ? `${tab.mismatches} / ${tab.total}` : tab.total}
                   </span>
                 </button>
               ))}
           </div>
 
-          {activeData.length === 0 ? (
+          {/* Toolbar */}
+          <div className={TABLE_CLASSES.headerSection}>
+            <div className='flex items-center justify-between gap-3 flex-wrap'>
+              <div className='flex items-center gap-3'>
+                <span className='text-sm text-zinc-500 dark:text-zinc-400'>
+                  {filteredData.length} of {activeData.length} row{activeData.length !== 1 ? 's' : ''}
+                  {mismatchOnly && (
+                    <span className='ml-1 text-red-500 dark:text-red-400'>(mismatches only)</span>
+                  )}
+                </span>
+                <button
+                  onClick={() => setMismatchOnly((v) => !v)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${
+                    mismatchOnly
+                      ? 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
+                      : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  {mismatchOnly ? 'Mismatches only' : 'Show all'}
+                </button>
+              </div>
+              <input
+                type='text'
+                placeholder='Search SKU or item name…'
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className='px-3 py-1.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64'
+              />
+            </div>
+          </div>
+
+          {filteredData.length === 0 ? (
             <div className='py-16 text-center'>
               <CheckCircle2 className='w-12 h-12 text-green-400 mx-auto mb-3' />
               <p className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
-                All listings match the database
-              </p>
-              <p className='text-xs text-zinc-400 dark:text-zinc-500 mt-1'>
-                No discrepancies found for this source.
+                {mismatchOnly ? 'No mismatches found' : 'No rows to display'}
               </p>
             </div>
-          ) : (
-            <>
-              <div className={TABLE_CLASSES.headerSection}>
-                <div className='flex items-center justify-between'>
-                  <span className='text-sm text-zinc-500 dark:text-zinc-400'>
-                    {filteredData.length} of {activeData.length} mismatch
-                    {activeData.length !== 1 ? 'es' : ''}
-                  </span>
-                  <input
-                    type='text'
-                    placeholder='Search SKU, field, issue…'
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className='px-3 py-1.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64'
-                  />
-                </div>
-              </div>
-
-              <div className={TABLE_CLASSES.overflow}>
-                <table className={TABLE_CLASSES.table}>
-                  <thead className={TABLE_CLASSES.thead}>
-                    <tr>
-                      {columns.map((col) => (
-                        <th
-                          key={col.key}
-                          className={TABLE_CLASSES.th}
-                          onClick={() => handleSort(col.key)}
-                        >
-                          <div className={TABLE_CLASSES.thContent}>
-                            <span>{col.label}</span>
-                            <SortIcon column={col.key} sortConfig={sortConfig} />
-                          </div>
-                        </th>
-                      ))}
+          ) : activeTab === 'seller_central' ? (
+            <div className={TABLE_CLASSES.overflow}>
+              <table className={TABLE_CLASSES.table}>
+                <thead className={TABLE_CLASSES.thead}>
+                  <tr>
+                    <th className={TABLE_CLASSES.th}>SKU</th>
+                    <th className={TABLE_CLASSES.th}>Item Name</th>
+                    <th className={TABLE_CLASSES.th}>Status</th>
+                    <th className={TABLE_CLASSES.th}>HSN</th>
+                    <th className={TABLE_CLASSES.th}>GST</th>
+                    <th className={TABLE_CLASSES.th}>MRP</th>
+                    <th className={TABLE_CLASSES.th}>SP (File)</th>
+                  </tr>
+                </thead>
+                <tbody className={TABLE_CLASSES.tbody}>
+                  {(filteredData as SCResult[]).map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className={`${TABLE_CLASSES.tr} ${
+                        row.has_mismatch
+                          ? 'bg-red-50/40 dark:bg-red-900/10'
+                          : ''
+                      }`}
+                    >
+                      <td className={TABLE_CLASSES.td}>
+                        <span className='font-mono text-xs text-zinc-900 dark:text-zinc-100'>
+                          {row.sku}
+                        </span>
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className='text-sm text-zinc-700 dark:text-zinc-300 max-w-[200px] truncate block'>
+                          {row.item_name || '—'}
+                        </span>
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        {!row.found ? (
+                          <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'>
+                            <AlertTriangle className='w-3 h-3' />
+                            Not Found
+                          </span>
+                        ) : row.has_mismatch ? (
+                          <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'>
+                            <AlertTriangle className='w-3 h-3' />
+                            Mismatch
+                          </span>
+                        ) : (
+                          <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'>
+                            <CheckCircle2 className='w-3 h-3' />
+                            Match
+                          </span>
+                        )}
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <FieldCell field={row.hsn} found={row.found} />
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <FieldCell field={row.gst} found={row.found} />
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <FieldCell field={row.mrp} found={row.found} />
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className='font-mono text-xs text-zinc-500 dark:text-zinc-400'>
+                          {row.sp?.file || '—'}
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className={TABLE_CLASSES.tbody}>
-                    {sortedData.map((row, idx) => (
-                      <tr key={idx} className={TABLE_CLASSES.tr}>
-                        <td className={TABLE_CLASSES.td}>
-                          <span className='font-mono text-xs text-zinc-900 dark:text-zinc-100'>
-                            {row.sku}
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className={TABLE_CLASSES.overflow}>
+              <table className={TABLE_CLASSES.table}>
+                <thead className={TABLE_CLASSES.thead}>
+                  <tr>
+                    <th className={TABLE_CLASSES.th}>SKU</th>
+                    <th className={TABLE_CLASSES.th}>Item Name</th>
+                    <th className={TABLE_CLASSES.th}>Status</th>
+                    <th className={TABLE_CLASSES.th}>HSN</th>
+                    <th className={TABLE_CLASSES.th}>MRP</th>
+                  </tr>
+                </thead>
+                <tbody className={TABLE_CLASSES.tbody}>
+                  {(filteredData as VCResult[]).map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className={`${TABLE_CLASSES.tr} ${
+                        row.has_mismatch
+                          ? 'bg-red-50/40 dark:bg-red-900/10'
+                          : ''
+                      }`}
+                    >
+                      <td className={TABLE_CLASSES.td}>
+                        <span className='font-mono text-xs text-zinc-900 dark:text-zinc-100'>
+                          {row.sku}
+                        </span>
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className='text-sm text-zinc-700 dark:text-zinc-300 max-w-[200px] truncate block'>
+                          {row.item_name || '—'}
+                        </span>
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        {!row.found ? (
+                          <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'>
+                            <AlertTriangle className='w-3 h-3' />
+                            Not Found
                           </span>
-                        </td>
-                        <td className={TABLE_CLASSES.td}>
-                          <span className='text-sm text-zinc-700 dark:text-zinc-300 max-w-xs truncate block'>
-                            {row.item_name || '—'}
+                        ) : row.has_mismatch ? (
+                          <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'>
+                            <AlertTriangle className='w-3 h-3' />
+                            Mismatch
                           </span>
-                        </td>
-                        <td className={TABLE_CLASSES.td}>
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                              FIELD_BADGE[row.field] ??
-                              'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'
-                            }`}
-                          >
-                            {row.field}
+                        ) : (
+                          <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'>
+                            <CheckCircle2 className='w-3 h-3' />
+                            Match
                           </span>
-                        </td>
-                        <td className={TABLE_CLASSES.td}>
-                          <span className='text-xs font-mono text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded'>
-                            {row.file_value || '—'}
-                          </span>
-                        </td>
-                        <td className={TABLE_CLASSES.td}>
-                          <span className='text-xs font-mono text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded'>
-                            {row.db_value || '—'}
-                          </span>
-                        </td>
-                        <td className={TABLE_CLASSES.td}>
-                          <span className='text-sm text-zinc-500 dark:text-zinc-400'>
-                            {row.issue}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+                        )}
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <FieldCell field={row.hsn} found={row.found} />
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <FieldCell field={row.mrp} found={row.found} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
