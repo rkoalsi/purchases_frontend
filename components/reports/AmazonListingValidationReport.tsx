@@ -29,11 +29,12 @@ interface SCResult {
   sku: string;
   item_name: string;
   found: boolean;
+  is_combo: boolean;
   has_mismatch: boolean;
   hsn: FieldStatus | null;
   gst: FieldStatus | null;
   mrp: FieldStatus | null;
-  sp: { file: string; mrp_file: string; match: boolean } | null;
+  sp: { file: string; db?: string; mrp_file?: string; match: boolean } | null;
 }
 
 interface VCResult {
@@ -41,6 +42,7 @@ interface VCResult {
   sku: string;
   item_name: string;
   found: boolean;
+  is_combo: boolean;
   has_mismatch: boolean;
   hsn: FieldStatus | null;
   mrp: FieldStatus | null;
@@ -83,6 +85,12 @@ const FieldCell: React.FC<{ field: FieldStatus | null; found: boolean }> = ({ fi
     </div>
   );
 };
+
+const ComboTag: React.FC = () => (
+  <span className='inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 ml-1'>
+    Combo
+  </span>
+);
 
 // ─── File Upload Card ─────────────────────────────────────────────────────────
 
@@ -583,6 +591,7 @@ const AmazonListingValidationReport: React.FC = () => {
                         <span className='font-mono text-xs text-zinc-900 dark:text-zinc-100'>
                           {row.sku}
                         </span>
+                        {row.is_combo && <ComboTag />}
                       </td>
                       <td className={TABLE_CLASSES.td}>
                         <span className='text-sm text-zinc-700 dark:text-zinc-300 max-w-[200px] truncate block'>
@@ -627,7 +636,7 @@ const AmazonListingValidationReport: React.FC = () => {
                           >
                             <span className='font-medium'>{row.sp.file || '—'}</span>
                             <span className='text-zinc-400 dark:text-zinc-500 font-normal'>
-                              mrp: {row.sp.mrp_file || '—'}
+                              {row.is_combo ? `ref: ${row.sp.db || '—'}` : `mrp: ${row.sp.mrp_file || '—'}`}
                             </span>
                           </div>
                         ) : (
@@ -665,6 +674,7 @@ const AmazonListingValidationReport: React.FC = () => {
                         <span className='font-mono text-xs text-zinc-900 dark:text-zinc-100'>
                           {row.sku}
                         </span>
+                        {row.is_combo && <ComboTag />}
                       </td>
                       <td className={TABLE_CLASSES.td}>
                         <span className='text-sm text-zinc-700 dark:text-zinc-300 max-w-[200px] truncate block'>
