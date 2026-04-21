@@ -27,6 +27,7 @@ import {
   UserCircle,
   TrendingDown,
   TrendingUp,
+  Code2,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -69,6 +70,7 @@ const PERMISSION_REQUIREMENTS = {
   PI_CL_REPORTS: { name: 'reports_pi_vs_cl' },
   MISSED_SALES: { name: 'reports_missed_sales' },
   AMAZON_LISTING_VALIDATION: { name: 'reports_amazon_listing_validation' },
+  BB_CODE_GENERATOR: { name: 'tools_bb_code_generator' },
 };
 
 // Navigation items with required permissions
@@ -210,6 +212,20 @@ const navigation = [
             requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_LISTING_VALIDATION,
           },
         ],
+      },
+    ],
+  },
+  {
+    name: 'Tools',
+    href: '/tools',
+    icon: Code2,
+    requiredPermission: null,
+    children: [
+      {
+        name: 'BB Code Generator',
+        href: '/tools/bb_code_generator',
+        icon: Code2,
+        requiredPermission: PERMISSION_REQUIREMENTS.BB_CODE_GENERATOR,
       },
     ],
   },
