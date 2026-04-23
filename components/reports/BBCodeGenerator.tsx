@@ -178,13 +178,13 @@ export default function BBCodeGenerator() {
             Code structure: <span className='font-mono text-blue-600 dark:text-blue-400'>BBSSNNIICC</span>
           </p>
           <p><span className='font-mono font-semibold text-zinc-700 dark:text-zinc-200'>BB</span> — Brand (2-letter initials)</p>
-          <p><span className='font-mono font-semibold text-zinc-700 dark:text-zinc-200'>SS</span> — Series (2-letter initials, or WA for wand toys)</p>
+          <p><span className='font-mono font-semibold text-zinc-700 dark:text-zinc-200'>SS</span> — Series (first 2 letters of series name, or WA for wand toys)</p>
           <p><span className='font-mono font-semibold text-zinc-700 dark:text-zinc-200'>NN</span> — Size: 00–08 for regular (cats always 00); 01–08 for shoes/boots (shoe size 1–8)</p>
-          <p><span className='font-mono font-semibold text-zinc-700 dark:text-zinc-200'>II</span> — Item name (first 2 letters)</p>
-          <p><span className='font-mono font-semibold text-zinc-700 dark:text-zinc-200'>CC</span> — Color (first 2 letters)</p>
+          <p><span className='font-mono font-semibold text-zinc-700 dark:text-zinc-200'>II</span> — Item name (first 2 letters of item name)</p>
+          <p><span className='font-mono font-semibold text-zinc-700 dark:text-zinc-200'>CC</span> — Color (2-letter initials)</p>
           <p className='pt-1 text-zinc-500 dark:text-zinc-500'>
             Example: <span className='font-mono'>Zippy Paws + Squeakie Can + Small + Zippy Cola + Red White</span>{' '}
-            → <span className='font-mono font-semibold text-blue-600 dark:text-blue-400'>ZPSC03ZCRW</span>
+            → <span className='font-mono font-semibold text-blue-600 dark:text-blue-400'>ZPSQ04ZIRW</span>
           </p>
         </div>
 

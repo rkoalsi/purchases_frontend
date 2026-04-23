@@ -300,9 +300,9 @@ const InvoiceReportGenerator = () => {
                 "(SSAM) Sales samples", ]
                 <div className="tooltip-arrow" data-popper-arrow></div>
               </div> */}
-              <label className="ms-2 text-sm font-medium text-gray-900 dark:text-zinc-100">
+              {/* <label className="ms-2 text-sm font-medium text-gray-900 dark:text-zinc-100">
                 Exclude Customers
-              </label>
+              </label> */}
             </div>
             {/* Message Display */}
             {message.text && (
@@ -362,14 +362,14 @@ const InvoiceReportGenerator = () => {
                 • File includes Invoice ID, Customer, Item, Quantity, and Date
                 information
               </li>
-              <li>
+              {/* <li>
                 • The Exclude Customers Checkbox above, once checked removes the following customers from the generated report:
                 <ul className="ml-6 mt-2 space-y-1">
                   {excludedCustomers.map((customer, index) => (
                     <li key={index}>{index + 1}. {customer}</li>
                   ))}
                 </ul>
-              </li>
+              </li> */}
             </ul>
           </div>
         </div>
