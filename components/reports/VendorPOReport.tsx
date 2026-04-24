@@ -14,7 +14,7 @@ interface POListItem {
   po_number: string;
   vendor: string;
   po_date: string;
-  po_status: 'pending' | 'processing' | 'completed';
+  po_status: 'pending' | 'processing' | 'packed' | 'closed' | 'completed';
   item_count: number;
   created_at: string;
 }
@@ -72,6 +72,8 @@ const statusBadge = (s: string) => {
   const map: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
     processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    packed: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
+    closed: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
     completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   };
   return (
@@ -394,6 +396,8 @@ export default function VendorPOReport() {
                       >
                         <option value="pending">pending</option>
                         <option value="processing">processing</option>
+                        <option value="packed">packed</option>
+                        <option value="closed">closed</option>
                         <option value="completed">completed</option>
                       </select>
                     </td>
