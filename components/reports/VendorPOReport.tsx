@@ -1,0 +1,561 @@
+'use client';
+
+import React, { useState, useCallback, useRef } from 'react';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X } from 'lucide-react';
+import { TABLE_CLASSES, LoadingState, ErrorState } from './TableStyles';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface POListItem {
+  po_number: string;
+  vendor: string;
+  po_date: string;
+  po_status: 'pending' | 'processing' | 'completed';
+  item_count: number;
+  created_at: string;
+}
+
+interface POItem {
+  asin: string;
+  model_number: string;
+  title: string;
+  ship_to_location: string;
+  requested_qty: number;
+  supply_qty: number | null;
+  accepted_qty: number | null;
+  received_qty: number | null;
+  etrade_unit_cost: number;
+  zoho_mrp: number;
+  gst: number;
+  mrp_wo_gst: number;
+  margin: number | null;
+  cost_price_wo_tax: number | null;
+  total_cost: number | null;
+  total_cost_gst: number | null;
+  hsn: string;
+  diff: number | null;
+  zoho_stock: number;
+  purchase_status: string;
+  current_stock: number;
+  open_po: number;
+  total_qty: number;
+  last_30_sales: number;
+  ads: number;
+  coverage_days: number;
+  target_stock: number;
+  max_allowed_qty: number;
+  final_supply_qty: number;
+}
+
+interface POReport {
+  po_number: string;
+  vendor: string;
+  po_date: string;
+  po_status: string;
+  inventory_date: string | null;
+  items: POItem[];
+}
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+const fmt = (v: number | null | undefined, decimals = 2) =>
+  v == null ? '—' : v.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+const fmtInt = (v: number | null | undefined) =>
+  v == null ? '—' : Math.round(v).toLocaleString('en-IN');
+
+const statusBadge = (s: string) => {
+  const map: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    processing: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[s] ?? 'bg-zinc-100 text-zinc-600'}`}>
+      {s}
+    </span>
+  );
+};
+
+// ─── MarginCell ───────────────────────────────────────────────────────────────
+
+const MarginCell: React.FC<{
+  asin: string;
+  margin: number | null;
+  onSaved: (asin: string, margin: number) => void;
+}> = ({ asin, margin, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(margin != null ? (margin * 100).toFixed(1) : '');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const num = parseFloat(val);
+    if (isNaN(num) || num < 0 || num > 100) {
+      toast.error('Margin must be 0–100');
+      return;
+    }
+    setSaving(true);
+    try {
+      await axios.put(`${API_URL}/vendor_po/margins/${asin}?margin=${num / 100}`);
+      onSaved(asin, num / 100);
+      setEditing(false);
+      toast.success('Margin updated');
+    } catch {
+      toast.error('Failed to save margin');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group">
+        <span className="text-sm text-zinc-900 dark:text-zinc-100">
+          {margin != null ? `${(margin * 100).toFixed(1)}%` : '—'}
+        </span>
+        <button
+          onClick={() => setEditing(true)}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        autoFocus
+        type="number"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+      />
+      <span className="text-xs text-zinc-500">%</span>
+      <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700">
+        <Check size={12} />
+      </button>
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600">
+        <X size={12} />
+      </button>
+    </div>
+  );
+};
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function VendorPOReport() {
+  const [poList, setPoList] = useState<POListItem[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+
+  const [selectedPO, setSelectedPO] = useState<string | null>(null);
+  const [report, setReport] = useState<POReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+
+  // upload form
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [poDate, setPoDate] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [downloading, setDownloading] = useState(false);
+
+  // ─── fetch list ─────────────────────────────────────────────────────────────
+
+  const fetchList = useCallback(async () => {
+    setListLoading(true);
+    setListError(null);
+    try {
+      const { data } = await axios.get<POListItem[]>(`${API_URL}/vendor_po/`);
+      setPoList(data);
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Unknown error';
+      setListError(msg);
+    } finally {
+      setListLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => { fetchList(); }, [fetchList]);
+
+  // ─── fetch report ────────────────────────────────────────────────────────────
+
+  const fetchReport = useCallback(async (poNumber: string) => {
+    setSelectedPO(poNumber);
+    setReport(null);
+    setReportError(null);
+    setReportLoading(true);
+    try {
+      const { data } = await axios.get<POReport>(`${API_URL}/vendor_po/${poNumber}/report`);
+      setReport(data);
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Unknown error';
+      setReportError(msg);
+    } finally {
+      setReportLoading(false);
+    }
+  }, []);
+
+  // ─── upload ──────────────────────────────────────────────────────────────────
+
+  const handleUpload = async () => {
+    if (!selectedFile || !poDate) {
+      toast.error('Please select a file and PO date');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('po_date', poDate);
+      const { data } = await axios.post<{ po_number: string; items: POItem[]; inventory_date: string | null }>(
+        `${API_URL}/vendor_po/upload`, formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      toast.success(`PO ${data.po_number} uploaded successfully`);
+      setSelectedFile(null);
+      setPoDate('');
+      setUploadOpen(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      await fetchList();
+      await fetchReport(data.po_number);
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Upload failed';
+      toast.error(msg);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // ─── download ────────────────────────────────────────────────────────────────
+
+  const handleDownload = async () => {
+    if (!selectedPO) return;
+    setDownloading(true);
+    try {
+      const res = await axios.get(`${API_URL}/vendor_po/${selectedPO}/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PO_Report_${selectedPO}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Download failed');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // ─── status update ───────────────────────────────────────────────────────────
+
+  const handleStatusChange = async (poNumber: string, newStatus: string) => {
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/status?po_status=${newStatus}`);
+      toast.success('Status updated');
+      setPoList(prev => prev.map(p => p.po_number === poNumber ? { ...p, po_status: newStatus as POListItem['po_status'] } : p));
+      if (report && report.po_number === poNumber) {
+        setReport(prev => prev ? { ...prev, po_status: newStatus } : prev);
+      }
+    } catch {
+      toast.error('Failed to update status');
+    }
+  };
+
+  // ─── margin saved ────────────────────────────────────────────────────────────
+
+  const handleMarginSaved = useCallback((asin: string, margin: number) => {
+    setReport(prev => {
+      if (!prev) return prev;
+      const items = prev.items.map(item => {
+        if (item.asin !== asin) return item;
+        const mrpWoGst = item.mrp_wo_gst;
+        const costPriceWoTax = Math.round((mrpWoGst - mrpWoGst * margin) * 100) / 100;
+        const diff = Math.round((item.etrade_unit_cost - costPriceWoTax) * 100) / 100;
+        const supplyQty = item.supply_qty ?? item.requested_qty;
+        const totalCost = Math.round(costPriceWoTax * supplyQty * 100) / 100;
+        const totalCostGst = Math.round(totalCost * (1 + item.gst / 100) * 100) / 100;
+        return { ...item, margin, cost_price_wo_tax: costPriceWoTax, diff, total_cost: totalCost, total_cost_gst: totalCostGst };
+      });
+      return { ...prev, items };
+    });
+  }, []);
+
+  // ─── render ──────────────────────────────────────────────────────────────────
+
+  const invDateLabel = report?.inventory_date ?? 'Latest';
+
+  return (
+    <div className="space-y-6">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Vendor Central POs</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Upload and manage Vendor Central purchase orders</p>
+        </div>
+        <button
+          onClick={() => setUploadOpen(o => !o)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
+          <Upload size={16} />
+          Upload PO
+          {uploadOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+      </div>
+
+      {/* ── Upload Form ── */}
+      {uploadOpen && (
+        <div className={TABLE_CLASSES.container + ' p-6'}>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+            <FileSpreadsheet size={18} className="text-blue-600" />
+            Upload New Purchase Order
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">PO Excel File</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-zinc-700 dark:text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">PO Date</label>
+              <input
+                type="date"
+                value={poDate}
+                onChange={(e) => setPoDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              onClick={handleUpload}
+              disabled={uploading || !selectedFile || !poDate}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              {uploading ? <RefreshCw size={15} className="animate-spin" /> : <Upload size={15} />}
+              {uploading ? 'Uploading…' : 'Upload & Generate Report'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PO List ── */}
+      <div className={TABLE_CLASSES.container}>
+        <div className={TABLE_CLASSES.headerSection + ' flex items-center justify-between'}>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Purchase Orders</h2>
+          <button onClick={fetchList} className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded transition-colors">
+            <RefreshCw size={15} className={listLoading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+        {listLoading && <LoadingState message="Loading purchase orders…" />}
+        {listError && <ErrorState error={listError} onRetry={fetchList} />}
+        {!listLoading && !listError && poList.length === 0 && (
+          <div className="py-12 text-center text-zinc-400 text-sm">No purchase orders found. Upload your first PO above.</div>
+        )}
+        {!listLoading && !listError && poList.length > 0 && (
+          <div className={TABLE_CLASSES.overflow}>
+            <table className={TABLE_CLASSES.table}>
+              <thead className={TABLE_CLASSES.thead}>
+                <tr>
+                  {['PO Number', 'Vendor', 'PO Date', 'Items', 'Status', 'Uploaded At', 'Actions'].map(h => (
+                    <th key={h} className={TABLE_CLASSES.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className={TABLE_CLASSES.tbody}>
+                {poList.map(po => (
+                  <tr
+                    key={po.po_number}
+                    className={`${TABLE_CLASSES.tr} ${selectedPO === po.po_number ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
+                  >
+                    <td className={TABLE_CLASSES.td}>
+                      <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{po.po_number}</span>
+                    </td>
+                    <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.vendor || '—'}</span></td>
+                    <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.po_date}</span></td>
+                    <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.item_count}</span></td>
+                    <td className={TABLE_CLASSES.td}>
+                      <select
+                        value={po.po_status}
+                        onChange={(e) => handleStatusChange(po.po_number, e.target.value)}
+                        className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                      >
+                        <option value="pending">pending</option>
+                        <option value="processing">processing</option>
+                        <option value="completed">completed</option>
+                      </select>
+                    </td>
+                    <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
+                    <td className={TABLE_CLASSES.td}>
+                      <button
+                        onClick={() => selectedPO === po.po_number ? setSelectedPO(null) : fetchReport(po.po_number)}
+                        className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      >
+                        {selectedPO === po.po_number ? 'Hide' : 'View Report'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── PO Report ── */}
+      {selectedPO && (
+        <div className={TABLE_CLASSES.container}>
+          <div className={TABLE_CLASSES.headerSection + ' flex items-center justify-between flex-wrap gap-3'}>
+            <div>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                Report — <span className="font-mono text-blue-700 dark:text-blue-400">{selectedPO}</span>
+              </h2>
+              {report && (
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  PO Date: {report.po_date} &nbsp;·&nbsp; Status: {statusBadge(report.po_status)}
+                  &nbsp;·&nbsp; Current stock as of: <strong>{invDateLabel}</strong>
+                  &nbsp;·&nbsp; {report.items.length} items
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchReport(selectedPO)}
+                disabled={reportLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <RefreshCw size={13} className={reportLoading ? 'animate-spin' : ''} />
+                Refresh
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={downloading || !report}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                <Download size={13} />
+                {downloading ? 'Downloading…' : 'Download Excel'}
+              </button>
+            </div>
+          </div>
+
+          {reportLoading && <LoadingState message="Generating report…" />}
+          {reportError && <ErrorState error={reportError} onRetry={() => fetchReport(selectedPO)} />}
+
+          {report && !reportLoading && (
+            <div className={TABLE_CLASSES.overflow}>
+              <table className="w-full text-xs">
+                <thead className="bg-zinc-50 dark:bg-zinc-800/50 sticky top-0 z-10">
+                  <tr>
+                    {/* Yellow = from PO + computed */}
+                    {[
+                      { label: 'ASIN', yellow: true },
+                      { label: 'Model No.', yellow: true },
+                      { label: 'Title', yellow: true },
+                      { label: 'Ship To', yellow: false },
+                      { label: 'Req. Qty', yellow: true },
+                      { label: 'Supply Qty', yellow: false },
+                      { label: 'Accepted Qty', yellow: false },
+                      { label: 'Received Qty', yellow: false },
+                      { label: 'Zoho MRP', yellow: true },
+                      { label: 'GST %', yellow: true },
+                      { label: 'MRP w/o GST', yellow: true },
+                      { label: 'Margin %', yellow: true },
+                      { label: 'Cost Price w/o Tax', yellow: true },
+                      { label: 'Total Cost', yellow: true },
+                      { label: 'Total Cost w/ GST', yellow: true },
+                      { label: 'HSN', yellow: true },
+                      { label: 'Etrade Unit Cost', yellow: true },
+                      { label: 'Diff', yellow: true },
+                      { label: 'Zoho Stock', yellow: true },
+                      { label: 'Status', yellow: true },
+                      { label: `Current Stock (${invDateLabel})`, yellow: true },
+                      { label: 'Open PO', yellow: true },
+                      { label: 'Total Qty', yellow: true },
+                      { label: 'Last 30D Sales', yellow: true },
+                      { label: 'ADS', yellow: true },
+                      { label: 'Coverage Days', yellow: false },
+                      { label: 'Target Stock', yellow: true },
+                      { label: 'Max Allowed Qty', yellow: true },
+                      { label: 'Final Supply Qty', yellow: true },
+                    ].map(({ label, yellow }) => (
+                      <th
+                        key={label}
+                        className={`px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap border-b border-zinc-200 dark:border-zinc-700 ${yellow ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}`}
+                      >
+                        {label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {report.items.map((item, idx) => {
+                    const diffColor = item.diff == null ? '' : item.diff >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                    return (
+                      <tr key={idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
+                        <td className="px-3 py-2 font-mono text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{item.asin}</td>
+                        <td className="px-3 py-2 font-mono text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{item.model_number}</td>
+                        <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 max-w-xs truncate" title={item.title}>{item.title}</td>
+                        <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{item.ship_to_location}</td>
+                        <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{item.requested_qty}</td>
+                        <td className="px-3 py-2 text-center text-zinc-600">{item.supply_qty ?? '—'}</td>
+                        <td className="px-3 py-2 text-center text-zinc-600">{item.accepted_qty ?? '—'}</td>
+                        <td className="px-3 py-2 text-center text-zinc-600">{item.received_qty ?? '—'}</td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.zoho_mrp, 0)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.gst}%</td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.mrp_wo_gst)}</td>
+                        <td className="px-3 py-2">
+                          <MarginCell asin={item.asin} margin={item.margin} onSaved={handleMarginSaved} />
+                        </td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
+                          {item.cost_price_wo_tax != null ? `₹${fmt(item.cost_price_wo_tax)}` : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
+                          {item.total_cost != null ? `₹${fmt(item.total_cost)}` : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
+                          {item.total_cost_gst != null ? `₹${fmt(item.total_cost_gst)}` : '—'}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-zinc-600 dark:text-zinc-400">{item.hsn || '—'}</td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.etrade_unit_cost)}</td>
+                        <td className={`px-3 py-2 text-right font-semibold ${diffColor}`}>
+                          {item.diff != null ? `₹${fmt(item.diff)}` : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-center text-zinc-800 dark:text-zinc-200">{fmtInt(item.zoho_stock)}</td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${item.purchase_status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                            {item.purchase_status || '—'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{fmtInt(item.current_stock)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.open_po)}</td>
+                        <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{fmtInt(item.total_qty)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.last_30_sales)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.ads.toFixed(1)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-500">{item.coverage_days}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.target_stock)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.max_allowed_qty)}</td>
+                        <td className="px-3 py-2 text-center font-bold text-blue-700 dark:text-blue-400 text-sm">{fmtInt(item.final_supply_qty)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
