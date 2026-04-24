@@ -609,7 +609,7 @@ const processDownload = async (response: any) => {
                       onClick={() => handleSort("total_returns")}
                       className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
-                      Total Returns
+                      FBA Returns
                       <StandardSortIcon column="total_returns" sortConfig={sortConfig} />
                     </button>
                   </th>
