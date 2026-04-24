@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { RefreshCw, Package, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { RefreshCw, Package, Search, ChevronLeft, ChevronRight, Edit2, Check, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/components/context/AuthContext';
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/amazon`;
+const MARGINS_API = `${process.env.NEXT_PUBLIC_API_URL}/vendor_po/margins`;
 const PAGE_SIZE = 25;
 
 async function buildSkuBrandMap(token: string): Promise<Map<string, string>> {
@@ -24,6 +25,12 @@ type SkuItem = {
   seller_sku?: string;
 };
 
+type MarginData = {
+  asin: string;
+  margin?: number | null;
+  cost_price_wo_tax?: number | null;
+};
+
 type SyncResult = {
   message: string;
   inserted: number;
@@ -31,6 +38,84 @@ type SyncResult = {
   unchanged: number;
   total_sp_listings: number;
 };
+
+// ─── Inline edit cell ─────────────────────────────────────────────────────────
+
+const EditableCell: React.FC<{
+  value: number | null | undefined;
+  onSave: (val: number) => Promise<void>;
+  format: (v: number) => string;
+  placeholder: string;
+  validate: (v: number) => string | null;
+  inputSuffix?: string;
+  inputMin?: number;
+  inputMax?: number;
+  inputStep?: number;
+}> = ({ value, onSave, format, placeholder, validate, inputSuffix, inputMin, inputMax, inputStep }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () => {
+    setVal(value != null ? String(value) : '');
+    setEditing(true);
+  };
+
+  const save = async () => {
+    const num = parseFloat(val);
+    if (isNaN(num)) { toast.error('Enter a valid number'); return; }
+    const err = validate(num);
+    if (err) { toast.error(err); return; }
+    setSaving(true);
+    try {
+      await onSave(num);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group">
+        <span className="text-sm text-gray-800 dark:text-zinc-200">
+          {value != null ? format(value) : <span className="text-gray-400 dark:text-zinc-500 text-xs">{placeholder}</span>}
+        </span>
+        <button
+          onClick={startEdit}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={11} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        autoFocus
+        type="number"
+        value={val}
+        min={inputMin}
+        max={inputMax}
+        step={inputStep ?? 'any'}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-20 px-1.5 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+      />
+      {inputSuffix && <span className="text-xs text-gray-500">{inputSuffix}</span>}
+      <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700">
+        <Check size={12} />
+      </button>
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600">
+        <X size={12} />
+      </button>
+    </div>
+  );
+};
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AmazonSkuMappingPage() {
   const { accessToken } = useAuth();
@@ -43,6 +128,7 @@ export default function AmazonSkuMappingPage() {
   const [brands, setBrands] = useState<{ value: string; label: string }[]>([]);
   const [brand, setBrand] = useState('');
   const [skuBrandMap, setSkuBrandMap] = useState<Map<string, string>>(new Map());
+  const [marginsByAsin, setMarginsByAsin] = useState<Map<string, MarginData>>(new Map());
 
   useEffect(() => {
     if (!accessToken) return;
@@ -54,13 +140,11 @@ export default function AmazonSkuMappingPage() {
       .catch(() => {});
   }, [accessToken]);
 
-  // Build sku→brand map from all Zoho products once on load
   useEffect(() => {
     if (!accessToken) return;
     buildSkuBrandMap(accessToken).then(setSkuBrandMap);
   }, [accessToken]);
 
-  // Compute relevant brands once skuData + map are ready
   useEffect(() => {
     if (skuData.length === 0 || skuBrandMap.size === 0 || allBrands.length === 0) return;
     const present = new Set(
@@ -71,6 +155,7 @@ export default function AmazonSkuMappingPage() {
   }, [skuData, skuBrandMap, allBrands]);
 
   useEffect(() => { setPage(1); }, [brand]);
+  useEffect(() => { setPage(1); }, [search]);
 
   const filtered = skuData.filter((item) => {
     const q = search.toLowerCase();
@@ -86,11 +171,8 @@ export default function AmazonSkuMappingPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Reset to page 1 when search changes
-  useEffect(() => { setPage(1); }, [search]);
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchSkuData(); }, []);
+  useEffect(() => { fetchSkuData(); fetchAllMargins(); }, []);
 
   const fetchSkuData = async () => {
     try {
@@ -101,6 +183,17 @@ export default function AmazonSkuMappingPage() {
       toast.error('Failed to load SKU mapping data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllMargins = async () => {
+    try {
+      const res = await axios.get<MarginData[]>(MARGINS_API);
+      const map = new Map<string, MarginData>();
+      for (const m of res.data) map.set(m.asin, m);
+      setMarginsByAsin(map);
+    } catch {
+      // non-critical
     }
   };
 
@@ -116,6 +209,28 @@ export default function AmazonSkuMappingPage() {
     } finally {
       setSyncing(false);
     }
+  };
+
+  const saveMargin = async (asin: string, margin: number) => {
+    await axios.put(`${MARGINS_API}/${asin}?margin=${margin / 100}`);
+    setMarginsByAsin((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(asin) ?? { asin };
+      next.set(asin, { ...existing, margin: margin / 100 });
+      return next;
+    });
+    toast.success('Margin saved');
+  };
+
+  const saveCostPrice = async (asin: string, costPrice: number) => {
+    await axios.put(`${MARGINS_API}/${asin}?cost_price_wo_tax=${costPrice}`);
+    setMarginsByAsin((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(asin) ?? { asin };
+      next.set(asin, { ...existing, cost_price_wo_tax: costPrice });
+      return next;
+    });
+    toast.success('Cost price saved');
   };
 
   return (
@@ -198,33 +313,63 @@ export default function AmazonSkuMappingPage() {
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Item Name</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU Code</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>ASIN</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Margin %</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Cost Price w/o Tax (₹)</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
+                    <td colSpan={6} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
                       {search ? `No results for "${search}"` : 'No items yet'}
                     </td>
                   </tr>
-                ) : paginated.map((item, index) => (
-                  <tr key={item._id} className='hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors'>
-                    <td className='px-6 py-3.5 text-sm text-gray-400 dark:text-zinc-500'>
-                      {(page - 1) * PAGE_SIZE + index + 1}
-                    </td>
-                    <td className='px-6 py-3.5 text-gray-800 dark:text-zinc-200'>
-                      {item.item_name}
-                    </td>
-                    <td className='px-6 py-3.5'>
-                      <span className='inline-block font-mono text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded'>
-                        {item.sku_code}
-                      </span>
-                    </td>
-                    <td className='px-6 py-3.5 font-mono text-xs text-gray-600 dark:text-zinc-300'>
-                      {item.item_id}
-                    </td>
-                  </tr>
-                ))}
+                ) : paginated.map((item, index) => {
+                  const asin = item.item_id;
+                  const md = marginsByAsin.get(asin);
+                  return (
+                    <tr key={item._id} className='hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors'>
+                      <td className='px-6 py-3.5 text-sm text-gray-400 dark:text-zinc-500'>
+                        {(page - 1) * PAGE_SIZE + index + 1}
+                      </td>
+                      <td className='px-6 py-3.5 text-gray-800 dark:text-zinc-200'>
+                        {item.item_name}
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <span className='inline-block font-mono text-xs bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded'>
+                          {item.sku_code}
+                        </span>
+                      </td>
+                      <td className='px-6 py-3.5 font-mono text-xs text-gray-600 dark:text-zinc-300'>
+                        {asin}
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <EditableCell
+                          value={md?.margin != null ? md.margin * 100 : null}
+                          onSave={(v) => saveMargin(asin, v)}
+                          format={(v) => `${v.toFixed(1)}%`}
+                          placeholder='Not set'
+                          validate={(v) => (v < 0 || v > 100) ? 'Margin must be 0–100' : null}
+                          inputSuffix='%'
+                          inputMin={0}
+                          inputMax={100}
+                          inputStep={0.1}
+                        />
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <EditableCell
+                          value={md?.cost_price_wo_tax ?? null}
+                          onSave={(v) => saveCostPrice(asin, v)}
+                          format={(v) => `₹${v.toFixed(2)}`}
+                          placeholder='Not set'
+                          validate={(v) => v < 0 ? 'Must be ≥ 0' : null}
+                          inputMin={0}
+                          inputStep={0.01}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

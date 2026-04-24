@@ -15,7 +15,7 @@ interface POListItem {
   po_number: string;
   vendor: string;
   po_date: string;
-  po_status: 'pending' | 'processing' | 'packed' | 'closed' | 'completed';
+  po_status: 'pending' | 'processing' | 'packed' | 'closed' | 'intransit' | 'delivered' | 'completed';
   item_count: number;
   created_at: string;
 }
@@ -58,6 +58,7 @@ interface POReport {
   po_date: string;
   po_status: string;
   inventory_date: string | null;
+  po_update_date: string | null;
   items: POItem[];
 }
 
@@ -76,6 +77,8 @@ const statusBadge = (s: string) => {
     packed: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
     closed: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
     completed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    intransit: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
+    delivered: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
   };
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[s] ?? 'bg-zinc-100 text-zinc-600'}`}>
@@ -84,72 +87,6 @@ const statusBadge = (s: string) => {
   );
 };
 
-// ─── MarginCell ───────────────────────────────────────────────────────────────
-
-const MarginCell: React.FC<{
-  asin: string;
-  margin: number | null;
-  onSaved: (asin: string, margin: number) => void;
-}> = ({ asin, margin, onSaved }) => {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(margin != null ? (margin * 100).toFixed(1) : '');
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    const num = parseFloat(val);
-    if (isNaN(num) || num < 0 || num > 100) {
-      toast.error('Margin must be 0–100');
-      return;
-    }
-    setSaving(true);
-    try {
-      await axios.put(`${API_URL}/vendor_po/margins/${asin}?margin=${num / 100}`);
-      onSaved(asin, num / 100);
-      setEditing(false);
-      toast.success('Margin updated');
-    } catch {
-      toast.error('Failed to save margin');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!editing) {
-    return (
-      <div className="flex items-center gap-1 group">
-        <span className="text-sm text-zinc-900 dark:text-zinc-100">
-          {margin != null ? `${(margin * 100).toFixed(1)}%` : '—'}
-        </span>
-        <button
-          onClick={() => setEditing(true)}
-          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
-        >
-          <Edit2 size={12} />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1">
-      <input
-        autoFocus
-        type="number"
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
-      />
-      <span className="text-xs text-zinc-500">%</span>
-      <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700">
-        <Check size={12} />
-      </button>
-      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600">
-        <X size={12} />
-      </button>
-    </div>
-  );
-};
 
 // ─── AcceptedQtyCell ──────────────────────────────────────────────────────────
 
@@ -322,13 +259,21 @@ export default function VendorPOReport() {
 
   // ─── status update ───────────────────────────────────────────────────────────
 
-  const handleStatusChange = async (poNumber: string, newStatus: string) => {
+  const FROZEN_STATUSES = new Set(['packed', 'closed', 'intransit', 'delivered', 'completed']);
+
+  const handleStatusChange = async (poNumber: string, newStatus: string, currentStatus: string) => {
     try {
       await axios.patch(`${API_URL}/vendor_po/${poNumber}/status?po_status=${newStatus}`);
-      toast.success('Status updated');
+      const isFreeze = FROZEN_STATUSES.has(newStatus) && !FROZEN_STATUSES.has(currentStatus);
+      toast.success(isFreeze ? 'Status updated — stock data frozen' : 'Status updated');
       setPoList(prev => prev.map(p => p.po_number === poNumber ? { ...p, po_status: newStatus as POListItem['po_status'] } : p));
+      // Reload the report when freezing so the saved snapshot is shown
       if (report && report.po_number === poNumber) {
-        setReport(prev => prev ? { ...prev, po_status: newStatus } : prev);
+        if (isFreeze) {
+          await fetchReport(poNumber);
+        } else {
+          setReport(prev => prev ? { ...prev, po_status: newStatus } : prev);
+        }
       }
     } catch {
       toast.error('Failed to update status');
@@ -344,22 +289,6 @@ export default function VendorPOReport() {
     });
   }, []);
 
-  const handleMarginSaved = useCallback((asin: string, margin: number) => {
-    setReport(prev => {
-      if (!prev) return prev;
-      const items = prev.items.map(item => {
-        if (item.asin !== asin) return item;
-        const mrpWoGst = item.mrp_wo_gst;
-        const costPriceWoTax = Math.round((mrpWoGst - mrpWoGst * margin) * 100) / 100;
-        const diff = Math.round((item.etrade_unit_cost - costPriceWoTax) * 100) / 100;
-        const supplyQty = item.supply_qty ?? item.requested_qty;
-        const totalCost = Math.round(costPriceWoTax * supplyQty * 100) / 100;
-        const totalCostGst = Math.round(totalCost * (1 + item.gst / 100) * 100) / 100;
-        return { ...item, margin, cost_price_wo_tax: costPriceWoTax, diff, total_cost: totalCost, total_cost_gst: totalCostGst };
-      });
-      return { ...prev, items };
-    });
-  }, []);
 
   // ─── render ──────────────────────────────────────────────────────────────────
 
@@ -422,6 +351,17 @@ export default function VendorPOReport() {
         </div>
       )}
 
+      {/* ── Status behaviour info ── */}
+      <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10 px-4 py-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
+        <p className="font-semibold">Stock data is frozen at upload time based on PO date — it never changes after that.</p>
+        <ul className="list-disc list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
+          <li><span className="font-medium">Zoho Stock &amp; Current Stock</span> — taken from T‑2 (2 days before PO date).</li>
+          <li><span className="font-medium">Last 30 Days Sales</span> — 30-day window ending on PO date.</li>
+          <li><span className="font-medium">Open PO</span> — snapshot at upload. Processing POs use supply qty · Packed / Closed / Intransit POs use accepted qty.</li>
+        </ul>
+        <p className="text-blue-600 dark:text-blue-500 pt-0.5">Changing status only updates the status label — it does not recalculate any figures.</p>
+      </div>
+
       {/* ── PO List ── */}
       <div className={TABLE_CLASSES.container}>
         <div className={TABLE_CLASSES.headerSection + ' flex items-center justify-between'}>
@@ -464,13 +404,15 @@ export default function VendorPOReport() {
                         <td className={TABLE_CLASSES.td}>
                           <select
                             value={po.po_status}
-                            onChange={(e) => handleStatusChange(po.po_number, e.target.value)}
+                            onChange={(e) => handleStatusChange(po.po_number, e.target.value, po.po_status)}
                             className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                           >
                             <option value="pending">pending</option>
                             <option value="processing">processing</option>
                             <option value="packed">packed</option>
                             <option value="closed">closed</option>
+                            <option value="intransit">intransit</option>
+                            <option value="delivered">delivered</option>
                             <option value="completed">completed</option>
                           </select>
                         </td>
@@ -527,8 +469,10 @@ export default function VendorPOReport() {
               </h2>
               {report && (
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  PO Date: {report.po_date} &nbsp;·&nbsp; Status: {statusBadge(report.po_status)}
-                  &nbsp;·&nbsp; Current stock as of: <strong>{invDateLabel}</strong>
+                  PO Date: {report.po_date}
+                  {report.po_update_date && <> &nbsp;·&nbsp; Processing date: <strong>{report.po_update_date}</strong></>}
+                  &nbsp;·&nbsp; Status: {statusBadge(report.po_status)}
+                  &nbsp;·&nbsp; Stock snapshot: <strong>{invDateLabel}</strong>
                   &nbsp;·&nbsp; {report.items.length} items
                 </p>
               )}
@@ -620,8 +564,10 @@ export default function VendorPOReport() {
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.zoho_mrp, 0)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.gst}%</td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.mrp_wo_gst)}</td>
-                        <td className="px-3 py-2">
-                          <MarginCell asin={item.asin} margin={item.margin} onSaved={handleMarginSaved} />
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
+                          <span title="Edit margin on the Amazon SKU Mapping page">
+                            {item.margin != null ? `${(item.margin * 100).toFixed(1)}%` : '—'}
+                          </span>
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
                           {item.cost_price_wo_tax != null ? `₹${fmt(item.cost_price_wo_tax)}` : '—'}

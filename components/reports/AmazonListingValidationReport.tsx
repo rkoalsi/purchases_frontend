@@ -46,6 +46,9 @@ interface VCResult {
   has_mismatch: boolean;
   hsn: FieldStatus | null;
   mrp: FieldStatus | null;
+  stored_margin: number | null;
+  stored_cost_price_wo_tax: number | null;
+  margin_configured: boolean;
 }
 
 interface ValidationSummary {
@@ -450,7 +453,7 @@ const AmazonListingValidationReport: React.FC = () => {
 
         <FileCard
           label='Vendor Central'
-          subtitle='Validates HSN · MRP'
+          subtitle='Validates HSN · MRP · Margin · Cost Price'
           file={vendorFile}
           loading={vcLoading}
           downloading={vcDownloading}
@@ -658,6 +661,8 @@ const AmazonListingValidationReport: React.FC = () => {
                     <th className={TABLE_CLASSES.th}>Status</th>
                     <th className={TABLE_CLASSES.th}>HSN</th>
                     <th className={TABLE_CLASSES.th}>MRP</th>
+                    <th className={TABLE_CLASSES.th}>Margin %</th>
+                    <th className={TABLE_CLASSES.th}>Cost Price w/o Tax</th>
                   </tr>
                 </thead>
                 <tbody className={TABLE_CLASSES.tbody}>
@@ -704,6 +709,28 @@ const AmazonListingValidationReport: React.FC = () => {
                       </td>
                       <td className={TABLE_CLASSES.td}>
                         <FieldCell field={row.mrp} found={row.found} />
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-mono ${
+                          row.margin_configured
+                            ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                            : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                        }`}>
+                          {row.stored_margin != null
+                            ? `${(row.stored_margin * 100).toFixed(1)}%`
+                            : <span className='italic'>Not set</span>}
+                        </div>
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-mono ${
+                          row.stored_cost_price_wo_tax != null
+                            ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                            : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                        }`}>
+                          {row.stored_cost_price_wo_tax != null
+                            ? `₹${row.stored_cost_price_wo_tax.toFixed(2)}`
+                            : <span className='italic'>Not set</span>}
+                        </div>
                       </td>
                     </tr>
                   ))}
