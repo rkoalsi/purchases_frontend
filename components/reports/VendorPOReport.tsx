@@ -7,6 +7,7 @@ import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, E
 import { TABLE_CLASSES, LoadingState, ErrorState } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const PAGE_SIZE = 10;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,12 +151,72 @@ const MarginCell: React.FC<{
   );
 };
 
+// ─── AcceptedQtyCell ──────────────────────────────────────────────────────────
+
+const AcceptedQtyCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number | null;
+  onSaved: (asin: string, qty: number) => void;
+}> = ({ poNumber, asin, value, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value != null ? String(value) : '0');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const num = parseInt(val, 10);
+    if (isNaN(num) || num < 0) { toast.error('Accepted qty must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/items/${asin}/accepted_qty?accepted_qty=${num}`);
+      onSaved(asin, num);
+      setEditing(false);
+      toast.success('Accepted qty updated');
+    } catch {
+      toast.error('Failed to save accepted qty');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group justify-center">
+        <span className="text-sm text-zinc-900 dark:text-zinc-100">{value ?? 0}</span>
+        <button
+          onClick={() => { setVal(String(value ?? 0)); setEditing(true); }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+      />
+      <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function VendorPOReport() {
   const [poList, setPoList] = useState<POListItem[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   const [selectedPO, setSelectedPO] = useState<string | null>(null);
   const [report, setReport] = useState<POReport | null>(null);
@@ -176,6 +237,7 @@ export default function VendorPOReport() {
   const fetchList = useCallback(async () => {
     setListLoading(true);
     setListError(null);
+    setPage(0);
     try {
       const { data } = await axios.get<POListItem[]>(`${API_URL}/vendor_po/`);
       setPoList(data);
@@ -275,6 +337,13 @@ export default function VendorPOReport() {
 
   // ─── margin saved ────────────────────────────────────────────────────────────
 
+  const handleAcceptedQtySaved = useCallback((asin: string, qty: number) => {
+    setReport(prev => {
+      if (!prev) return prev;
+      return { ...prev, items: prev.items.map(it => it.asin === asin ? { ...it, accepted_qty: qty } : it) };
+    });
+  }, []);
+
   const handleMarginSaved = useCallback((asin: string, margin: number) => {
     setReport(prev => {
       if (!prev) return prev;
@@ -366,56 +435,86 @@ export default function VendorPOReport() {
         {!listLoading && !listError && poList.length === 0 && (
           <div className="py-12 text-center text-zinc-400 text-sm">No purchase orders found. Upload your first PO above.</div>
         )}
-        {!listLoading && !listError && poList.length > 0 && (
-          <div className={TABLE_CLASSES.overflow}>
-            <table className={TABLE_CLASSES.table}>
-              <thead className={TABLE_CLASSES.thead}>
-                <tr>
-                  {['PO Number', 'Vendor', 'PO Date', 'Items', 'Status', 'Uploaded At', 'Actions'].map(h => (
-                    <th key={h} className={TABLE_CLASSES.th}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className={TABLE_CLASSES.tbody}>
-                {poList.map(po => (
-                  <tr
-                    key={po.po_number}
-                    className={`${TABLE_CLASSES.tr} ${selectedPO === po.po_number ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
-                  >
-                    <td className={TABLE_CLASSES.td}>
-                      <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{po.po_number}</span>
-                    </td>
-                    <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.vendor || '—'}</span></td>
-                    <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.po_date}</span></td>
-                    <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.item_count}</span></td>
-                    <td className={TABLE_CLASSES.td}>
-                      <select
-                        value={po.po_status}
-                        onChange={(e) => handleStatusChange(po.po_number, e.target.value)}
-                        className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        {!listLoading && !listError && poList.length > 0 && (() => {
+          const totalPages = Math.ceil(poList.length / PAGE_SIZE);
+          const pageItems = poList.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+          return (
+            <>
+              <div className={TABLE_CLASSES.overflow}>
+                <table className={TABLE_CLASSES.table}>
+                  <thead className={TABLE_CLASSES.thead}>
+                    <tr>
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Status', 'Uploaded At', 'Actions'].map(h => (
+                        <th key={h} className={TABLE_CLASSES.th}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className={TABLE_CLASSES.tbody}>
+                    {pageItems.map(po => (
+                      <tr
+                        key={po.po_number}
+                        className={`${TABLE_CLASSES.tr} ${selectedPO === po.po_number ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
                       >
-                        <option value="pending">pending</option>
-                        <option value="processing">processing</option>
-                        <option value="packed">packed</option>
-                        <option value="closed">closed</option>
-                        <option value="completed">completed</option>
-                      </select>
-                    </td>
-                    <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
-                    <td className={TABLE_CLASSES.td}>
-                      <button
-                        onClick={() => selectedPO === po.po_number ? setSelectedPO(null) : fetchReport(po.po_number)}
-                        className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                      >
-                        {selectedPO === po.po_number ? 'Hide' : 'View Report'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                        <td className={TABLE_CLASSES.td}>
+                          <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{po.po_number}</span>
+                        </td>
+                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.vendor || '—'}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.po_date}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.item_count}</span></td>
+                        <td className={TABLE_CLASSES.td}>
+                          <select
+                            value={po.po_status}
+                            onChange={(e) => handleStatusChange(po.po_number, e.target.value)}
+                            className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                          >
+                            <option value="pending">pending</option>
+                            <option value="processing">processing</option>
+                            <option value="packed">packed</option>
+                            <option value="closed">closed</option>
+                            <option value="completed">completed</option>
+                          </select>
+                        </td>
+                        <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
+                        <td className={TABLE_CLASSES.td}>
+                          <button
+                            onClick={() => selectedPO === po.po_number ? setSelectedPO(null) : fetchReport(po.po_number)}
+                            className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          >
+                            {selectedPO === po.po_number ? 'Hide' : 'View Report'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-zinc-700">
+                  <span className="text-xs text-zinc-500">
+                    {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, poList.length)} of {poList.length} POs
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setPage(p => p - 1)}
+                      disabled={page === 0}
+                      className="px-3 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      Prev
+                    </button>
+                    <span className="px-2 text-xs text-zinc-600 dark:text-zinc-400">{page + 1} / {totalPages}</span>
+                    <button
+                      onClick={() => setPage(p => p + 1)}
+                      disabled={page >= totalPages - 1}
+                      className="px-3 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* ── PO Report ── */}
@@ -514,7 +613,9 @@ export default function VendorPOReport() {
                         <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{item.ship_to_location}</td>
                         <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{item.requested_qty}</td>
                         <td className="px-3 py-2 text-center text-zinc-600">{item.supply_qty ?? '—'}</td>
-                        <td className="px-3 py-2 text-center text-zinc-600">{item.accepted_qty ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          <AcceptedQtyCell poNumber={report.po_number} asin={item.asin} value={item.accepted_qty} onSaved={handleAcceptedQtySaved} />
+                        </td>
                         <td className="px-3 py-2 text-center text-zinc-600">{item.received_qty ?? '—'}</td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.zoho_mrp, 0)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.gst}%</td>
