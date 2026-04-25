@@ -72,6 +72,8 @@ const PERMISSION_REQUIREMENTS = {
   AMAZON_LISTING_VALIDATION: { name: 'reports_amazon_listing_validation' },
   VENDOR_PO: { name: 'reports_vendor_po' },
   SELLER_FLEX_RETURNS: { name: 'reports_amazon_seller_flex_returns' },
+  FBA_RETURNS: { name: 'reports_amazon_fba_returns' },
+  VENDOR_CENTRAL_RETURNS: { name: 'reports_amazon_vendor_central_returns' },
   BB_CODE_GENERATOR: { name: 'tools_bb_code_generator' },
 };
 
@@ -143,6 +145,18 @@ const navigation = [
             href: '/reports/amazon_seller_flex_returns',
             icon: AmazonIcon,
             requiredPermission: PERMISSION_REQUIREMENTS.SELLER_FLEX_RETURNS,
+          },
+          {
+            name: 'FBA Returns',
+            href: '/reports/amazon_fba_returns',
+            icon: AmazonIcon,
+            requiredPermission: PERMISSION_REQUIREMENTS.FBA_RETURNS,
+          },
+          {
+            name: 'Vendor Central Returns',
+            href: '/reports/amazon_vendor_central_returns',
+            icon: AmazonIcon,
+            requiredPermission: PERMISSION_REQUIREMENTS.VENDOR_CENTRAL_RETURNS,
           },
         ],
       },
