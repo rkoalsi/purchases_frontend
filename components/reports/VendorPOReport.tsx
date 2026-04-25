@@ -58,6 +58,7 @@ interface POReport {
   po_date: string;
   po_status: string;
   inventory_date: string | null;
+  zoho_stock_date: string | null;
   po_update_date: string | null;
   items: POItem[];
 }
@@ -293,6 +294,7 @@ export default function VendorPOReport() {
   // ─── render ──────────────────────────────────────────────────────────────────
 
   const invDateLabel = report?.inventory_date ?? 'Latest';
+  const zohoDateLabel = report?.zoho_stock_date ?? 'Latest';
 
   return (
     <div className="space-y-6">
@@ -525,7 +527,7 @@ export default function VendorPOReport() {
                       { label: 'HSN', yellow: true },
                       { label: 'Etrade Unit Cost', yellow: true },
                       { label: 'Diff', yellow: true },
-                      { label: 'Zoho Stock', yellow: true },
+                      { label: `Zoho Stock (${zohoDateLabel})`, yellow: true },
                       { label: 'Status', yellow: true },
                       { label: `Current Stock (${invDateLabel})`, yellow: true },
                       { label: 'Open PO', yellow: true },
