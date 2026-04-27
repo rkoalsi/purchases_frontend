@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/components/context/AuthContext';
@@ -13,6 +13,7 @@ import {
 import DateRangeComponent from '@/components/reports/DateRange';
 
 interface VcReturn {
+  id: string;
   shipment_id: string | null;
   return_id: string | null;
   vendor_code: string | null;
@@ -45,6 +46,10 @@ interface VcReturn {
   sgst_tax_rate: number | null;
   sgst_tax_amount: number | null;
   total_amount: number | null;
+  // editable tracking fields
+  entry_in_zoho: string | null;
+  transfer_orders_inventory_adjustment: string | null;
+  sent_to_accounts_team: boolean | null;
 }
 
 interface UploadResult {
@@ -59,7 +64,9 @@ const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1
   .toISOString()
   .split('T')[0];
 
-const COLUMNS: { key: keyof VcReturn; label: string; minW?: string }[] = [
+type SortableKey = keyof Omit<VcReturn, 'id' | 'entry_in_zoho' | 'transfer_orders_inventory_adjustment' | 'sent_to_accounts_team'>;
+
+const COLUMNS: { key: SortableKey; label: string; minW?: string }[] = [
   { key: 'return_date', label: 'Return Date', minW: '110px' },
   { key: 'shipment_id', label: 'Shipment ID', minW: '150px' },
   { key: 'return_id', label: 'Return ID', minW: '150px' },
@@ -94,6 +101,65 @@ const COLUMNS: { key: keyof VcReturn; label: string; minW?: string }[] = [
   { key: 'original_document_date', label: 'Orig Doc Date', minW: '110px' },
 ];
 
+// Inline text editor cell
+const EditableTextCell = ({
+  value,
+  onSave,
+}: {
+  value: string | null;
+  onSave: (val: string | null) => void;
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? '');
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    onSave(trimmed === '' ? null : trimmed);
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        className='w-full min-w-[120px] border border-blue-400 rounded px-1 py-0.5 text-sm bg-white dark:bg-zinc-800 dark:text-zinc-100 outline-none'
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+      />
+    );
+  }
+
+  return (
+    <div
+      onClick={() => { setDraft(value ?? ''); setEditing(true); }}
+      className='cursor-pointer min-h-[20px] min-w-[100px] hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded px-1 py-0.5 text-sm'
+      title='Click to edit'
+    >
+      {value ?? <span className='text-gray-400 dark:text-zinc-500 italic text-xs'>—</span>}
+    </div>
+  );
+};
+
+// Checkbox toggle cell
+const CheckboxCell = ({
+  value,
+  onSave,
+}: {
+  value: boolean | null;
+  onSave: (val: boolean) => void;
+}) => (
+  <div className='flex justify-center'>
+    <input
+      type='checkbox'
+      checked={value === true}
+      onChange={e => onSave(e.target.checked)}
+      className='h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer'
+    />
+  </div>
+);
+
 const VendorCentralReturnsReport = () => {
   const { accessToken } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,7 +176,7 @@ const VendorCentralReturnsReport = () => {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: keyof VcReturn | null; direction: 'asc' | 'desc' }>({
+  const [sortConfig, setSortConfig] = useState<{ key: SortableKey | null; direction: 'asc' | 'desc' }>({
     key: null,
     direction: 'asc',
   });
@@ -154,7 +220,7 @@ const VendorCentralReturnsReport = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
       setUploadResult(data);
-      toast.success(`Inserted ${data.records_inserted} records`, { autoClose: 3000 });
+      toast.success(`Processed ${data.records_inserted} records`, { autoClose: 3000 });
       fetchRecords();
     } catch (err: any) {
       setUploadError(err.message || 'Upload failed.');
@@ -207,12 +273,28 @@ const VendorCentralReturnsReport = () => {
     }
   };
 
-  const handleSort = (key: keyof VcReturn) => {
+  const handleSort = (key: SortableKey) => {
     setSortConfig(prev => ({
       key,
       direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
     }));
   };
+
+  const patchRecord = useCallback(async (id: string, fields: Partial<Pick<VcReturn, 'entry_in_zoho' | 'transfer_orders_inventory_adjustment' | 'sent_to_accounts_team'>>) => {
+    // Optimistic update
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, ...fields } : r));
+    try {
+      await axios.patch(
+        `${process.env.NEXT_PUBLIC_API_URL}/amazon/vendor-central-returns/${id}`,
+        fields,
+        { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} }
+      );
+    } catch (err: any) {
+      toast.error(`Save failed: ${err.message}`);
+      // Revert on failure
+      fetchRecords();
+    }
+  }, [accessToken, startDate, endDate]);
 
   const filteredData = useMemo(() => {
     let data = records.filter(r => {
@@ -241,6 +323,8 @@ const VendorCentralReturnsReport = () => {
     return data;
   }, [records, searchTerm, sortConfig]);
 
+  const pendingCount = records.filter(r => r.sent_to_accounts_team === false).length;
+
   return (
     <div className='container mx-auto p-4 bg-gray-50 dark:bg-zinc-950'>
 
@@ -261,10 +345,7 @@ const VendorCentralReturnsReport = () => {
             <p className='text-emerald-800 font-semibold mb-1'>{uploadResult.message}</p>
             <p className='text-sm text-emerald-700'>
               Range: <strong>{uploadResult.date_range.start}</strong> → <strong>{uploadResult.date_range.end}</strong>
-              &nbsp;·&nbsp; Inserted: <strong>{uploadResult.records_inserted}</strong>
-              {uploadResult.existing_deleted > 0 && (
-                <>&nbsp;·&nbsp; Replaced: <strong>{uploadResult.existing_deleted}</strong></>
-              )}
+              &nbsp;·&nbsp; Processed: <strong>{uploadResult.records_inserted}</strong>
             </p>
           </div>
         )}
@@ -351,13 +432,19 @@ const VendorCentralReturnsReport = () => {
         </div>
 
         {records.length > 0 && (
-          <div className='mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800'>
+          <div className='mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800 flex items-center gap-4 flex-wrap'>
             <div className='flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg dark:bg-green-900/20 dark:text-green-400'>
               <svg className='w-4 h-4' fill='currentColor' viewBox='0 0 20 20'>
                 <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clipRule='evenodd' />
               </svg>
               {records.length} records loaded
             </div>
+            {pendingCount > 0 && (
+              <div className='flex items-center gap-2 text-sm text-blue-700 bg-blue-50 px-3 py-2 rounded-lg dark:bg-blue-900/20 dark:text-blue-400'>
+                <span className='inline-block w-2 h-2 rounded-full bg-blue-500' />
+                {pendingCount} pending — not sent to accounts team
+              </div>
+            )}
           </div>
         )}
 
@@ -392,6 +479,12 @@ const VendorCentralReturnsReport = () => {
             </div>
           </div>
 
+          {/* Legend */}
+          <div className='px-6 py-2 bg-blue-50/60 border-b border-blue-100 dark:bg-blue-950/20 dark:border-blue-900/30 flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400'>
+            <span className='inline-block w-3 h-3 rounded bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700' />
+            Blue rows = not yet sent to accounts team
+          </div>
+
           <div className='relative max-h-[70vh] overflow-auto'>
             <table className='min-w-full divide-y divide-gray-200 dark:divide-zinc-700'>
               <thead className='bg-gray-50 sticky top-0 z-30 shadow-sm dark:bg-zinc-800'>
@@ -414,24 +507,63 @@ const VendorCentralReturnsReport = () => {
                       </button>
                     </th>
                   ))}
+                  {/* Editable columns */}
+                  <th className='px-4 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider border-r border-gray-200 dark:border-zinc-700 bg-blue-50 dark:bg-blue-950/30' style={{ minWidth: '160px' }}>
+                    Entry in Zoho
+                  </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider border-r border-gray-200 dark:border-zinc-700 bg-blue-50 dark:bg-blue-950/30' style={{ minWidth: '200px' }}>
+                    Transfer Orders / Inv. Adj.
+                  </th>
+                  <th className='px-4 py-3 text-center text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50 dark:bg-blue-950/30' style={{ minWidth: '120px' }}>
+                    Sent to Accounts
+                  </th>
                 </tr>
               </thead>
               <tbody className='bg-white divide-y divide-gray-200 dark:bg-zinc-900 dark:divide-zinc-700'>
-                {filteredData.map((row, idx) => (
-                  <tr key={idx} className='hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors'>
-                    <td className='px-4 py-3 text-xs text-gray-400 dark:text-zinc-500 border-r border-gray-100 dark:border-zinc-800'>
-                      {idx + 1}
-                    </td>
-                    {COLUMNS.map(col => (
-                      <td
-                        key={col.key}
-                        className='px-4 py-3 text-sm text-gray-800 dark:text-zinc-200 border-r border-gray-100 dark:border-zinc-800 whitespace-nowrap'
-                      >
-                        {row[col.key] != null ? String(row[col.key]) : '—'}
+                {filteredData.map((row, idx) => {
+                  const isPending = row.sent_to_accounts_team === false;
+                  return (
+                    <tr
+                      key={row.id ?? idx}
+                      className={`transition-colors ${
+                        isPending
+                          ? 'bg-blue-50/70 hover:bg-blue-100/70 dark:bg-blue-950/25 dark:hover:bg-blue-950/40'
+                          : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'
+                      }`}
+                    >
+                      <td className='px-4 py-3 text-xs text-gray-400 dark:text-zinc-500 border-r border-gray-100 dark:border-zinc-800'>
+                        {idx + 1}
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                      {COLUMNS.map(col => (
+                        <td
+                          key={col.key}
+                          className='px-4 py-3 text-sm text-gray-800 dark:text-zinc-200 border-r border-gray-100 dark:border-zinc-800 whitespace-nowrap'
+                        >
+                          {row[col.key] != null ? String(row[col.key]) : '—'}
+                        </td>
+                      ))}
+                      {/* Editable cells */}
+                      <td className='px-2 py-2 border-r border-gray-100 dark:border-zinc-800'>
+                        <EditableTextCell
+                          value={row.entry_in_zoho}
+                          onSave={val => patchRecord(row.id, { entry_in_zoho: val })}
+                        />
+                      </td>
+                      <td className='px-2 py-2 border-r border-gray-100 dark:border-zinc-800'>
+                        <EditableTextCell
+                          value={row.transfer_orders_inventory_adjustment}
+                          onSave={val => patchRecord(row.id, { transfer_orders_inventory_adjustment: val })}
+                        />
+                      </td>
+                      <td className='px-2 py-2'>
+                        <CheckboxCell
+                          value={row.sent_to_accounts_team}
+                          onSave={val => patchRecord(row.id, { sent_to_accounts_team: val })}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
