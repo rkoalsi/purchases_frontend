@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { RefreshCw, Package, Search, ChevronLeft, ChevronRight, Edit2, Check, X } from 'lucide-react';
+import { RefreshCw, Package, Search, ChevronLeft, ChevronRight, Edit2, Check, X, Upload } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/components/context/AuthContext';
 
@@ -123,6 +123,8 @@ export default function AmazonSkuMappingPage() {
   const [skuData, setSkuData] = useState<SkuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [allBrands, setAllBrands] = useState<{ value: string; label: string }[]>([]);
@@ -245,6 +247,28 @@ export default function AmazonSkuMappingPage() {
     toast.success('eTrade ASP saved');
   };
 
+  const handleEtradeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await axios.post<{ message: string; upserted: number; skipped: number }>(
+        `${API_BASE}/upload-etrade-margins`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      toast.success(res.data.message);
+      await fetchAllMargins();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className='space-y-6'>
       {/* Page header */}
@@ -262,14 +286,31 @@ export default function AmazonSkuMappingPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className='flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white rounded-lg font-medium text-sm transition-colors'
-        >
-          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-          {syncing ? 'Syncing…' : 'Sync from Amazon'}
-        </button>
+        <div className='flex items-center gap-2'>
+          <input
+            ref={fileInputRef}
+            type='file'
+            accept='.xlsx,.xls'
+            className='hidden'
+            onChange={handleEtradeUpload}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className='flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium text-sm transition-colors'
+          >
+            <Upload className={`w-4 h-4 ${uploading ? 'animate-pulse' : ''}`} />
+            {uploading ? 'Uploading…' : 'Upload eTrade Margins'}
+          </button>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className='flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white rounded-lg font-medium text-sm transition-colors'
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync from Amazon'}
+          </button>
+        </div>
       </div>
 
       {/* Table card */}
