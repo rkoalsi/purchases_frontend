@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X } from 'lucide-react';
@@ -148,6 +148,68 @@ const AcceptedQtyCell: React.FC<{
   );
 };
 
+// ─── EtradeUnitCostCell ───────────────────────────────────────────────────────
+
+const EtradeUnitCostCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number;
+  onSaved: (asin: string, etrade: number, diff: number | null) => void;
+}> = ({ poNumber, asin, value, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(value));
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const num = parseFloat(val);
+    if (isNaN(num) || num < 0) { toast.error('eTrade cost must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      const { data } = await axios.patch<{ etrade_unit_cost: number; diff: number | null }>(
+        `${API_URL}/vendor_po/${poNumber}/items/${asin}/etrade_unit_cost?etrade_unit_cost=${num}`
+      );
+      onSaved(asin, data.etrade_unit_cost, data.diff);
+      setEditing(false);
+      toast.success('eTrade cost updated');
+    } catch {
+      toast.error('Failed to save eTrade cost');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group justify-end">
+        <span className="text-sm text-zinc-900 dark:text-zinc-100">₹{value.toFixed(2)}</span>
+        <button
+          onClick={() => { setVal(String(value)); setEditing(true); }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-end">
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        step={0.01}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-20 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+      />
+      <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function VendorPOReport() {
@@ -260,7 +322,7 @@ export default function VendorPOReport() {
 
   // ─── status update ───────────────────────────────────────────────────────────
 
-  const FROZEN_STATUSES = new Set(['packed', 'closed', 'intransit', 'delivered', 'completed']);
+  const FROZEN_STATUSES = new Set(['processing', 'packed', 'closed', 'intransit', 'delivered', 'completed']);
 
   const handleStatusChange = async (poNumber: string, newStatus: string, currentStatus: string) => {
     try {
@@ -290,11 +352,28 @@ export default function VendorPOReport() {
     });
   }, []);
 
+  const handleEtradeUnitCostSaved = useCallback((asin: string, etrade: number, diff: number | null) => {
+    setReport(prev => {
+      if (!prev) return prev;
+      return { ...prev, items: prev.items.map(it => it.asin === asin ? { ...it, etrade_unit_cost: etrade, diff } : it) };
+    });
+  }, []);
+
 
   // ─── render ──────────────────────────────────────────────────────────────────
 
   const invDateLabel = report?.inventory_date ?? 'Latest';
   const zohoDateLabel = report?.zoho_stock_date ?? 'Latest';
+
+  const salesLabel = useMemo(() => {
+    if (!report?.po_date) return 'Last 30D Sales';
+    const end = new Date(report.po_date + 'T00:00:00');
+    end.setDate(end.getDate() - 2);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 31);
+    const f = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return `Last 30D Sales (${f(start)}–${f(end)})`;
+  }, [report?.po_date]);
 
   return (
     <div className="space-y-6">
@@ -355,13 +434,13 @@ export default function VendorPOReport() {
 
       {/* ── Status behaviour info ── */}
       <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10 px-4 py-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
-        <p className="font-semibold">Stock data is frozen at upload time based on PO date — it never changes after that.</p>
+        <p className="font-semibold">Stock &amp; sales data freezes when status changes to <span className="underline">processing</span> (or any later status).</p>
         <ul className="list-disc list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
-          <li><span className="font-medium">Zoho Stock &amp; Current Stock</span> — taken from T‑2 (2 days before PO date).</li>
-          <li><span className="font-medium">Last 30 Days Sales</span> — 30-day window ending on PO date.</li>
-          <li><span className="font-medium">Open PO</span> — snapshot at upload. Processing POs use supply qty · Packed / Closed / Intransit POs use accepted qty.</li>
+          <li><span className="font-medium">Zoho Stock</span> — taken on PO date. <span className="font-medium">Current Stock</span> — taken at T‑2 (2 days before PO date, Amazon lag).</li>
+          <li><span className="font-medium">Last 30 Days Sales</span> — 31-day window ending at T‑2 (PO date − 33 to PO date − 2).</li>
+          <li><span className="font-medium">Open PO</span> — snapshot at freeze time. Processing POs use supply qty · Packed / Closed / Intransit POs use accepted qty.</li>
         </ul>
-        <p className="text-blue-600 dark:text-blue-500 pt-0.5">Changing status only updates the status label — it does not recalculate any figures.</p>
+        <p className="text-blue-600 dark:text-blue-500 pt-0.5">Pending POs always show live T‑2 data. Once set to processing or beyond, all figures are locked permanently.</p>
       </div>
 
       {/* ── PO List ── */}
@@ -532,7 +611,7 @@ export default function VendorPOReport() {
                       { label: `Current Stock (${invDateLabel})`, yellow: true },
                       { label: 'Open PO', yellow: true },
                       { label: 'Total Qty', yellow: true },
-                      { label: 'Last 30D Sales', yellow: true },
+                      { label: salesLabel, yellow: true },
                       { label: 'ADS', yellow: true },
                       { label: 'Coverage Days', yellow: false },
                       { label: 'Target Stock', yellow: true },
@@ -581,7 +660,9 @@ export default function VendorPOReport() {
                           {item.total_cost_gst != null ? `₹${fmt(item.total_cost_gst)}` : '—'}
                         </td>
                         <td className="px-3 py-2 font-mono text-zinc-600 dark:text-zinc-400">{item.hsn || '—'}</td>
-                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.etrade_unit_cost)}</td>
+                        <td className="px-3 py-2">
+                          <EtradeUnitCostCell poNumber={report.po_number} asin={item.asin} value={item.etrade_unit_cost} onSaved={handleEtradeUnitCostSaved} />
+                        </td>
                         <td className={`px-3 py-2 text-right font-semibold ${diffColor}`}>
                           {item.diff != null ? `₹${fmt(item.diff)}` : '—'}
                         </td>
