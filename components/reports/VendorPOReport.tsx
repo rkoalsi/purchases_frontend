@@ -438,7 +438,7 @@ export default function VendorPOReport() {
         <ul className="list-disc list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
           <li><span className="font-medium">Zoho Stock</span> — taken on PO date. <span className="font-medium">Current Stock</span> — taken at T‑2 (2 days before PO date, Amazon lag).</li>
           <li><span className="font-medium">Last 30 Days Sales</span> — 31-day window ending at T‑2 (PO date − 33 to PO date − 2).</li>
-          <li><span className="font-medium">Open PO</span> — snapshot at freeze time. Processing POs use supply qty · Packed / Closed / Intransit POs use accepted qty.</li>
+          <li><span className="font-medium">Open PO</span> — sum of other POs for the same ASIN in statuses: <span className="font-medium">processing</span> (uses supply qty) and <span className="font-medium">packed / closed / intransit</span> (uses accepted qty). Delivered &amp; completed POs are excluded.</li>
         </ul>
         <p className="text-blue-600 dark:text-blue-500 pt-0.5">Pending POs always show live T‑2 data. Once set to processing or beyond, all figures are locked permanently.</p>
       </div>
