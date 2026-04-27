@@ -30,6 +30,7 @@ interface POItem {
   accepted_qty: number | null;
   received_qty: number | null;
   etrade_unit_cost: number;
+  etrade_asp: number | null;
   zoho_mrp: number;
   gst: number;
   mrp_wo_gst: number;
@@ -148,31 +149,28 @@ const AcceptedQtyCell: React.FC<{
   );
 };
 
-// ─── EtradeUnitCostCell ───────────────────────────────────────────────────────
+// ─── EtradeAspCell ────────────────────────────────────────────────────────────
 
-const EtradeUnitCostCell: React.FC<{
-  poNumber: string;
+const EtradeAspCell: React.FC<{
   asin: string;
-  value: number;
-  onSaved: (asin: string, etrade: number, diff: number | null) => void;
-}> = ({ poNumber, asin, value, onSaved }) => {
+  value: number | null;
+  onSaved: (asin: string, asp: number) => void;
+}> = ({ asin, value, onSaved }) => {
   const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(String(value));
+  const [val, setVal] = useState(value != null ? String(value) : '');
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
     const num = parseFloat(val);
-    if (isNaN(num) || num < 0) { toast.error('eTrade cost must be ≥ 0'); return; }
+    if (isNaN(num) || num < 0) { toast.error('eTrade ASP must be ≥ 0'); return; }
     setSaving(true);
     try {
-      const { data } = await axios.patch<{ etrade_unit_cost: number; diff: number | null }>(
-        `${API_URL}/vendor_po/${poNumber}/items/${asin}/etrade_unit_cost?etrade_unit_cost=${num}`
-      );
-      onSaved(asin, data.etrade_unit_cost, data.diff);
+      await axios.put(`${API_URL}/vendor_po/margins/${asin}?etrade_asp=${num}`);
+      onSaved(asin, num);
       setEditing(false);
-      toast.success('eTrade cost updated');
+      toast.success('eTrade ASP updated');
     } catch {
-      toast.error('Failed to save eTrade cost');
+      toast.error('Failed to save eTrade ASP');
     } finally {
       setSaving(false);
     }
@@ -181,9 +179,11 @@ const EtradeUnitCostCell: React.FC<{
   if (!editing) {
     return (
       <div className="flex items-center gap-1 group justify-end">
-        <span className="text-sm text-zinc-900 dark:text-zinc-100">₹{value.toFixed(2)}</span>
+        <span className="text-sm text-zinc-900 dark:text-zinc-100">
+          {value != null ? `₹${value.toFixed(2)}` : <span className="text-zinc-400 text-xs">—</span>}
+        </span>
         <button
-          onClick={() => { setVal(String(value)); setEditing(true); }}
+          onClick={() => { setVal(value != null ? String(value) : ''); setEditing(true); }}
           className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
         >
           <Edit2 size={12} />
@@ -352,10 +352,10 @@ export default function VendorPOReport() {
     });
   }, []);
 
-  const handleEtradeUnitCostSaved = useCallback((asin: string, etrade: number, diff: number | null) => {
+  const handleEtradeAspSaved = useCallback((asin: string, asp: number) => {
     setReport(prev => {
       if (!prev) return prev;
-      return { ...prev, items: prev.items.map(it => it.asin === asin ? { ...it, etrade_unit_cost: etrade, diff } : it) };
+      return { ...prev, items: prev.items.map(it => it.asin === asin ? { ...it, etrade_asp: asp } : it) };
     });
   }, []);
 
@@ -597,6 +597,7 @@ export default function VendorPOReport() {
                       { label: 'Accepted Qty', yellow: false },
                       { label: 'Received Qty', yellow: false },
                       { label: 'Zoho MRP', yellow: true },
+                      { label: 'eTrade ASP', yellow: false },
                       { label: 'GST %', yellow: true },
                       { label: 'MRP w/o GST', yellow: true },
                       { label: 'Margin %', yellow: true },
@@ -643,6 +644,9 @@ export default function VendorPOReport() {
                         </td>
                         <td className="px-3 py-2 text-center text-zinc-600">{item.received_qty ?? '—'}</td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.zoho_mrp, 0)}</td>
+                        <td className="px-3 py-2">
+                          <EtradeAspCell asin={item.asin} value={item.etrade_asp} onSaved={handleEtradeAspSaved} />
+                        </td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.gst}%</td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.mrp_wo_gst)}</td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
@@ -660,9 +664,7 @@ export default function VendorPOReport() {
                           {item.total_cost_gst != null ? `₹${fmt(item.total_cost_gst)}` : '—'}
                         </td>
                         <td className="px-3 py-2 font-mono text-zinc-600 dark:text-zinc-400">{item.hsn || '—'}</td>
-                        <td className="px-3 py-2">
-                          <EtradeUnitCostCell poNumber={report.po_number} asin={item.asin} value={item.etrade_unit_cost} onSaved={handleEtradeUnitCostSaved} />
-                        </td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{item.etrade_unit_cost.toFixed(2)}</td>
                         <td className={`px-3 py-2 text-right font-semibold ${diffColor}`}>
                           {item.diff != null ? `₹${fmt(item.diff)}` : '—'}
                         </td>
