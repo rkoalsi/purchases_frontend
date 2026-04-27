@@ -29,6 +29,7 @@ type MarginData = {
   asin: string;
   margin?: number | null;
   cost_price_wo_tax?: number | null;
+  etrade_asp?: number | null;
 };
 
 type SyncResult = {
@@ -233,6 +234,17 @@ export default function AmazonSkuMappingPage() {
     toast.success('Cost price saved');
   };
 
+  const saveEtradeAsp = async (asin: string, asp: number) => {
+    await axios.put(`${MARGINS_API}/${asin}?etrade_asp=${asp}`);
+    setMarginsByAsin((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(asin) ?? { asin };
+      next.set(asin, { ...existing, etrade_asp: asp });
+      return next;
+    });
+    toast.success('eTrade ASP saved');
+  };
+
   return (
     <div className='space-y-6'>
       {/* Page header */}
@@ -315,12 +327,13 @@ export default function AmazonSkuMappingPage() {
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>ASIN</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Margin %</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Cost Price w/o Tax (₹)</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>eTrade ASP (₹)</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
+                    <td colSpan={7} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
                       {search ? `No results for "${search}"` : 'No items yet'}
                     </td>
                   </tr>
@@ -360,6 +373,17 @@ export default function AmazonSkuMappingPage() {
                         <EditableCell
                           value={md?.cost_price_wo_tax ?? null}
                           onSave={(v) => saveCostPrice(asin, v)}
+                          format={(v) => `₹${v.toFixed(2)}`}
+                          placeholder='Not set'
+                          validate={(v) => v < 0 ? 'Must be ≥ 0' : null}
+                          inputMin={0}
+                          inputStep={0.01}
+                        />
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <EditableCell
+                          value={md?.etrade_asp ?? null}
+                          onSave={(v) => saveEtradeAsp(asin, v)}
                           format={(v) => `₹${v.toFixed(2)}`}
                           placeholder='Not set'
                           validate={(v) => v < 0 ? 'Must be ≥ 0' : null}
