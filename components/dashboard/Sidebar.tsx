@@ -74,6 +74,7 @@ const PERMISSION_REQUIREMENTS = {
   SELLER_FLEX_RETURNS: { name: 'reports_amazon_seller_flex_returns' },
   FBA_RETURNS: { name: 'reports_amazon_fba_returns' },
   VENDOR_CENTRAL_RETURNS: { name: 'reports_amazon_vendor_central_returns' },
+  INVENTORY_AGING: { name: 'reports_inventory_aging' },
   BB_CODE_GENERATOR: { name: 'tools_bb_code_generator' },
 };
 
@@ -207,6 +208,12 @@ const navigation = [
             href: '/reports/estimates_vs_invoices',
             icon: FileText,
             requiredPermission: PERMISSION_REQUIREMENTS.ESTIMATES_VS_INVOICES,
+          },
+          {
+            name: 'Inventory Aging',
+            href: '/reports/inventory_aging',
+            icon: TrendingDown,
+            requiredPermission: PERMISSION_REQUIREMENTS.INVENTORY_AGING,
           },
         ],
       },
