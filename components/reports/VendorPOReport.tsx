@@ -488,16 +488,28 @@ export default function VendorPOReport() {
     setBulkDownloading(true);
     try {
       const poNumbers = Array.from(selectedForDownload);
-      const res = await axios.post(`${API_URL}/vendor_po/bulk_download`, poNumbers, { responseType: 'blob' });
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `PO_Reports_${new Date().toISOString().slice(0, 10)}.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success(`${poNumbers.length} PO(s) downloaded as zip`);
+      if (poNumbers.length === 1) {
+        const pn = poNumbers[0];
+        const res = await axios.get(`${API_URL}/vendor_po/${pn}/download`, { responseType: 'blob' });
+        const url = URL.createObjectURL(res.data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PO_Report_${pn}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`PO ${pn} downloaded`);
+      } else {
+        const res = await axios.post(`${API_URL}/vendor_po/bulk_download`, poNumbers, { responseType: 'blob' });
+        const url = URL.createObjectURL(res.data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PO_Reports_${new Date().toISOString().slice(0, 10)}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`${poNumbers.length} POs downloaded as zip`);
+      }
     } catch {
-      toast.error('Bulk download failed');
+      toast.error('Download failed');
     } finally {
       setBulkDownloading(false);
     }
