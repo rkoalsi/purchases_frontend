@@ -1,0 +1,114 @@
+'use client';
+
+import React, { useState } from 'react';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+import { Download, Calendar, Loader2 } from 'lucide-react';
+import { useAuth } from '@/components/context/AuthContext';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+export default function InventoryAgingReport() {
+  const { accessToken } = useAuth();
+  const today = new Date().toISOString().split('T')[0];
+  const [toDate, setToDate] = useState(today);
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = async () => {
+    if (!toDate) {
+      toast.error('Please select a date.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const resp = await axios.get(`${API_URL}/inventory_aging/download`, {
+        params: { to_date: toDate },
+        headers: { Authorization: `Bearer ${accessToken}` },
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(new Blob([resp.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Inventory_Aging_${toDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Report downloaded successfully.');
+    } catch (err: any) {
+      const msg =
+        err?.response?.data instanceof Blob
+          ? await err.response.data.text()
+          : err?.message ?? 'Unknown error';
+      toast.error(`Failed to generate report: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-xl mx-auto">
+      <h1 className="text-2xl font-bold mb-1 dark:text-white">Inventory Aging Report</h1>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+        Generates an Excel file with Slow Movers (181–270 days), Deadstock (&gt;270 days),
+        and Brand-wise Collection Value sheets.
+      </p>
+
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-5 shadow-sm space-y-5">
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <Calendar className="inline w-4 h-4 mr-1.5 -mt-0.5" />
+            Report Date
+          </label>
+          <input
+            type="date"
+            value={toDate}
+            max={today}
+            onChange={(e) => setToDate(e.target.value)}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">
+            Inventory aging will be calculated as of this date.
+          </p>
+        </div>
+
+        <button
+          onClick={handleDownload}
+          disabled={loading || !toDate}
+          className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm px-4 py-2.5 transition-colors"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating Report…
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4" />
+              Download Report
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 p-4 text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
+        <p className="font-medium text-zinc-700 dark:text-zinc-300">Report sheets:</p>
+        <ul className="list-disc list-inside space-y-1">
+          <li>
+            <span className="font-medium text-red-600 dark:text-red-400">Slow Movers</span>
+            {' '}— items with stock aged 181–270 days
+          </li>
+          <li>
+            <span className="font-medium text-purple-600 dark:text-purple-400">Deadstock</span>
+            {' '}— items with stock aged &gt;270 days
+          </li>
+          <li>
+            <span className="font-medium text-blue-600 dark:text-blue-400">Brand wise collection value</span>
+            {' '}— total collection value (MRP/2) per brand
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
