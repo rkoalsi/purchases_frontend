@@ -18,6 +18,9 @@ interface POListItem {
   po_status: 'pending' | 'processing' | 'packed' | 'closed' | 'intransit' | 'delivered' | 'completed';
   item_count: number;
   created_at: string;
+  total_requested_qty: number;
+  total_accepted_qty: number;
+  total_received_qty: number;
 }
 
 interface POItem {
@@ -149,6 +152,123 @@ const AcceptedQtyCell: React.FC<{
   );
 };
 
+// ─── ReceivedQtyCell ──────────────────────────────────────────────────────────
+
+const ReceivedQtyCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number | null;
+  onSaved: (asin: string, qty: number) => void;
+}> = ({ poNumber, asin, value, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value != null ? String(value) : '0');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const num = parseInt(val, 10);
+    if (isNaN(num) || num < 0) { toast.error('Received qty must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/items/${asin}/received_qty?received_qty=${num}`);
+      onSaved(asin, num);
+      setEditing(false);
+      toast.success('Received qty updated');
+    } catch {
+      toast.error('Failed to save received qty');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group justify-center">
+        <span className="text-sm text-zinc-900 dark:text-zinc-100">{value ?? '—'}</span>
+        <button
+          onClick={() => { setVal(String(value ?? 0)); setEditing(true); }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+      />
+      <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
+// ─── POListReceivedQtyCell ─────────────────────────────────────────────────────
+
+const POListReceivedQtyCell: React.FC<{
+  poNumber: string;
+  value: number;
+  onSaved: (poNumber: string, qty: number) => void;
+}> = ({ poNumber, value, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(value));
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    const num = parseInt(val, 10);
+    if (isNaN(num) || num < 0) { toast.error('Received qty must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/received_qty?received_qty=${num}`);
+      onSaved(poNumber, num);
+      setEditing(false);
+      toast.success('Received qty updated');
+    } catch {
+      toast.error('Failed to save received qty');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group justify-center">
+        <span className="text-sm text-zinc-600 dark:text-zinc-400">{value || '—'}</span>
+        <button
+          onClick={() => { setVal(String(value ?? 0)); setEditing(true); }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+      />
+      <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
 // ─── EtradeAspCell ────────────────────────────────────────────────────────────
 
 const EtradeAspCell: React.FC<{
@@ -230,6 +350,16 @@ export default function VendorPOReport() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // bulk update form
+  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
+  const [bulkFiles, setBulkFiles] = useState<File[]>([]);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
+
+  // multi-select for download
+  const [selectedForDownload, setSelectedForDownload] = useState<Set<string>>(new Set());
+  const [bulkDownloading, setBulkDownloading] = useState(false);
+
   const [downloading, setDownloading] = useState(false);
 
   // ─── fetch list ─────────────────────────────────────────────────────────────
@@ -300,7 +430,38 @@ export default function VendorPOReport() {
     }
   };
 
-  // ─── download ────────────────────────────────────────────────────────────────
+  // ─── bulk update ─────────────────────────────────────────────────────────────
+
+  const handleBulkUpdate = async () => {
+    if (bulkFiles.length === 0) { toast.error('Please select at least one file'); return; }
+    setBulkUploading(true);
+    let totalUpdated = 0, totalSkipped = 0, totalNotFound = 0, failed = 0;
+    for (const file of bulkFiles) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const { data } = await axios.post<{ results: { po_number: string; status: string; reason?: string; items_changed?: number }[] }>(
+          `${API_URL}/vendor_po/bulk_update`, formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+        totalUpdated += data.results.filter(r => r.status === 'updated').length;
+        totalSkipped += data.results.filter(r => r.status === 'skipped').length;
+        totalNotFound += data.results.filter(r => r.status === 'not_found').length;
+      } catch {
+        failed++;
+      }
+    }
+    setBulkFiles([]);
+    setBulkUpdateOpen(false);
+    if (bulkFileInputRef.current) bulkFileInputRef.current.value = '';
+    await fetchList();
+    if (selectedPO) await fetchReport(selectedPO);
+    if (failed > 0) toast.error(`${failed} file(s) failed to process`);
+    toast.success(`Bulk update complete: ${totalUpdated} updated, ${totalSkipped} skipped, ${totalNotFound} not found`);
+    setBulkUploading(false);
+  };
+
+  // ─── download single ─────────────────────────────────────────────────────────
 
   const handleDownload = async () => {
     if (!selectedPO) return;
@@ -320,6 +481,47 @@ export default function VendorPOReport() {
     }
   };
 
+  // ─── download multiple ────────────────────────────────────────────────────────
+
+  const handleBulkDownload = async () => {
+    if (selectedForDownload.size === 0) return;
+    setBulkDownloading(true);
+    try {
+      const poNumbers = Array.from(selectedForDownload);
+      const res = await axios.post(`${API_URL}/vendor_po/bulk_download`, poNumbers, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PO_Reports_${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`${poNumbers.length} PO(s) downloaded as zip`);
+    } catch {
+      toast.error('Bulk download failed');
+    } finally {
+      setBulkDownloading(false);
+    }
+  };
+
+  const toggleSelectForDownload = (poNumber: string) => {
+    setSelectedForDownload(prev => {
+      const next = new Set(prev);
+      if (next.has(poNumber)) next.delete(poNumber);
+      else next.add(poNumber);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allSelected = poList.every(p => selectedForDownload.has(p.po_number));
+    setSelectedForDownload(prev => {
+      const next = new Set(prev);
+      if (allSelected) poList.forEach(p => next.delete(p.po_number));
+      else poList.forEach(p => next.add(p.po_number));
+      return next;
+    });
+  };
+
   // ─── status update ───────────────────────────────────────────────────────────
 
   const FROZEN_STATUSES = new Set(['processing', 'packed', 'closed', 'intransit', 'delivered', 'completed']);
@@ -330,7 +532,6 @@ export default function VendorPOReport() {
       const isFreeze = FROZEN_STATUSES.has(newStatus) && !FROZEN_STATUSES.has(currentStatus);
       toast.success(isFreeze ? 'Status updated — stock data frozen' : 'Status updated');
       setPoList(prev => prev.map(p => p.po_number === poNumber ? { ...p, po_status: newStatus as POListItem['po_status'] } : p));
-      // Reload the report when freezing so the saved snapshot is shown
       if (report && report.po_number === poNumber) {
         if (isFreeze) {
           await fetchReport(poNumber);
@@ -343,13 +544,34 @@ export default function VendorPOReport() {
     }
   };
 
-  // ─── margin saved ────────────────────────────────────────────────────────────
+  // ─── cell saved callbacks ─────────────────────────────────────────────────────
 
   const handleAcceptedQtySaved = useCallback((asin: string, qty: number) => {
     setReport(prev => {
       if (!prev) return prev;
       return { ...prev, items: prev.items.map(it => it.asin === asin ? { ...it, accepted_qty: qty } : it) };
     });
+    setPoList(prev => prev.map(po => {
+      if (po.po_number !== report?.po_number) return po;
+      const delta = qty - (report?.items.find(it => it.asin === asin)?.accepted_qty ?? 0);
+      return { ...po, total_accepted_qty: (po.total_accepted_qty ?? 0) + delta };
+    }));
+  }, [report]);
+
+  const handleReceivedQtySaved = useCallback((asin: string, qty: number) => {
+    setReport(prev => {
+      if (!prev) return prev;
+      return { ...prev, items: prev.items.map(it => it.asin === asin ? { ...it, received_qty: qty } : it) };
+    });
+    setPoList(prev => prev.map(po => {
+      if (po.po_number !== report?.po_number) return po;
+      const delta = qty - (report?.items.find(it => it.asin === asin)?.received_qty ?? 0);
+      return { ...po, total_received_qty: (po.total_received_qty ?? 0) + delta };
+    }));
+  }, [report]);
+
+  const handlePOReceivedQtySaved = useCallback((poNumber: string, qty: number) => {
+    setPoList(prev => prev.map(po => po.po_number === poNumber ? { ...po, total_received_qty: qty } : po));
   }, []);
 
   const handleEtradeAspSaved = useCallback((asin: string, asp: number) => {
@@ -370,7 +592,7 @@ export default function VendorPOReport() {
     const end = new Date(report.po_date + 'T00:00:00');
     end.setDate(end.getDate() - 2);
     const start = new Date(end);
-    start.setDate(start.getDate() - 31);
+    start.setDate(start.getDate() - 29); // 30-day inclusive window: [end-29, end]
     const f = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     return `Last 30D Sales (${f(start)}–${f(end)})`;
   }, [report?.po_date]);
@@ -378,19 +600,29 @@ export default function VendorPOReport() {
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Vendor Central POs</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Upload and manage Vendor Central purchase orders</p>
         </div>
-        <button
-          onClick={() => setUploadOpen(o => !o)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-        >
-          <Upload size={16} />
-          Upload PO
-          {uploadOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setBulkUpdateOpen(o => !o); setUploadOpen(false); }}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium"
+          >
+            <RefreshCw size={16} />
+            Bulk Update
+            {bulkUpdateOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          <button
+            onClick={() => { setUploadOpen(o => !o); setBulkUpdateOpen(false); }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            <Upload size={16} />
+            Upload PO
+            {uploadOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        </div>
       </div>
 
       {/* ── Upload Form ── */}
@@ -400,6 +632,9 @@ export default function VendorPOReport() {
             <FileSpreadsheet size={18} className="text-blue-600" />
             Upload New Purchase Order
           </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+            If the PO number already exists and its status is <strong>pending / processing / packed / closed</strong>, the record will be re-enriched and accepted/received quantities preserved.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">PO Excel File</label>
@@ -432,12 +667,49 @@ export default function VendorPOReport() {
         </div>
       )}
 
+      {/* ── Bulk Update Form ── */}
+      {bulkUpdateOpen && (
+        <div className={TABLE_CLASSES.container + ' p-6'}>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-2 flex items-center gap-2">
+            <RefreshCw size={18} className="text-amber-600" />
+            Bulk Update Purchase Orders
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+            Upload an Excel file with columns: <strong>PO Number | ASIN | Accepted Qty | Received Qty | PO Status</strong> (header row required). Only POs with status <strong>pending / processing / packed / closed</strong> will be updated. PO Status is optional.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Bulk Update Excel File</label>
+              <input
+                ref={bulkFileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                multiple
+                onChange={(e) => setBulkFiles(e.target.files ? Array.from(e.target.files) : [])}
+                className="block w-full text-sm text-zinc-700 dark:text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 dark:file:bg-amber-900/30 dark:file:text-amber-400"
+              />
+              {bulkFiles.length > 0 && (
+                <p className="mt-1 text-xs text-zinc-500">{bulkFiles.length} file{bulkFiles.length > 1 ? 's' : ''} selected</p>
+              )}
+            </div>
+            <button
+              onClick={handleBulkUpdate}
+              disabled={bulkUploading || bulkFiles.length === 0}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              {bulkUploading ? <RefreshCw size={15} className="animate-spin" /> : <Upload size={15} />}
+              {bulkUploading ? 'Updating…' : 'Upload & Update'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Status behaviour info ── */}
       <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10 px-4 py-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
         <p className="font-semibold">Stock &amp; sales data freezes when status changes to <span className="underline">processing</span> (or any later status).</p>
         <ul className="list-disc list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
           <li><span className="font-medium">Zoho Stock</span> — taken on PO date. <span className="font-medium">Current Stock</span> — taken at T‑2 (2 days before PO date, Amazon lag).</li>
-          <li><span className="font-medium">Last 30 Days Sales</span> — 31-day window ending at T‑2 (PO date − 33 to PO date − 2).</li>
+          <li><span className="font-medium">Last 30 Days Sales</span> — strict 30-day window ending at T‑2 (PO date − 31 to PO date − 2, inclusive).</li>
           <li><span className="font-medium">Open PO</span> — sum of other POs for the same ASIN in statuses: <span className="font-medium">processing</span> (uses supply qty) and <span className="font-medium">packed / closed / intransit</span> (uses accepted qty). Delivered &amp; completed POs are excluded.</li>
         </ul>
         <p className="text-blue-600 dark:text-blue-500 pt-0.5">Pending POs always show live T‑2 data. Once set to processing or beyond, all figures are locked permanently.</p>
@@ -445,11 +717,23 @@ export default function VendorPOReport() {
 
       {/* ── PO List ── */}
       <div className={TABLE_CLASSES.container}>
-        <div className={TABLE_CLASSES.headerSection + ' flex items-center justify-between'}>
+        <div className={TABLE_CLASSES.headerSection + ' flex items-center justify-between flex-wrap gap-2'}>
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Purchase Orders</h2>
-          <button onClick={fetchList} className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded transition-colors">
-            <RefreshCw size={15} className={listLoading ? 'animate-spin' : ''} />
-          </button>
+          <div className="flex items-center gap-2">
+            {selectedForDownload.size > 0 && (
+              <button
+                onClick={handleBulkDownload}
+                disabled={bulkDownloading}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                <Download size={13} />
+                {bulkDownloading ? 'Downloading…' : `Download ${selectedForDownload.size} PO${selectedForDownload.size > 1 ? 's' : ''}`}
+              </button>
+            )}
+            <button onClick={fetchList} className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded transition-colors">
+              <RefreshCw size={15} className={listLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
         {listLoading && <LoadingState message="Loading purchase orders…" />}
         {listError && <ErrorState error={listError} onRetry={fetchList} />}
@@ -459,13 +743,25 @@ export default function VendorPOReport() {
         {!listLoading && !listError && poList.length > 0 && (() => {
           const totalPages = Math.ceil(poList.length / PAGE_SIZE);
           const pageItems = poList.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+          const allSelected = poList.every(p => selectedForDownload.has(p.po_number));
+          const someSelected = selectedForDownload.size > 0 && !allSelected;
           return (
             <>
               <div className={TABLE_CLASSES.overflow}>
                 <table className={TABLE_CLASSES.table}>
                   <thead className={TABLE_CLASSES.thead}>
                     <tr>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Status', 'Uploaded At', 'Actions'].map(h => (
+                      <th className={TABLE_CLASSES.th}>
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          ref={el => { if (el) el.indeterminate = someSelected; }}
+                          onChange={() => toggleSelectAll()}
+                          className="rounded border-zinc-300 text-blue-600"
+                          title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
+                        />
+                      </th>
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Accepted Qty', 'Received Qty', 'Status', 'Uploaded At', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -477,11 +773,24 @@ export default function VendorPOReport() {
                         className={`${TABLE_CLASSES.tr} ${selectedPO === po.po_number ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
                       >
                         <td className={TABLE_CLASSES.td}>
+                          <input
+                            type="checkbox"
+                            checked={selectedForDownload.has(po.po_number)}
+                            onChange={() => toggleSelectForDownload(po.po_number)}
+                            className="rounded border-zinc-300 text-blue-600"
+                          />
+                        </td>
+                        <td className={TABLE_CLASSES.td}>
                           <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{po.po_number}</span>
                         </td>
                         <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.vendor || '—'}</span></td>
                         <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.po_date}</span></td>
                         <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.item_count}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_requested_qty)}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_accepted_qty)}</span></td>
+                        <td className={TABLE_CLASSES.td}>
+                          <POListReceivedQtyCell poNumber={po.po_number} value={po.total_received_qty} onSaved={handlePOReceivedQtySaved} />
+                        </td>
                         <td className={TABLE_CLASSES.td}>
                           <select
                             value={po.po_status}
@@ -592,7 +901,7 @@ export default function VendorPOReport() {
                       { label: 'Model No.', yellow: true },
                       { label: 'Title', yellow: true },
                       { label: 'Ship To', yellow: false },
-                      { label: 'Req. Qty', yellow: true },
+                      { label: 'Requested. Qty', yellow: true },
                       { label: 'Supply Qty', yellow: false },
                       { label: 'Accepted Qty', yellow: false },
                       { label: 'Received Qty', yellow: false },
@@ -638,11 +947,13 @@ export default function VendorPOReport() {
                         <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 max-w-xs truncate" title={item.title}>{item.title}</td>
                         <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{item.ship_to_location}</td>
                         <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{item.requested_qty}</td>
-                        <td className="px-3 py-2 text-center text-zinc-600">{item.supply_qty ?? '—'}</td>
+                        <td className="px-3 py-2 text-center text-zinc-600">{item.final_supply_qty ?? item.supply_qty ?? '—'}</td>
                         <td className="px-3 py-2">
                           <AcceptedQtyCell poNumber={report.po_number} asin={item.asin} value={item.accepted_qty} onSaved={handleAcceptedQtySaved} />
                         </td>
-                        <td className="px-3 py-2 text-center text-zinc-600">{item.received_qty ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          <ReceivedQtyCell poNumber={report.po_number} asin={item.asin} value={item.received_qty} onSaved={handleReceivedQtySaved} />
+                        </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.zoho_mrp, 0)}</td>
                         <td className="px-3 py-2">
                           <EtradeAspCell asin={item.asin} value={item.etrade_asp} onSaved={handleEtradeAspSaved} />
