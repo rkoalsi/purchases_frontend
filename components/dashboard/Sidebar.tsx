@@ -28,6 +28,7 @@ import {
   TrendingDown,
   TrendingUp,
   Code2,
+  UsersIcon,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -76,6 +77,8 @@ const PERMISSION_REQUIREMENTS = {
   VENDOR_CENTRAL_RETURNS: { name: 'reports_amazon_vendor_central_returns' },
   INVENTORY_AGING: { name: 'reports_inventory_aging' },
   BB_CODE_GENERATOR: { name: 'tools_bb_code_generator' },
+  VENDOR_BRAND_MAPPING: { name: 'vendor_brand_mapping' },
+  DRAFT_ORDERS: { name: 'vendors_draft_orders' },
 };
 
 // Navigation items with required permissions
@@ -261,6 +264,26 @@ const navigation = [
         href: '/tools/bb_code_generator',
         icon: Code2,
         requiredPermission: PERMISSION_REQUIREMENTS.BB_CODE_GENERATOR,
+      },
+    ],
+  },
+  {
+    name: 'Vendors',
+    href: '/vendors',
+    icon: UsersIcon,
+    requiredPermission: null,
+    children: [
+      {
+        name: 'Vendor Brand Mapping',
+        href: '/vendors/vendor_brand_mapping',
+        icon: UsersIcon,
+        requiredPermission: PERMISSION_REQUIREMENTS.VENDOR_BRAND_MAPPING,
+      },
+      {
+        name: 'Draft Orders',
+        href: '/vendors/draft_orders',
+        icon: ShoppingCart,
+        requiredPermission: PERMISSION_REQUIREMENTS.DRAFT_ORDERS,
       },
     ],
   },
