@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle, ShoppingCart, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle, ShoppingCart, Loader2, Trash2, RefreshCw } from 'lucide-react';
 import { TABLE_CLASSES } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -40,10 +40,20 @@ interface ValidationResult {
   detected_vendor?: DetectedVendor | null;
 }
 
-interface Vendor {
-  contact_id: string;
-  contact_name: string;
-  currency_code?: string;
+interface DraftOrder {
+  _id: string;
+  description: string;
+  detected_vendor: DetectedVendor | null;
+  date: string;
+  item_count: number;
+  po_created: boolean;
+  po_number?: string;
+  po_status?: string;
+  notes?: string;
+  reference_number?: string;
+  purchaseorder_number?: string;
+  created_at: string;
+  items: OrderItem[];
 }
 
 export default function DraftOrderUpload() {
@@ -53,12 +63,9 @@ export default function DraftOrderUpload() {
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [showMissingModal, setShowMissingModal] = useState(false);
 
-  const [vendorSearch, setVendorSearch] = useState('');
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [vendorsLoading, setVendorsLoading] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
-  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<DetectedVendor | null>(null);
 
+  const [description, setDescription] = useState('');
   const [poDate, setPoDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -66,19 +73,41 @@ export default function DraftOrderUpload() {
   const [creating, setCreating] = useState(false);
   const [createdPO, setCreatedPO] = useState<any>(null);
 
+  const [saving, setSaving] = useState(false);
+  const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+  const [poAlreadyCreated, setPoAlreadyCreated] = useState(false);
+
+  const [draftOrders, setDraftOrders] = useState<DraftOrder[]>([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const vendorSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchDrafts = useCallback(async () => {
+    setDraftsLoading(true);
+    try {
+      const { data } = await axios.get<DraftOrder[]>(`${API_URL}/vendors/draft_orders`);
+      setDraftOrders(data);
+    } catch {
+      toast.error('Failed to load draft orders');
+    } finally {
+      setDraftsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchDrafts(); }, [fetchDrafts]);
 
   const reset = () => {
     setFile(null);
     setValidation(null);
     setCreatedPO(null);
     setSelectedVendor(null);
-    setVendorSearch('');
+    setDescription('');
     setNotes('');
     setReferenceNumber('');
     setPurchaseorderNumber('');
     setPoDate(new Date().toISOString().slice(0, 10));
+    setSavedDraftId(null);
+    setPoAlreadyCreated(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -91,6 +120,7 @@ export default function DraftOrderUpload() {
     setFile(f);
     setValidation(null);
     setCreatedPO(null);
+    setSavedDraftId(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -103,6 +133,7 @@ export default function DraftOrderUpload() {
     if (!file) return;
     setValidating(true);
     setValidation(null);
+    setSavedDraftId(null);
     try {
       const form = new FormData();
       form.append('file', file);
@@ -115,7 +146,6 @@ export default function DraftOrderUpload() {
         setShowMissingModal(true);
       } else if (data.detected_vendor) {
         setSelectedVendor(data.detected_vendor);
-        setVendorSearch(data.detected_vendor.contact_name);
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Validation failed');
@@ -124,42 +154,86 @@ export default function DraftOrderUpload() {
     }
   };
 
-  const fetchVendors = useCallback(async (search: string) => {
-    setVendorsLoading(true);
+  const handleSaveDraft = async () => {
+    if (!validation?.items || !selectedVendor) return;
+    setSaving(true);
     try {
-      const params: Record<string, any> = { page: 1, page_size: 50 };
-      if (search) params.search = search;
-      const { data } = await axios.get(`${API_URL}/vendors`, { params });
-      setVendors(data.vendors || []);
-    } catch {
-      toast.error('Failed to load vendors');
+      const { data } = await axios.post<DraftOrder>(
+        `${API_URL}/vendors/draft_orders/save`,
+        {
+          description,
+          items: validation.items,
+          detected_vendor: selectedVendor,
+          date: poDate,
+          notes,
+          reference_number: referenceNumber,
+          purchaseorder_number: purchaseorderNumber,
+        },
+      );
+      setSavedDraftId(data._id);
+      toast.success('Draft order saved');
+      await fetchDrafts();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to save draft');
     } finally {
-      setVendorsLoading(false);
+      setSaving(false);
     }
-  }, []);
-
-  const handleVendorSearchChange = (val: string) => {
-    setVendorSearch(val);
-    setShowVendorDropdown(true);
-    if (vendorSearchTimeout.current) clearTimeout(vendorSearchTimeout.current);
-    vendorSearchTimeout.current = setTimeout(() => fetchVendors(val), 300);
   };
 
-  const handleVendorFocus = () => {
-    setShowVendorDropdown(true);
-    if (vendors.length === 0) fetchVendors(vendorSearch);
+  const handleDeleteDraft = async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/vendors/draft_orders/${id}`);
+      setDraftOrders(prev => prev.filter(d => d._id !== id));
+      if (savedDraftId === id) setSavedDraftId(null);
+      toast.success('Draft deleted');
+    } catch {
+      toast.error('Failed to delete draft');
+    }
   };
 
-  const selectVendor = (v: Vendor) => {
-    setSelectedVendor(v);
-    setVendorSearch(v.contact_name);
-    setShowVendorDropdown(false);
+  const handleLoadDraft = (draft: DraftOrder) => {
+    setValidation({
+      valid: true,
+      items: draft.items,
+      total_items: draft.items.length,
+      detected_vendor: draft.detected_vendor,
+    });
+    setSelectedVendor(draft.detected_vendor);
+    setDescription(draft.description || '');
+    setPoDate(draft.date || new Date().toISOString().slice(0, 10));
+    setNotes(draft.notes || '');
+    setReferenceNumber(draft.reference_number || '');
+    setPurchaseorderNumber(draft.purchaseorder_number || '');
+    setSavedDraftId(draft._id);
+    setPoAlreadyCreated(draft.po_created);
+    setCreatedPO(null);
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   };
 
   const handleCreatePO = async () => {
     if (!validation?.items || !selectedVendor) return;
     setCreating(true);
     try {
+      let draftId = savedDraftId;
+      if (!draftId) {
+        const { data: draft } = await axios.post<DraftOrder>(
+          `${API_URL}/vendors/draft_orders/save`,
+          {
+            description,
+            items: validation.items,
+            detected_vendor: selectedVendor,
+            date: poDate,
+            notes,
+            reference_number: referenceNumber,
+            purchaseorder_number: purchaseorderNumber,
+          },
+        );
+        draftId = draft._id;
+        setSavedDraftId(draftId);
+      }
+
       const { data } = await axios.post(
         `${API_URL}/vendors/draft_orders/create_po`,
         {
@@ -169,10 +243,13 @@ export default function DraftOrderUpload() {
           notes,
           reference_number: referenceNumber,
           purchaseorder_number: purchaseorderNumber,
+          description,
+          draft_id: draftId,
         },
       );
       setCreatedPO(data);
       toast.success(`Purchase Order ${data.purchaseorder_number} created on Zoho`);
+      await fetchDrafts();
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to create purchase order');
     } finally {
@@ -202,46 +279,157 @@ export default function DraftOrderUpload() {
         )}
       </div>
 
+      {/* Draft orders list */}
+      <div className={TABLE_CLASSES.container}>
+        <div className={TABLE_CLASSES.headerSection + ' flex items-center justify-between'}>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Saved Draft Orders</h2>
+          <button onClick={fetchDrafts} className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded transition-colors">
+            <RefreshCw size={15} className={draftsLoading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+        {draftsLoading && (
+          <div className="py-8 text-center text-zinc-400 text-sm flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          </div>
+        )}
+        {!draftsLoading && draftOrders.length === 0 && (
+          <div className="py-8 text-center text-zinc-400 text-sm">No saved draft orders yet.</div>
+        )}
+        {!draftsLoading && draftOrders.length > 0 && (
+          <div className={TABLE_CLASSES.overflow}>
+            <table className={TABLE_CLASSES.table}>
+              <thead className={TABLE_CLASSES.thead}>
+                <tr>
+                  {['Description', 'Vendor', 'Date', 'Items', 'Status', 'PO Status', 'Created', 'Actions'].map(h => (
+                    <th key={h} className={TABLE_CLASSES.th}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className={TABLE_CLASSES.tbody}>
+                {draftOrders.map(draft => (
+                  <tr key={draft._id} className={`${TABLE_CLASSES.tr} ${savedDraftId === draft._id ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}>
+                    <td className={TABLE_CLASSES.td}>
+                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                        {draft.description || <span className="text-zinc-400 italic">—</span>}
+                      </span>
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                        {draft.detected_vendor?.contact_name || <span className="text-zinc-400">—</span>}
+                      </span>
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">{draft.date}</span>
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300">{draft.item_count}</span>
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      {draft.po_created ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          PO Created{draft.po_number ? ` — ${draft.po_number}` : ''}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                          Draft
+                        </span>
+                      )}
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      {draft.po_status ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                          {draft.po_status}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      <span className="text-xs text-zinc-500">
+                        {new Date(draft.created_at).toLocaleDateString('en-IN')}
+                      </span>
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleLoadDraft(draft)}
+                          className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDraft(draft._id)}
+                          className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
+                          title="Delete draft"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Upload area */}
       {!validation?.valid && (
-        <div
-          className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer
-            ${dragOver
-              ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/30'
-              : 'border-zinc-300 dark:border-zinc-700 hover:border-blue-400 dark:hover:border-blue-500 bg-zinc-50 dark:bg-zinc-900'
-            }`}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx"
-            className="hidden"
-            onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-          />
-          {file ? (
-            <div className="flex flex-col items-center gap-2">
-              <FileSpreadsheet className="w-10 h-10 text-green-500" />
-              <p className="font-medium text-zinc-800 dark:text-zinc-200">{file.name}</p>
-              <p className="text-sm text-zinc-500">{(file.size / 1024).toFixed(1)} KB</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3">
-              <Upload className="w-10 h-10 text-zinc-400" />
-              <div>
-                <p className="font-medium text-zinc-700 dark:text-zinc-300">
-                  Drop your order .xlsx here or click to browse
-                </p>
-                <p className="text-sm text-zinc-400 mt-1">
-                  Format: Manufacturer Code, BBCode, Item Name, Qty, Unit Price, …
-                </p>
+        <>
+          {/* Description field */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              Description
+            </label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Q2 restock — Brand X…"
+              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div
+            className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer
+              ${dragOver
+                ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/30'
+                : 'border-zinc-300 dark:border-zinc-700 hover:border-blue-400 dark:hover:border-blue-500 bg-zinc-50 dark:bg-zinc-900'
+              }`}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+            />
+            {file ? (
+              <div className="flex flex-col items-center gap-2">
+                <FileSpreadsheet className="w-10 h-10 text-green-500" />
+                <p className="font-medium text-zinc-800 dark:text-zinc-200">{file.name}</p>
+                <p className="text-sm text-zinc-500">{(file.size / 1024).toFixed(1)} KB</p>
               </div>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <Upload className="w-10 h-10 text-zinc-400" />
+                <div>
+                  <p className="font-medium text-zinc-700 dark:text-zinc-300">
+                    Drop your order .xlsx here or click to browse
+                  </p>
+                  <p className="text-sm text-zinc-400 mt-1">
+                    Format: Manufacturer Code, BBCode, Item Name, Qty, Unit Price, …
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {file && !validation?.valid && (
@@ -302,45 +490,46 @@ export default function DraftOrderUpload() {
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 space-y-4">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Create Purchase Order on Zoho</h2>
 
+            {poAlreadyCreated && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-700 dark:text-green-400">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                Purchase order has already been created for this draft. Load a new draft or reset to create another.
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Vendor */}
-              <div className="relative">
+              {/* Description */}
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Vendor <span className="text-red-500">*</span>
-                  {validation?.detected_vendor && selectedVendor?.contact_id === validation.detected_vendor.contact_id && (
-                    <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(auto-detected)</span>
-                  )}
+                  Description
                 </label>
                 <input
                   type="text"
-                  value={vendorSearch}
-                  onChange={(e) => handleVendorSearchChange(e.target.value)}
-                  onFocus={handleVendorFocus}
-                  placeholder="Search vendor…"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g. Q2 restock — Brand X…"
+                  disabled={poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
-                {showVendorDropdown && (
-                  <div className="absolute z-20 w-full mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {vendorsLoading ? (
-                      <div className="p-3 text-sm text-zinc-500 flex items-center gap-2">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Loading…
-                      </div>
-                    ) : vendors.length === 0 ? (
-                      <div className="p-3 text-sm text-zinc-500">No vendors found</div>
-                    ) : (
-                      vendors.map((v) => (
-                        <button
-                          key={v.contact_id}
-                          onClick={() => selectVendor(v)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 flex justify-between"
-                        >
-                          <span>{v.contact_name}</span>
-                          {v.currency_code && (
-                            <span className="text-zinc-400 text-xs">{v.currency_code}</span>
-                          )}
-                        </button>
-                      ))
+              </div>
+
+              {/* Vendor — locked to detected vendor, no other options */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Vendor
+                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(auto-detected from first product)</span>
+                </label>
+                {selectedVendor ? (
+                  <div className="flex items-center gap-2 px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800">
+                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{selectedVendor.contact_name}</span>
+                    {selectedVendor.currency_code && (
+                      <span className="ml-auto text-xs text-zinc-400">{selectedVendor.currency_code}</span>
                     )}
+                  </div>
+                ) : (
+                  <div className="px-3 py-2 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm text-red-600 dark:text-red-400">
+                    No vendor detected — set up vendor brand mapping first
                   </div>
                 )}
               </div>
@@ -354,7 +543,8 @@ export default function DraftOrderUpload() {
                   type="date"
                   value={poDate}
                   onChange={(e) => setPoDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -367,8 +557,9 @@ export default function DraftOrderUpload() {
                   type="text"
                   value={purchaseorderNumber}
                   onChange={(e) => setPurchaseorderNumber(e.target.value)}
-                  placeholder="Optional PO number…"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Required PO number…"
+                  disabled={poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -382,7 +573,8 @@ export default function DraftOrderUpload() {
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                   placeholder="Optional reference…"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -396,16 +588,25 @@ export default function DraftOrderUpload() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Optional notes…"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={handleSaveDraft}
+                disabled={saving || !!savedDraftId || !selectedVendor || poAlreadyCreated}
+                className="flex items-center gap-2 px-5 py-2.5 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-colors"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+                {savedDraftId ? 'Draft Saved' : saving ? 'Saving…' : 'Save Draft'}
+              </button>
               <button
                 onClick={handleCreatePO}
-                disabled={creating || !selectedVendor || !poDate}
-                className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                disabled={creating || !selectedVendor || !poDate || poAlreadyCreated}
+                className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
               >
                 {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
                 {creating ? 'Creating…' : 'Create Purchase Order'}
