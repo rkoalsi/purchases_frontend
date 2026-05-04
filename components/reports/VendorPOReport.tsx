@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X } from 'lucide-react';
+import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X, Trash2, Search } from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -362,6 +362,21 @@ export default function VendorPOReport() {
 
   const [downloading, setDownloading] = useState(false);
 
+  // delete
+  const [deleteConfirmPO, setDeleteConfirmPO] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // search + jump-to-page
+  const [poSearch, setPoSearch] = useState('');
+  const [jumpPage, setJumpPage] = useState('');
+
+  const filteredPoList = useMemo(
+    () => poSearch.trim()
+      ? poList.filter(p => p.po_number.toLowerCase().includes(poSearch.toLowerCase()))
+      : poList,
+    [poList, poSearch]
+  );
+
   // ─── fetch list ─────────────────────────────────────────────────────────────
 
   const fetchList = useCallback(async () => {
@@ -380,6 +395,7 @@ export default function VendorPOReport() {
   }, []);
 
   React.useEffect(() => { fetchList(); }, [fetchList]);
+  React.useEffect(() => { setPage(0); }, [poSearch]);
 
   // ─── fetch report ────────────────────────────────────────────────────────────
 
@@ -398,6 +414,24 @@ export default function VendorPOReport() {
       setReportLoading(false);
     }
   }, []);
+
+  // ─── delete ──────────────────────────────────────────────────────────────────
+
+  const handleDelete = async (poNumber: string) => {
+    setDeleting(true);
+    try {
+      await axios.delete(`${API_URL}/vendor_po/${poNumber}`);
+      toast.success(`PO ${poNumber} deleted`);
+      setPoList(prev => prev.filter(p => p.po_number !== poNumber));
+      if (selectedPO === poNumber) { setSelectedPO(null); setReport(null); }
+      setSelectedForDownload(prev => { const next = new Set(prev); next.delete(poNumber); return next; });
+      setDeleteConfirmPO(null);
+    } catch {
+      toast.error('Failed to delete PO');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // ─── upload ──────────────────────────────────────────────────────────────────
 
@@ -525,11 +559,11 @@ export default function VendorPOReport() {
   };
 
   const toggleSelectAll = () => {
-    const allSelected = poList.every(p => selectedForDownload.has(p.po_number));
+    const allSelected = filteredPoList.every(p => selectedForDownload.has(p.po_number));
     setSelectedForDownload(prev => {
       const next = new Set(prev);
-      if (allSelected) poList.forEach(p => next.delete(p.po_number));
-      else poList.forEach(p => next.add(p.po_number));
+      if (allSelected) filteredPoList.forEach(p => next.delete(p.po_number));
+      else filteredPoList.forEach(p => next.add(p.po_number));
       return next;
     });
   };
@@ -732,6 +766,16 @@ export default function VendorPOReport() {
         <div className={TABLE_CLASSES.headerSection + ' flex items-center justify-between flex-wrap gap-2'}>
           <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Purchase Orders</h2>
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search PO number…"
+                value={poSearch}
+                onChange={(e) => setPoSearch(e.target.value)}
+                className="pl-7 pr-3 py-1.5 text-xs border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
+              />
+            </div>
             {selectedForDownload.size > 0 && (
               <button
                 onClick={handleBulkDownload}
@@ -753,13 +797,16 @@ export default function VendorPOReport() {
           <div className="py-12 text-center text-zinc-400 text-sm">No purchase orders found. Upload your first PO above.</div>
         )}
         {!listLoading && !listError && poList.length > 0 && (() => {
-          const totalPages = Math.ceil(poList.length / PAGE_SIZE);
-          const pageItems = poList.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-          const allSelected = poList.every(p => selectedForDownload.has(p.po_number));
+          const totalPages = Math.ceil(filteredPoList.length / PAGE_SIZE);
+          const pageItems = filteredPoList.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+          const allSelected = filteredPoList.length > 0 && filteredPoList.every(p => selectedForDownload.has(p.po_number));
           const someSelected = selectedForDownload.size > 0 && !allSelected;
           return (
             <>
-              <div className={TABLE_CLASSES.overflow}>
+              {filteredPoList.length === 0 && (
+                <div className="py-10 text-center text-zinc-400 text-sm">No POs match &quot;{poSearch}&quot;.</div>
+              )}
+              {filteredPoList.length > 0 && <div className={TABLE_CLASSES.overflow}>
                 <table className={TABLE_CLASSES.table}>
                   <thead className={TABLE_CLASSES.thead}>
                     <tr>
@@ -820,24 +867,33 @@ export default function VendorPOReport() {
                         </td>
                         <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
                         <td className={TABLE_CLASSES.td}>
-                          <button
-                            onClick={() => selectedPO === po.po_number ? setSelectedPO(null) : fetchReport(po.po_number)}
-                            className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                          >
-                            {selectedPO === po.po_number ? 'Hide' : 'View Report'}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => selectedPO === po.po_number ? setSelectedPO(null) : fetchReport(po.po_number)}
+                              className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            >
+                              {selectedPO === po.po_number ? 'Hide' : 'View'}
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmPO(po.po_number)}
+                              className="p-1 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 rounded transition-colors"
+                              title="Delete PO"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </div>}
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-zinc-700">
                   <span className="text-xs text-zinc-500">
-                    {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, poList.length)} of {poList.length} POs
+                    {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredPoList.length)} of {filteredPoList.length} POs
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => setPage(p => p - 1)}
                       disabled={page === 0}
@@ -853,6 +909,32 @@ export default function VendorPOReport() {
                     >
                       Next
                     </button>
+                    <span className="text-xs text-zinc-400 mx-1">|</span>
+                    <span className="text-xs text-zinc-500">Go to</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={totalPages}
+                      value={jumpPage}
+                      onChange={(e) => setJumpPage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const p = parseInt(jumpPage, 10) - 1;
+                          if (!isNaN(p) && p >= 0 && p < totalPages) { setPage(p); setJumpPage(''); }
+                        }
+                      }}
+                      placeholder={String(page + 1)}
+                      className="w-12 px-1 py-1 text-xs border border-zinc-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 text-center focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        const p = parseInt(jumpPage, 10) - 1;
+                        if (!isNaN(p) && p >= 0 && p < totalPages) { setPage(p); setJumpPage(''); }
+                      }}
+                      className="px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      Go
+                    </button>
                   </div>
                 </div>
               )}
@@ -860,6 +942,42 @@ export default function VendorPOReport() {
           );
         })()}
       </div>
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteConfirmPO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <Trash2 size={18} className="text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Delete Purchase Order</h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
+              Are you sure you want to delete PO{' '}
+              <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{deleteConfirmPO}</span>?
+            </p>
+            <p className="text-xs text-red-600 dark:text-red-400 mb-5">This action cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteConfirmPO(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirmPO)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deleting ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── PO Report ── */}
       {selectedPO && (
