@@ -16,6 +16,7 @@ interface OrderItem {
   qty: number;
   unit_price: number;
   item_id: string;
+  currency?: string;
 }
 
 interface MissingItem {
@@ -37,7 +38,7 @@ interface ValidationResult {
   found_count?: number;
   missing_count?: number;
   total_items?: number;
-  detected_vendor?: DetectedVendor | null;
+  detected_vendors?: DetectedVendor[];
 }
 
 interface DraftOrder {
@@ -64,6 +65,7 @@ export default function DraftOrderUpload() {
   const [showMissingModal, setShowMissingModal] = useState(false);
 
   const [selectedVendor, setSelectedVendor] = useState<DetectedVendor | null>(null);
+  const [availableVendors, setAvailableVendors] = useState<DetectedVendor[]>([]);
 
   const [description, setDescription] = useState('');
   const [poDate, setPoDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -101,6 +103,7 @@ export default function DraftOrderUpload() {
     setValidation(null);
     setCreatedPO(null);
     setSelectedVendor(null);
+    setAvailableVendors([]);
     setDescription('');
     setNotes('');
     setReferenceNumber('');
@@ -121,6 +124,8 @@ export default function DraftOrderUpload() {
     setValidation(null);
     setCreatedPO(null);
     setSavedDraftId(null);
+    setAvailableVendors([]);
+    setSelectedVendor(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -144,8 +149,18 @@ export default function DraftOrderUpload() {
       setValidation(data);
       if (!data.valid) {
         setShowMissingModal(true);
-      } else if (data.detected_vendor) {
-        setSelectedVendor(data.detected_vendor);
+      } else {
+        const vendors = data.detected_vendors ?? [];
+        if (vendors.length === 1) {
+          setSelectedVendor(vendors[0]);
+          setAvailableVendors([]);
+        } else if (vendors.length > 1) {
+          setAvailableVendors(vendors);
+          setSelectedVendor(null);
+        } else {
+          setAvailableVendors([]);
+          setSelectedVendor(null);
+        }
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Validation failed');
@@ -196,9 +211,9 @@ export default function DraftOrderUpload() {
       valid: true,
       items: draft.items,
       total_items: draft.items.length,
-      detected_vendor: draft.detected_vendor,
     });
     setSelectedVendor(draft.detected_vendor);
+    setAvailableVendors([]);
     setDescription(draft.description || '');
     setPoDate(draft.date || new Date().toISOString().slice(0, 10));
     setNotes(draft.notes || '');
@@ -257,8 +272,6 @@ export default function DraftOrderUpload() {
     }
   };
 
-  const totalAmount =
-    validation?.items?.reduce((sum, it) => sum + it.qty * it.unit_price, 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -460,28 +473,44 @@ export default function DraftOrderUpload() {
             <table className={TABLE_CLASSES.table}>
               <thead className={TABLE_CLASSES.thead}>
                 <tr>
-                  {['Mfr Code', 'BB Code', 'Product Name', 'Qty', 'Unit Price (USD)', 'Total (USD)'].map(h => (
+                  {['Mfr Code', 'BB Code', 'Product Name', 'Qty', 'Unit Price', 'Total'].map(h => (
                     <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {validation.items!.map((it, i) => (
-                  <tr key={i} className={TABLE_CLASSES.tr}>
-                    <td className={TABLE_CLASSES.td}>{it.manufacturer_code}</td>
-                    <td className={TABLE_CLASSES.td}>{it.bb_code}</td>
-                    <td className={TABLE_CLASSES.td}>{it.product_name || it.item_name}</td>
-                    <td className={TABLE_CLASSES.td}>{it.qty.toLocaleString()}</td>
-                    <td className={TABLE_CLASSES.td}>${it.unit_price.toFixed(2)}</td>
-                    <td className={TABLE_CLASSES.td}>${(it.qty * it.unit_price).toFixed(2)}</td>
-                  </tr>
-                ))}
+                {validation.items!.map((it, i) => {
+                  const sym = it.currency === 'CNY' ? '¥' : '$';
+                  const tag = it.currency && it.currency !== 'USD'
+                    ? <span className="ml-1 px-1 py-0.5 text-xs rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{it.currency}</span>
+                    : null;
+                  return (
+                    <tr key={i} className={TABLE_CLASSES.tr}>
+                      <td className={TABLE_CLASSES.td}>{it.manufacturer_code}</td>
+                      <td className={TABLE_CLASSES.td}>{it.bb_code}</td>
+                      <td className={TABLE_CLASSES.td}>{it.product_name || it.item_name}</td>
+                      <td className={TABLE_CLASSES.td}>{it.qty.toLocaleString()}</td>
+                      <td className={TABLE_CLASSES.td}>{sym}{it.unit_price.toFixed(2)}{tag}</td>
+                      <td className={TABLE_CLASSES.td}>{sym}{(it.qty * it.unit_price).toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900">
-                  <td colSpan={5} className={`${TABLE_CLASSES.td} font-semibold text-right`}>Total</td>
-                  <td className={`${TABLE_CLASSES.td} font-semibold`}>${totalAmount.toFixed(2)}</td>
-                </tr>
+                {Object.entries(
+                  validation.items!.reduce((acc, it) => {
+                    const c = it.currency || 'USD';
+                    acc[c] = (acc[c] || 0) + it.qty * it.unit_price;
+                    return acc;
+                  }, {} as Record<string, number>)
+                ).map(([curr, subtotal]) => (
+                  <tr key={curr} className="border-t border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900">
+                    <td colSpan={5} className={`${TABLE_CLASSES.td} font-semibold text-right`}>Total ({curr})</td>
+                    <td className={`${TABLE_CLASSES.td} font-semibold`}>
+                      {curr === 'CNY' ? '¥' : '$'}{subtotal.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
               </tfoot>
             </table>
           </div>
@@ -513,7 +542,7 @@ export default function DraftOrderUpload() {
                 />
               </div>
 
-              {/* Vendor — locked to detected vendor, no other options */}
+              {/* Vendor — auto-detected; picker shown when brand has multiple vendors */}
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                   Vendor
@@ -526,6 +555,32 @@ export default function DraftOrderUpload() {
                     {selectedVendor.currency_code && (
                       <span className="ml-auto text-xs text-zinc-400">{selectedVendor.currency_code}</span>
                     )}
+                    {availableVendors.length > 1 && !poAlreadyCreated && (
+                      <button
+                        onClick={() => setSelectedVendor(null)}
+                        className="ml-auto text-xs text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        Change
+                      </button>
+                    )}
+                  </div>
+                ) : availableVendors.length > 1 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">This brand has multiple vendors — select the currency for this order:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {availableVendors.map(v => (
+                        <button
+                          key={v.contact_id}
+                          onClick={() => setSelectedVendor(v)}
+                          className="flex items-center gap-2 px-3 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                        >
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{v.contact_name}</span>
+                          {v.currency_code && (
+                            <span className="px-1.5 py-0.5 rounded text-xs bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{v.currency_code}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="px-3 py-2 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm text-red-600 dark:text-red-400">
