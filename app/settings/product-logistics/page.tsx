@@ -116,8 +116,8 @@ function ProductLogisticsPage() {
         saveField(item_id, sku, { purchase_status: value });
     };
 
-    const handleImportFromPSR = async () => {
-        if (!confirm('Import Status, CBM and Case Pack from the PSR Google Sheet? This will update existing product data.')) return;
+    const handleImportFromMaster = async () => {
+        if (!confirm('Import Status, CBM and Case Pack from the Updated Master Google Sheet? This will update existing product data.')) return;
         try {
             setImportLoading(true);
             setError(null);
@@ -128,7 +128,7 @@ function ProductLogisticsPage() {
             setTimeout(() => setSuccess(null), 5000);
             await fetchProducts();
         } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to import from PSR Sheet');
+            setError(err.response?.data?.detail || 'Failed to import from Updated Master Sheet');
         } finally {
             setImportLoading(false);
         }
@@ -202,12 +202,12 @@ function ProductLogisticsPage() {
                                 {downloadLoading ? 'Downloading...' : 'Download XLSX'}
                             </button>
                             <button
-                                onClick={handleImportFromPSR}
+                                onClick={handleImportFromMaster}
                                 disabled={importLoading}
                                 className='inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 transition-colors'
                             >
                                 <Upload className='h-4 w-4 mr-2' />
-                                {importLoading ? 'Importing...' : 'Import from PSR Sheet'}
+                                {importLoading ? 'Importing...' : 'Import from Master Sheet'}
                             </button>
                         </div>
                     </div>
