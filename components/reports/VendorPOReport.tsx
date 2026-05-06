@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X, Trash2, Search } from 'lucide-react';
+import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X, Trash2, Search, FileUp, ExternalLink } from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -21,6 +21,7 @@ interface POListItem {
   total_requested_qty: number;
   total_accepted_qty: number;
   total_received_qty: number;
+  order_file_s3_key?: string;
 }
 
 interface POItem {
@@ -500,6 +501,16 @@ export default function VendorPOReport() {
 
   const [downloading, setDownloading] = useState(false);
 
+  // upload order
+  const [uploadOrderPO, setUploadOrderPO] = useState<string | null>(null);
+  const [orderFile, setOrderFile] = useState<File | null>(null);
+  const [uploadingOrder, setUploadingOrder] = useState(false);
+  const orderFileInputRef = useRef<HTMLInputElement>(null);
+
+  // delete order file
+  const [deleteOrderFilePO, setDeleteOrderFilePO] = useState<string | null>(null);
+  const [deletingOrderFile, setDeletingOrderFile] = useState(false);
+
   // delete
   const [deleteConfirmPO, setDeleteConfirmPO] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -568,6 +579,59 @@ export default function VendorPOReport() {
       toast.error('Failed to delete PO');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // ─── upload order ────────────────────────────────────────────────────────────
+
+  const handleUploadOrder = async () => {
+    if (!orderFile || !uploadOrderPO) return;
+    setUploadingOrder(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', orderFile);
+      const res = await axios.post(
+        `${API_URL}/vendor_po/${uploadOrderPO}/upload_order`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' }, responseType: 'blob' }
+      );
+      // Trigger download of filled file
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `POItemExport_${uploadOrderPO}_filled.xls`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success('Order file filled and downloaded');
+      setPoList(prev => prev.map(p =>
+        p.po_number === uploadOrderPO ? { ...p, order_file_s3_key: 'uploaded' } : p
+      ));
+      setUploadOrderPO(null);
+      setOrderFile(null);
+      if (orderFileInputRef.current) orderFileInputRef.current.value = '';
+    } catch {
+      toast.error('Failed to process order file');
+    } finally {
+      setUploadingOrder(false);
+    }
+  };
+
+  // ─── delete order file ────────────────────────────────────────────────────────
+
+  const handleDeleteOrderFile = async (poNumber: string) => {
+    setDeletingOrderFile(true);
+    try {
+      await axios.delete(`${API_URL}/vendor_po/${poNumber}/order_file`);
+      toast.success('Order file deleted');
+      setPoList(prev => prev.map(p =>
+        p.po_number === poNumber ? { ...p, order_file_s3_key: undefined } : p
+      ));
+      setDeleteOrderFilePO(null);
+    } catch {
+      toast.error('Failed to delete order file');
+    } finally {
+      setDeletingOrderFile(false);
     }
   };
 
@@ -967,7 +1031,7 @@ export default function VendorPOReport() {
                           title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
                         />
                       </th>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Accepted Qty', 'Received Qty', 'Status', 'Uploaded At', 'Actions'].map(h => (
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Accepted Qty', 'Received Qty', 'Status', 'Uploaded At', 'Order File', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -1014,12 +1078,48 @@ export default function VendorPOReport() {
                         </td>
                         <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
                         <td className={TABLE_CLASSES.td}>
+                          {po.order_file_s3_key ? (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const { data } = await axios.get<{ url: string }>(`${API_URL}/vendor_po/${po.po_number}/order_file`);
+                                    window.open(data.url, '_blank');
+                                  } catch {
+                                    toast.error('Failed to get download link');
+                                  }
+                                }}
+                                className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 dark:text-green-400"
+                              >
+                                <ExternalLink size={11} />
+                                Download
+                              </button>
+                              <button
+                                onClick={() => setDeleteOrderFilePO(po.po_number)}
+                                className="p-0.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors"
+                                title="Delete order file"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-zinc-400">—</span>
+                          )}
+                        </td>
+                        <td className={TABLE_CLASSES.td}>
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => selectedPO === po.po_number ? setSelectedPO(null) : fetchReport(po.po_number)}
                               className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                             >
                               {selectedPO === po.po_number ? 'Hide' : 'View'}
+                            </button>
+                            <button
+                              onClick={() => { setUploadOrderPO(po.po_number); setOrderFile(null); if (orderFileInputRef.current) orderFileInputRef.current.value = ''; }}
+                              className="p-1 text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 rounded transition-colors"
+                              title="Upload Order (POItemExport)"
+                            >
+                              <FileUp size={13} />
                             </button>
                             <button
                               onClick={() => setDeleteConfirmPO(po.po_number)}
@@ -1120,6 +1220,91 @@ export default function VendorPOReport() {
               >
                 {deleting ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Order File Modal ── */}
+      {deleteOrderFilePO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <Trash2 size={18} className="text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Delete Order File</h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
+              Delete the uploaded order file for PO{' '}
+              <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{deleteOrderFilePO}</span>?
+            </p>
+            <p className="text-xs text-red-600 dark:text-red-400 mb-5">This will remove the file from S3 and cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteOrderFilePO(null)}
+                disabled={deletingOrderFile}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteOrderFile(deleteOrderFilePO)}
+                disabled={deletingOrderFile}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deletingOrderFile ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                {deletingOrderFile ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Upload Order Modal ── */}
+      {uploadOrderPO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full">
+                <FileUp size={18} className="text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Upload Order File</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{uploadOrderPO}</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Upload the <strong>POItemExport .xls</strong> from Amazon Vendor Central. The backend will fill in
+              <strong> Accepted quantity</strong> and <strong>Availability</strong> based on the stored accepted qtys,
+              save the completed file to S3, and download it for you.
+            </p>
+            <div className="mb-5">
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">POItemExport .xls File</label>
+              <input
+                ref={orderFileInputRef}
+                type="file"
+                accept=".xls"
+                onChange={(e) => setOrderFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-zinc-700 dark:text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 dark:file:bg-purple-900/30 dark:file:text-purple-400"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setUploadOrderPO(null); setOrderFile(null); }}
+                disabled={uploadingOrder}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUploadOrder}
+                disabled={uploadingOrder || !orderFile}
+                className="px-4 py-2 text-sm rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {uploadingOrder ? <RefreshCw size={13} className="animate-spin" /> : <FileUp size={13} />}
+                {uploadingOrder ? 'Processing…' : 'Upload & Download'}
               </button>
             </div>
           </div>
