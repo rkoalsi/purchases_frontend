@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/context/AuthContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Box, Shield, Search, ChevronLeft, ChevronRight, Upload, Download } from 'lucide-react';
+import { Box, Shield, Search, ChevronLeft, ChevronRight, Upload, Download, X } from 'lucide-react';
 
 interface ProductLogistics {
     item_id: string;
@@ -13,12 +13,16 @@ interface ProductLogistics {
     cbm: number;
     case_pack: number;
     purchase_status: string;
+    purchase_price: number;
+    currency: string;
     stock_in_transit_1: number;
     stock_in_transit_2: number;
     stock_in_transit_3: number;
 }
 
 const STATUS_OPTIONS = ['active', 'inactive', 'discontinued until stock lasts'] as const;
+
+const CURRENCY_OPTIONS = ['USD', 'CNY', 'EUR', 'GBP', 'INR', 'AED', 'SGD'] as const;
 
 function ProductLogisticsPage() {
     const { isLoading, accessToken } = useAuth();
@@ -27,6 +31,9 @@ function ProductLogisticsPage() {
     const [saving, setSaving] = useState<Set<string>>(new Set());
     const [importLoading, setImportLoading] = useState(false);
     const [downloadLoading, setDownloadLoading] = useState(false);
+    const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+    const [bulkUploadFile, setBulkUploadFile] = useState<File | null>(null);
+    const [bulkUploading, setBulkUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
@@ -105,7 +112,7 @@ function ProductLogisticsPage() {
         }
     };
 
-    const handleNumberBlur = (item_id: string, sku: string, field: 'cbm' | 'case_pack' | 'stock_in_transit_1' | 'stock_in_transit_2' | 'stock_in_transit_3', raw: string) => {
+    const handleNumberBlur = (item_id: string, sku: string, field: 'cbm' | 'case_pack' | 'purchase_price', raw: string) => {
         const val = parseFloat(raw) || 0;
         setProducts(prev => prev.map(p => p.item_id === item_id ? { ...p, [field]: val } : p));
         saveField(item_id, sku, { [field]: val });
@@ -115,6 +122,37 @@ function ProductLogisticsPage() {
         setProducts(prev => prev.map(p => p.item_id === item_id ? { ...p, purchase_status: value } : p));
         saveField(item_id, sku, { purchase_status: value });
     };
+
+    const handleCurrencyChange = (item_id: string, sku: string, value: string) => {
+        setProducts(prev => prev.map(p => p.item_id === item_id ? { ...p, currency: value } : p));
+        saveField(item_id, sku, { currency: value });
+    };
+
+    const handleBulkUpload = async () => {
+        if (!bulkUploadFile) return;
+        setBulkUploading(true);
+        setError(null);
+        try {
+            const formData = new FormData();
+            formData.append('file', bulkUploadFile);
+            const response = await axios.post(
+                `${process.env.NEXT_PUBLIC_API_URL}/master/product-logistics/bulk-upload`,
+                formData,
+                { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'multipart/form-data' } },
+            );
+            const { message, errors } = response.data;
+            setSuccess(message + (errors?.length ? ` (${errors.length} error(s))` : ''));
+            setTimeout(() => setSuccess(null), 6000);
+            setBulkUploadOpen(false);
+            setBulkUploadFile(null);
+            await fetchProducts();
+        } catch (err: any) {
+            setError(err.response?.data?.detail || 'Bulk upload failed');
+        } finally {
+            setBulkUploading(false);
+        }
+    };
+
 
     const handleImportFromMaster = async () => {
         if (!confirm('Import Status, CBM and Case Pack from the Updated Master Google Sheet? This will update existing product data.')) return;
@@ -179,6 +217,50 @@ function ProductLogisticsPage() {
 
     return (
         <div className='min-h-screen py-8'>
+            {/* Bulk Price Upload Modal */}
+            {bulkUploadOpen && (
+                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
+                    <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-lg mx-4 p-6'>
+                        <div className='flex items-center justify-between mb-4'>
+                            <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>Bulk Price Upload</h2>
+                            <button onClick={() => setBulkUploadOpen(false)} className='text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200'>
+                                <X className='h-5 w-5' />
+                            </button>
+                        </div>
+                        <div className='mb-5 text-sm text-gray-600 dark:text-zinc-400 space-y-2'>
+                            <p>Upload an XLSX file to bulk-update <strong className='text-zinc-800 dark:text-zinc-200'>Currency</strong> and <strong className='text-zinc-800 dark:text-zinc-200'>Purchase Price</strong> for multiple products at once.</p>
+                            <p>The file must contain exactly these three columns:</p>
+                            <ul className='list-disc list-inside ml-2 space-y-0.5 font-mono text-xs bg-gray-50 dark:bg-zinc-800 rounded p-3'>
+                                <li>SKU Code</li>
+                                <li>Currency &nbsp;<span className='font-sans text-gray-500'>(e.g. USD, CNY)</span></li>
+                                <li>Purchase Price &nbsp;<span className='font-sans text-gray-500'>(numeric)</span></li>
+                            </ul>
+                            <p>You can download the existing data as a starting point using the <strong className='text-zinc-800 dark:text-zinc-200'>Download XLSX</strong> button — it already contains these columns. Only rows with a matching SKU Code will be updated; all other columns in the file are ignored.</p>
+                        </div>
+                        <input
+                            type='file'
+                            accept='.xlsx,.xls'
+                            onChange={(e) => setBulkUploadFile(e.target.files?.[0] ?? null)}
+                            className='block w-full text-sm text-gray-700 dark:text-zinc-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-300 hover:file:bg-blue-100 mb-5'
+                        />
+                        <div className='flex justify-end gap-3'>
+                            <button
+                                onClick={() => setBulkUploadOpen(false)}
+                                className='px-4 py-2 text-sm rounded-md border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleBulkUpload}
+                                disabled={!bulkUploadFile || bulkUploading}
+                                className='px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors'
+                            >
+                                {bulkUploading ? 'Uploading...' : 'Upload & Update'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                 {/* Header */}
                 <div className='mb-6'>
@@ -189,7 +271,7 @@ function ProductLogisticsPage() {
                                 Product Logistics
                             </h1>
                             <p className='mt-1 text-sm text-zinc-900 dark:text-zinc-50 '>
-                                Manage status, CBM and Case Pack per product. Changes save automatically.
+                                Manage status, CBM, Case Pack, Currency and Purchase Price per product. Changes save automatically.
                             </p>
                         </div>
                         <div className='flex gap-2'>
@@ -200,6 +282,13 @@ function ProductLogisticsPage() {
                             >
                                 <Download className='h-4 w-4 mr-2' />
                                 {downloadLoading ? 'Downloading...' : 'Download XLSX'}
+                            </button>
+                            <button
+                                onClick={() => { setBulkUploadOpen(true); setBulkUploadFile(null); }}
+                                className='inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors'
+                            >
+                                <Upload className='h-4 w-4 mr-2' />
+                                Bulk Price Upload
                             </button>
                             <button
                                 onClick={handleImportFromMaster}
@@ -289,6 +378,8 @@ function ProductLogisticsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase'>Status</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase'>CBM</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase'>Case Pack</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase'>Currency</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase'>Purchase Price</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase'>Transit 1</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase'>Transit 2</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase'>Transit 3</th>
@@ -342,34 +433,37 @@ function ProductLogisticsPage() {
                                                     />
                                                 </td>
                                                 <td className='px-6 py-3'>
-                                                    <input
-                                                        type='number'
-                                                        defaultValue={product.stock_in_transit_1 || 0}
-                                                        key={`sit1-${product.item_id}-${product.stock_in_transit_1}`}
-                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'stock_in_transit_1', e.target.value)}
+                                                    <select
+                                                        value={product.currency || ''}
+                                                        onChange={(e) => handleCurrencyChange(product.item_id, product.cf_sku_code, e.target.value)}
                                                         disabled={isSaving}
-                                                        className='w-24 px-2 py-1 border border-gray-300 dark:border-zinc-700 rounded text-sm text-black dark:bg-zinc-800 dark:text-zinc-100 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
-                                                    />
+                                                        className='px-2 py-1 border border-gray-300 dark:border-zinc-700 rounded text-sm text-black dark:bg-zinc-800 dark:text-zinc-100 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
+                                                    >
+                                                        <option value=''>—</option>
+                                                        {CURRENCY_OPTIONS.map(c => (
+                                                            <option key={c} value={c}>{c}</option>
+                                                        ))}
+                                                    </select>
                                                 </td>
                                                 <td className='px-6 py-3'>
                                                     <input
                                                         type='number'
-                                                        defaultValue={product.stock_in_transit_2 || 0}
-                                                        key={`sit2-${product.item_id}-${product.stock_in_transit_2}`}
-                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'stock_in_transit_2', e.target.value)}
+                                                        step='0.01'
+                                                        defaultValue={product.purchase_price || 0}
+                                                        key={`pp-${product.item_id}-${product.purchase_price}`}
+                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'purchase_price', e.target.value)}
                                                         disabled={isSaving}
-                                                        className='w-24 px-2 py-1 border border-gray-300 dark:border-zinc-700 rounded text-sm text-black dark:bg-zinc-800 dark:text-zinc-100 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
+                                                        className='w-28 px-2 py-1 border border-gray-300 dark:border-zinc-700 rounded text-sm text-black dark:bg-zinc-800 dark:text-zinc-100 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
                                                     />
                                                 </td>
                                                 <td className='px-6 py-3'>
-                                                    <input
-                                                        type='number'
-                                                        defaultValue={product.stock_in_transit_3 || 0}
-                                                        key={`sit3-${product.item_id}-${product.stock_in_transit_3}`}
-                                                        onBlur={(e) => handleNumberBlur(product.item_id, product.cf_sku_code, 'stock_in_transit_3', e.target.value)}
-                                                        disabled={isSaving}
-                                                        className='w-24 px-2 py-1 border border-gray-300 dark:border-zinc-700 rounded text-sm text-black dark:bg-zinc-800 dark:text-zinc-100 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50'
-                                                    />
+                                                    <span className='text-sm text-gray-700 dark:text-zinc-300'>{product.stock_in_transit_1 || 0}</span>
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <span className='text-sm text-gray-700 dark:text-zinc-300'>{product.stock_in_transit_2 || 0}</span>
+                                                </td>
+                                                <td className='px-6 py-3'>
+                                                    <span className='text-sm text-gray-700 dark:text-zinc-300'>{product.stock_in_transit_3 || 0}</span>
                                                 </td>
                                             </tr>
                                         );
