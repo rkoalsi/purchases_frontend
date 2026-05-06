@@ -30,6 +30,7 @@ interface POItem {
   ship_to_location: string;
   requested_qty: number;
   supply_qty: number | null;
+  supply_qty_override: number | null;
   accepted_qty: number | null;
   received_qty: number | null;
   etrade_unit_cost: number;
@@ -47,6 +48,7 @@ interface POItem {
   purchase_status: string;
   current_stock: number;
   open_po: number;
+  open_po_override: number | null;
   total_qty: number;
   last_30_sales: number;
   ads: number;
@@ -264,6 +266,142 @@ const POListReceivedQtyCell: React.FC<{
         onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
       />
       <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
+// ─── SupplyQtyCell ────────────────────────────────────────────────────────────
+
+const SupplyQtyCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number;
+  isOverride: boolean;
+  onSaved: () => void;
+}> = ({ poNumber, asin, value, isOverride, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(value));
+  const [saving, setSaving] = useState(false);
+
+  const save = async (clearOverride = false) => {
+    const num = clearOverride ? -1 : parseInt(val, 10);
+    if (!clearOverride && (isNaN(num) || num < 0)) { toast.error('Supply qty must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/items/${asin}/supply_qty?supply_qty=${num}`);
+      onSaved();
+      setEditing(false);
+      toast.success(clearOverride ? 'Supply qty reset to auto-computed' : 'Supply qty updated');
+    } catch {
+      toast.error('Failed to save supply qty');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group justify-center">
+        <span className={`text-sm ${isOverride ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-zinc-600 dark:text-zinc-400'}`}>
+          {value}
+        </span>
+        {isOverride && (
+          <span className="text-xs text-amber-500 dark:text-amber-400" title="Manually overridden">✎</span>
+        )}
+        <button
+          onClick={() => { setVal(String(value)); setEditing(true); }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+      />
+      <button onClick={() => save()} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      {isOverride && (
+        <button onClick={() => save(true)} disabled={saving} title="Reset to auto-computed" className="p-0.5 text-amber-500 hover:text-amber-700 text-xs font-bold">↺</button>
+      )}
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
+// ─── OpenQtyCell ──────────────────────────────────────────────────────────────
+
+const OpenQtyCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number;
+  isOverride: boolean;
+  onSaved: () => void;
+}> = ({ poNumber, asin, value, isOverride, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(value));
+  const [saving, setSaving] = useState(false);
+
+  const save = async (clearOverride = false) => {
+    const num = clearOverride ? -1 : parseInt(val, 10);
+    if (!clearOverride && (isNaN(num) || num < 0)) { toast.error('Open qty must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/items/${asin}/open_qty?open_qty=${num}`);
+      onSaved();
+      setEditing(false);
+      toast.success(clearOverride ? 'Open qty reset to auto-computed' : 'Open qty updated');
+    } catch {
+      toast.error('Failed to save open qty');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group justify-center">
+        <span className={`text-sm ${isOverride ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}`}>
+          {value}
+        </span>
+        {isOverride && (
+          <span className="text-xs text-amber-500 dark:text-amber-400" title="Manually overridden">✎</span>
+        )}
+        <button
+          onClick={() => { setVal(String(value)); setEditing(true); }}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+      />
+      <button onClick={() => save()} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      {isOverride && (
+        <button onClick={() => save(true)} disabled={saving} title="Reset to auto-computed" className="p-0.5 text-amber-500 hover:text-amber-700 text-xs font-bold">↺</button>
+      )}
       <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
     </div>
   );
@@ -626,6 +764,15 @@ export default function VendorPOReport() {
       return { ...prev, items: prev.items.map(it => it.asin === asin ? { ...it, etrade_asp: asp } : it) };
     });
   }, []);
+
+  const handleOpenQtySaved = useCallback(() => {
+    if (selectedPO) fetchReport(selectedPO);
+  }, [selectedPO, fetchReport]);
+
+  const handleSupplyQtySaved = useCallback(() => {
+    // Refresh so total_cost, total_cost_gst, final_supply_qty all recompute
+    if (selectedPO) fetchReport(selectedPO);
+  }, [selectedPO, fetchReport]);
 
 
   // ─── render ──────────────────────────────────────────────────────────────────
@@ -1077,7 +1224,15 @@ export default function VendorPOReport() {
                         <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 max-w-xs truncate" title={item.title}>{item.title}</td>
                         <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{item.ship_to_location}</td>
                         <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{item.requested_qty}</td>
-                        <td className="px-3 py-2 text-center text-zinc-600">{item.final_supply_qty ?? item.supply_qty ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          <SupplyQtyCell
+                            poNumber={report.po_number}
+                            asin={item.asin}
+                            value={item.final_supply_qty ?? item.supply_qty ?? 0}
+                            isOverride={item.supply_qty_override != null}
+                            onSaved={handleSupplyQtySaved}
+                          />
+                        </td>
                         <td className="px-3 py-2">
                           <AcceptedQtyCell poNumber={report.po_number} asin={item.asin} value={item.accepted_qty} onSaved={handleAcceptedQtySaved} />
                         </td>
@@ -1116,7 +1271,15 @@ export default function VendorPOReport() {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{fmtInt(item.current_stock)}</td>
-                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.open_po)}</td>
+                        <td className="px-3 py-2">
+                          <OpenQtyCell
+                            poNumber={report.po_number}
+                            asin={item.asin}
+                            value={item.open_po}
+                            isOverride={item.open_po_override != null}
+                            onSaved={handleOpenQtySaved}
+                          />
+                        </td>
                         <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{fmtInt(item.total_qty)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.last_30_sales)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.ads.toFixed(1)}</td>
