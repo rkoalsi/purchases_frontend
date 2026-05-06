@@ -57,33 +57,73 @@ interface DraftOrder {
   items: OrderItem[];
 }
 
+// ── per-currency group form state ──────────────────────────────────────────
+interface CurrencyGroupState {
+  selectedVendor: DetectedVendor | null;
+  description: string;
+  poDate: string;
+  notes: string;
+  referenceNumber: string;
+  purchaseorderNumber: string;
+  saving: boolean;
+  savedDraftId: string | null;
+  creating: boolean;
+  createdPO: any | null;
+  poAlreadyCreated: boolean;
+}
+
+function defaultGroupState(): CurrencyGroupState {
+  return {
+    selectedVendor: null,
+    description: '',
+    poDate: new Date().toISOString().slice(0, 10),
+    notes: '',
+    referenceNumber: '',
+    purchaseorderNumber: '',
+    saving: false,
+    savedDraftId: null,
+    creating: false,
+    createdPO: null,
+    poAlreadyCreated: false,
+  };
+}
+
+// ── helpers ────────────────────────────────────────────────────────────────
+function currencySym(code?: string) {
+  if (code === 'CNY') return '¥';
+  if (code === 'EUR') return '€';
+  if (code === 'GBP') return '£';
+  return '$';
+}
+
+function groupItemsByCurrency(items: OrderItem[]): Record<string, OrderItem[]> {
+  const groups: Record<string, OrderItem[]> = {};
+  for (const it of items) {
+    const c = it.currency || 'USD';
+    if (!groups[c]) groups[c] = [];
+    groups[c].push(it);
+  }
+  return groups;
+}
+
+// ── component ──────────────────────────────────────────────────────────────
 export default function DraftOrderUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [validating, setValidating] = useState(false);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [showMissingModal, setShowMissingModal] = useState(false);
-
-  const [selectedVendor, setSelectedVendor] = useState<DetectedVendor | null>(null);
   const [availableVendors, setAvailableVendors] = useState<DetectedVendor[]>([]);
 
-  const [description, setDescription] = useState('');
-  const [poDate, setPoDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [notes, setNotes] = useState('');
-  const [referenceNumber, setReferenceNumber] = useState('');
-  const [purchaseorderNumber, setPurchaseorderNumber] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [createdPO, setCreatedPO] = useState<any>(null);
-
-  const [saving, setSaving] = useState(false);
-  const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
-  const [poAlreadyCreated, setPoAlreadyCreated] = useState(false);
+  // Per-currency group states keyed by currency code
+  const [groups, setGroups] = useState<Record<string, CurrencyGroupState>>({});
 
   const [draftOrders, setDraftOrders] = useState<DraftOrder[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── draft list ─────────────────────────────────────────────────────────
   const fetchDrafts = useCallback(async () => {
     setDraftsLoading(true);
     try {
@@ -98,34 +138,23 @@ export default function DraftOrderUpload() {
 
   useEffect(() => { fetchDrafts(); }, [fetchDrafts]);
 
+  // ── reset ──────────────────────────────────────────────────────────────
   const reset = () => {
     setFile(null);
     setValidation(null);
-    setCreatedPO(null);
-    setSelectedVendor(null);
     setAvailableVendors([]);
-    setDescription('');
-    setNotes('');
-    setReferenceNumber('');
-    setPurchaseorderNumber('');
-    setPoDate(new Date().toISOString().slice(0, 10));
-    setSavedDraftId(null);
-    setPoAlreadyCreated(false);
+    setGroups({});
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // ── file handling ──────────────────────────────────────────────────────
   const handleFileChange = (f: File | null) => {
     if (!f) return;
-    if (!f.name.endsWith('.xlsx')) {
-      toast.error('Please upload a .xlsx file');
-      return;
-    }
+    if (!f.name.endsWith('.xlsx')) { toast.error('Please upload a .xlsx file'); return; }
     setFile(f);
     setValidation(null);
-    setCreatedPO(null);
-    setSavedDraftId(null);
+    setGroups({});
     setAvailableVendors([]);
-    setSelectedVendor(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -134,33 +163,38 @@ export default function DraftOrderUpload() {
     handleFileChange(e.dataTransfer.files[0] ?? null);
   };
 
+  // ── validate ───────────────────────────────────────────────────────────
   const handleValidate = async () => {
     if (!file) return;
     setValidating(true);
     setValidation(null);
-    setSavedDraftId(null);
+    setGroups({});
     try {
       const form = new FormData();
       form.append('file', file);
-      const { data } = await axios.post<ValidationResult>(
-        `${API_URL}/vendors/draft_orders/validate`,
-        form,
-      );
+      const { data } = await axios.post<ValidationResult>(`${API_URL}/vendors/draft_orders/validate`, form);
       setValidation(data);
       if (!data.valid) {
         setShowMissingModal(true);
       } else {
         const vendors = data.detected_vendors ?? [];
-        if (vendors.length === 1) {
-          setSelectedVendor(vendors[0]);
-          setAvailableVendors([]);
-        } else if (vendors.length > 1) {
-          setAvailableVendors(vendors);
-          setSelectedVendor(null);
-        } else {
-          setAvailableVendors([]);
-          setSelectedVendor(null);
+        setAvailableVendors(vendors);
+
+        // Initialise one group state per currency found in items
+        const currencyGroups = groupItemsByCurrency(data.items as any ?? {});
+        const initialGroups: Record<string, CurrencyGroupState> = {};
+        for (const currency of Object.keys(currencyGroups)) {
+          const gs = defaultGroupState();
+          // Auto-select vendor whose currency_code matches
+          const matchedVendor = vendors.find(v => v.currency_code === currency) ?? null;
+          if (!matchedVendor && vendors.length === 1) {
+            gs.selectedVendor = vendors[0];
+          } else {
+            gs.selectedVendor = matchedVendor;
+          }
+          initialGroups[currency] = gs;
         }
+        setGroups(initialGroups);
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Validation failed');
@@ -169,109 +203,360 @@ export default function DraftOrderUpload() {
     }
   };
 
-  const handleSaveDraft = async () => {
-    if (!validation?.items || !selectedVendor) return;
-    setSaving(true);
+  // ── group state helpers ────────────────────────────────────────────────
+  const updateGroup = (currency: string, patch: Partial<CurrencyGroupState>) => {
+    setGroups(prev => ({ ...prev, [currency]: { ...prev[currency], ...patch } }));
+  };
+
+  // ── save draft (per currency) ──────────────────────────────────────────
+  const handleSaveDraft = async (currency: string, items: OrderItem[]) => {
+    const gs = groups[currency];
+    if (!gs?.selectedVendor) return;
+    updateGroup(currency, { saving: true });
     try {
-      const { data } = await axios.post<DraftOrder>(
-        `${API_URL}/vendors/draft_orders/save`,
-        {
-          description,
-          items: validation.items,
-          detected_vendor: selectedVendor,
-          date: poDate,
-          notes,
-          reference_number: referenceNumber,
-          purchaseorder_number: purchaseorderNumber,
-        },
-      );
-      setSavedDraftId(data._id);
-      toast.success('Draft order saved');
+      const { data } = await axios.post<DraftOrder>(`${API_URL}/vendors/draft_orders/save`, {
+        description: gs.description,
+        items,
+        detected_vendor: gs.selectedVendor,
+        date: gs.poDate,
+        notes: gs.notes,
+        reference_number: gs.referenceNumber,
+        purchaseorder_number: gs.purchaseorderNumber,
+      });
+      updateGroup(currency, { savedDraftId: data._id });
+      toast.success(`Draft saved (${currency})`);
       await fetchDrafts();
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to save draft');
     } finally {
-      setSaving(false);
+      updateGroup(currency, { saving: false });
     }
+  };
+
+  // ── create PO (per currency) ───────────────────────────────────────────
+  const handleCreatePO = async (currency: string, items: OrderItem[]) => {
+    const gs = groups[currency];
+    if (!gs?.selectedVendor) return;
+    updateGroup(currency, { creating: true });
+    try {
+      let draftId = gs.savedDraftId;
+      if (!draftId) {
+        const { data: draft } = await axios.post<DraftOrder>(`${API_URL}/vendors/draft_orders/save`, {
+          description: gs.description,
+          items,
+          detected_vendor: gs.selectedVendor,
+          date: gs.poDate,
+          notes: gs.notes,
+          reference_number: gs.referenceNumber,
+          purchaseorder_number: gs.purchaseorderNumber,
+        });
+        draftId = draft._id;
+        updateGroup(currency, { savedDraftId: draftId });
+      }
+
+      const { data } = await axios.post(`${API_URL}/vendors/draft_orders/create_po`, {
+        contact_id: gs.selectedVendor.contact_id,
+        date: gs.poDate,
+        items,
+        notes: gs.notes,
+        reference_number: gs.referenceNumber,
+        purchaseorder_number: gs.purchaseorderNumber,
+        description: gs.description,
+        draft_id: draftId,
+      });
+      updateGroup(currency, { createdPO: data });
+      toast.success(`PO ${data.purchaseorder_number} created (${currency})`);
+      await fetchDrafts();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to create purchase order');
+    } finally {
+      updateGroup(currency, { creating: false });
+    }
+  };
+
+  // ── load draft ─────────────────────────────────────────────────────────
+  const handleLoadDraft = (draft: DraftOrder) => {
+    const items = draft.items ?? [];
+    const currencyGroups = groupItemsByCurrency(items);
+    const currencies = Object.keys(currencyGroups);
+    const vendors = draft.detected_vendor ? [draft.detected_vendor] : [];
+    setAvailableVendors(vendors);
+
+    const initialGroups: Record<string, CurrencyGroupState> = {};
+    for (const currency of currencies) {
+      initialGroups[currency] = {
+        selectedVendor: draft.detected_vendor,
+        description: draft.description || '',
+        poDate: draft.date || new Date().toISOString().slice(0, 10),
+        notes: draft.notes || '',
+        referenceNumber: draft.reference_number || '',
+        purchaseorderNumber: draft.purchaseorder_number || '',
+        saving: false,
+        savedDraftId: currencies.length === 1 ? draft._id : null,
+        creating: false,
+        createdPO: null,
+        poAlreadyCreated: currencies.length === 1 ? draft.po_created : false,
+      };
+    }
+
+    setValidation({ valid: true, items, total_items: items.length });
+    setGroups(initialGroups);
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   };
 
   const handleDeleteDraft = async (id: string) => {
     try {
       await axios.delete(`${API_URL}/vendors/draft_orders/${id}`);
       setDraftOrders(prev => prev.filter(d => d._id !== id));
-      if (savedDraftId === id) setSavedDraftId(null);
       toast.success('Draft deleted');
     } catch {
       toast.error('Failed to delete draft');
     }
   };
 
-  const handleLoadDraft = (draft: DraftOrder) => {
-    setValidation({
-      valid: true,
-      items: draft.items,
-      total_items: draft.items.length,
-    });
-    setSelectedVendor(draft.detected_vendor);
-    setAvailableVendors([]);
-    setDescription(draft.description || '');
-    setPoDate(draft.date || new Date().toISOString().slice(0, 10));
-    setNotes(draft.notes || '');
-    setReferenceNumber(draft.reference_number || '');
-    setPurchaseorderNumber(draft.purchaseorder_number || '');
-    setSavedDraftId(draft._id);
-    setPoAlreadyCreated(draft.po_created);
-    setCreatedPO(null);
-    setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  // ── currency group section ─────────────────────────────────────────────
+  const renderCurrencyGroup = (currency: string, items: OrderItem[], isMultiCurrency: boolean) => {
+    const gs = groups[currency] ?? defaultGroupState();
+    const sym = currencySym(currency);
+    const subtotal = items.reduce((s, it) => s + it.qty * it.unit_price, 0);
+    const vendorsForGroup = availableVendors.length > 0
+      ? availableVendors
+      : gs.selectedVendor ? [gs.selectedVendor] : [];
+
+    return (
+      <div key={currency} className="space-y-4">
+        {isMultiCurrency && (
+          <div className="flex items-center gap-3">
+            <span className="px-3 py-1 rounded-full text-sm font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+              {currency} Order — {items.length} item{items.length !== 1 ? 's' : ''}
+            </span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+              Subtotal: {sym}{subtotal.toFixed(2)}
+            </span>
+          </div>
+        )}
+
+        {/* Items table */}
+        <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
+          <table className={TABLE_CLASSES.table}>
+            <thead className={TABLE_CLASSES.thead}>
+              <tr>
+                {['Mfr Code', 'BB Code', 'Product Name', 'Qty', 'Unit Price', 'Total'].map(h => (
+                  <th key={h} className={TABLE_CLASSES.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it, i) => (
+                <tr key={i} className={TABLE_CLASSES.tr}>
+                  <td className={TABLE_CLASSES.td}>{it.manufacturer_code}</td>
+                  <td className={TABLE_CLASSES.td}>{it.bb_code}</td>
+                  <td className={TABLE_CLASSES.td}>{it.product_name || it.item_name}</td>
+                  <td className={TABLE_CLASSES.td}>{it.qty.toLocaleString()}</td>
+                  <td className={TABLE_CLASSES.td}>{sym}{it.unit_price.toFixed(2)}</td>
+                  <td className={TABLE_CLASSES.td}>{sym}{(it.qty * it.unit_price).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900">
+                <td colSpan={5} className={`${TABLE_CLASSES.td} font-semibold text-right`}>Total ({currency})</td>
+                <td className={`${TABLE_CLASSES.td} font-semibold`}>{sym}{subtotal.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* PO creation form */}
+        {!gs.createdPO && (
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 space-y-4">
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+              Create Purchase Order{isMultiCurrency ? ` — ${currency}` : ''} on Zoho
+            </h2>
+
+            {gs.poAlreadyCreated && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-700 dark:text-green-400">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                Purchase order already created for this draft.
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Description */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={gs.description}
+                  onChange={(e) => updateGroup(currency, { description: e.target.value })}
+                  placeholder="e.g. Q2 restock — Brand X…"
+                  disabled={gs.poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              {/* Vendor */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Vendor
+                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(auto-detected from first product)</span>
+                </label>
+                {gs.selectedVendor ? (
+                  <div className="flex items-center gap-2 px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800">
+                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{gs.selectedVendor.contact_name}</span>
+                    {gs.selectedVendor.currency_code && (
+                      <span className="ml-auto text-xs text-zinc-400">{gs.selectedVendor.currency_code}</span>
+                    )}
+                    {vendorsForGroup.length > 1 && !gs.poAlreadyCreated && (
+                      <button
+                        onClick={() => updateGroup(currency, { selectedVendor: null })}
+                        className="ml-auto text-xs text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        Change
+                      </button>
+                    )}
+                  </div>
+                ) : vendorsForGroup.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Select vendor for this {currency} order:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {vendorsForGroup.map(v => (
+                        <button
+                          key={v.contact_id}
+                          onClick={() => updateGroup(currency, { selectedVendor: v })}
+                          className="flex items-center gap-2 px-3 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                        >
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{v.contact_name}</span>
+                          {v.currency_code && (
+                            <span className="px-1.5 py-0.5 rounded text-xs bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{v.currency_code}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-3 py-2 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm text-red-600 dark:text-red-400">
+                    No vendor detected — set up vendor brand mapping first
+                  </div>
+                )}
+              </div>
+
+              {/* PO Date */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  PO Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={gs.poDate}
+                  onChange={(e) => updateGroup(currency, { poDate: e.target.value })}
+                  disabled={gs.poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              {/* PO Number */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">PO Number</label>
+                <input
+                  type="text"
+                  value={gs.purchaseorderNumber}
+                  onChange={(e) => updateGroup(currency, { purchaseorderNumber: e.target.value })}
+                  placeholder="Required PO number…"
+                  disabled={gs.poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              {/* Reference Number */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Reference Number</label>
+                <input
+                  type="text"
+                  value={gs.referenceNumber}
+                  onChange={(e) => updateGroup(currency, { referenceNumber: e.target.value })}
+                  placeholder="Optional reference…"
+                  disabled={gs.poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Notes</label>
+                <input
+                  type="text"
+                  value={gs.notes}
+                  onChange={(e) => updateGroup(currency, { notes: e.target.value })}
+                  placeholder="Optional notes…"
+                  disabled={gs.poAlreadyCreated}
+                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => handleSaveDraft(currency, items)}
+                disabled={gs.saving || !!gs.savedDraftId || !gs.selectedVendor || gs.poAlreadyCreated}
+                className="flex items-center gap-2 px-5 py-2.5 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-colors"
+              >
+                {gs.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+                {gs.savedDraftId ? 'Draft Saved' : gs.saving ? 'Saving…' : 'Save Draft'}
+              </button>
+              <button
+                onClick={() => handleCreatePO(currency, items)}
+                disabled={gs.creating || !gs.selectedVendor || !gs.poDate || gs.poAlreadyCreated}
+                className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                {gs.creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+                {gs.creating ? 'Creating…' : 'Create Purchase Order'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Success state */}
+        {gs.createdPO && (
+          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-6 space-y-3">
+            <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+              <CheckCircle className="w-6 h-6" />
+              <h2 className="text-lg font-semibold">Purchase Order Created{isMultiCurrency ? ` (${currency})` : ''}</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-zinc-500 dark:text-zinc-400">PO Number</p>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.purchaseorder_number}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 dark:text-zinc-400">Vendor</p>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.vendor_name}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 dark:text-zinc-400">Date</p>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.date}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500 dark:text-zinc-400">Total</p>
+                <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {gs.createdPO.currency_code} {Number(gs.createdPO.total ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
-  const handleCreatePO = async () => {
-    if (!validation?.items || !selectedVendor) return;
-    setCreating(true);
-    try {
-      let draftId = savedDraftId;
-      if (!draftId) {
-        const { data: draft } = await axios.post<DraftOrder>(
-          `${API_URL}/vendors/draft_orders/save`,
-          {
-            description,
-            items: validation.items,
-            detected_vendor: selectedVendor,
-            date: poDate,
-            notes,
-            reference_number: referenceNumber,
-            purchaseorder_number: purchaseorderNumber,
-          },
-        );
-        draftId = draft._id;
-        setSavedDraftId(draftId);
-      }
-
-      const { data } = await axios.post(
-        `${API_URL}/vendors/draft_orders/create_po`,
-        {
-          contact_id: selectedVendor.contact_id,
-          date: poDate,
-          items: validation.items,
-          notes,
-          reference_number: referenceNumber,
-          purchaseorder_number: purchaseorderNumber,
-          description,
-          draft_id: draftId,
-        },
-      );
-      setCreatedPO(data);
-      toast.success(`Purchase Order ${data.purchaseorder_number} created on Zoho`);
-      await fetchDrafts();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to create purchase order');
-    } finally {
-      setCreating(false);
-    }
-  };
-
+  // ── main render ────────────────────────────────────────────────────────
+  const currencyGroups = validation?.valid ? groupItemsByCurrency(validation.items ?? []) : {};
+  const currencies = Object.keys(currencyGroups);
+  const isMultiCurrency = currencies.length > 1;
+  const allPOsCreated = currencies.length > 0 && currencies.every(c => groups[c]?.createdPO);
 
   return (
     <div className="space-y-6">
@@ -320,7 +605,7 @@ export default function DraftOrderUpload() {
               </thead>
               <tbody className={TABLE_CLASSES.tbody}>
                 {draftOrders.map(draft => (
-                  <tr key={draft._id} className={`${TABLE_CLASSES.tr} ${savedDraftId === draft._id ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}>
+                  <tr key={draft._id} className={TABLE_CLASSES.tr}>
                     <td className={TABLE_CLASSES.td}>
                       <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
                         {draft.description || <span className="text-zinc-400 italic">—</span>}
@@ -390,20 +675,6 @@ export default function DraftOrderUpload() {
       {/* Upload area */}
       {!validation?.valid && (
         <>
-          {/* Description field */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-              Description
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g. Q2 restock — Brand X…"
-              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
           <div
             className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer
               ${dragOver
@@ -458,253 +729,42 @@ export default function DraftOrderUpload() {
         </div>
       )}
 
-      {/* Valid: show order preview + PO form */}
-      {validation?.valid && !createdPO && (
+      {/* Valid: show per-currency groups */}
+      {validation?.valid && (
         <>
           <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
             <CheckCircle className="w-5 h-5" />
             <span className="font-medium">
               All {validation.total_items} items found in database
+              {isMultiCurrency && ` — split into ${currencies.length} currency orders`}
             </span>
           </div>
 
-          {/* Items table */}
-          <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800">
-            <table className={TABLE_CLASSES.table}>
-              <thead className={TABLE_CLASSES.thead}>
-                <tr>
-                  {['Mfr Code', 'BB Code', 'Product Name', 'Qty', 'Unit Price', 'Total'].map(h => (
-                    <th key={h} className={TABLE_CLASSES.th}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {validation.items!.map((it, i) => {
-                  const sym = it.currency === 'CNY' ? '¥' : '$';
-                  const tag = it.currency && it.currency !== 'USD'
-                    ? <span className="ml-1 px-1 py-0.5 text-xs rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{it.currency}</span>
-                    : null;
-                  return (
-                    <tr key={i} className={TABLE_CLASSES.tr}>
-                      <td className={TABLE_CLASSES.td}>{it.manufacturer_code}</td>
-                      <td className={TABLE_CLASSES.td}>{it.bb_code}</td>
-                      <td className={TABLE_CLASSES.td}>{it.product_name || it.item_name}</td>
-                      <td className={TABLE_CLASSES.td}>{it.qty.toLocaleString()}</td>
-                      <td className={TABLE_CLASSES.td}>{sym}{it.unit_price.toFixed(2)}{tag}</td>
-                      <td className={TABLE_CLASSES.td}>{sym}{(it.qty * it.unit_price).toFixed(2)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                {Object.entries(
-                  validation.items!.reduce((acc, it) => {
-                    const c = it.currency || 'USD';
-                    acc[c] = (acc[c] || 0) + it.qty * it.unit_price;
-                    return acc;
-                  }, {} as Record<string, number>)
-                ).map(([curr, subtotal]) => (
-                  <tr key={curr} className="border-t border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900">
-                    <td colSpan={5} className={`${TABLE_CLASSES.td} font-semibold text-right`}>Total ({curr})</td>
-                    <td className={`${TABLE_CLASSES.td} font-semibold`}>
-                      {curr === 'CNY' ? '¥' : '$'}{subtotal.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tfoot>
-            </table>
+          {isMultiCurrency && (
+            <div className="px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+              This order contains items in multiple currencies ({currencies.join(', ')}). Each currency group will be created as a separate purchase order.
+            </div>
+          )}
+
+          <div className={isMultiCurrency ? 'space-y-10 divide-y divide-zinc-200 dark:divide-zinc-800' : 'space-y-4'}>
+            {currencies.map(currency => (
+              <div key={currency} className={isMultiCurrency ? 'pt-6 first:pt-0' : ''}>
+                {renderCurrencyGroup(currency, currencyGroups[currency], isMultiCurrency)}
+              </div>
+            ))}
           </div>
 
-          {/* PO creation form */}
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Create Purchase Order on Zoho</h2>
-
-            {poAlreadyCreated && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-sm text-green-700 dark:text-green-400">
-                <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                Purchase order has already been created for this draft. Load a new draft or reset to create another.
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Description */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="e.g. Q2 restock — Brand X…"
-                  disabled={poAlreadyCreated}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              {/* Vendor — auto-detected; picker shown when brand has multiple vendors */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Vendor
-                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(auto-detected from first product)</span>
-                </label>
-                {selectedVendor ? (
-                  <div className="flex items-center gap-2 px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-zinc-50 dark:bg-zinc-800">
-                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{selectedVendor.contact_name}</span>
-                    {selectedVendor.currency_code && (
-                      <span className="ml-auto text-xs text-zinc-400">{selectedVendor.currency_code}</span>
-                    )}
-                    {availableVendors.length > 1 && !poAlreadyCreated && (
-                      <button
-                        onClick={() => setSelectedVendor(null)}
-                        className="ml-auto text-xs text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        Change
-                      </button>
-                    )}
-                  </div>
-                ) : availableVendors.length > 1 ? (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">This brand has multiple vendors — select the currency for this order:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {availableVendors.map(v => (
-                        <button
-                          key={v.contact_id}
-                          onClick={() => setSelectedVendor(v)}
-                          className="flex items-center gap-2 px-3 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                        >
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{v.contact_name}</span>
-                          {v.currency_code && (
-                            <span className="px-1.5 py-0.5 rounded text-xs bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400">{v.currency_code}</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="px-3 py-2 border border-red-200 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20 text-sm text-red-600 dark:text-red-400">
-                    No vendor detected — set up vendor brand mapping first
-                  </div>
-                )}
-              </div>
-
-              {/* PO Date */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  PO Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={poDate}
-                  onChange={(e) => setPoDate(e.target.value)}
-                  disabled={poAlreadyCreated}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              {/* PO Number */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  PO Number
-                </label>
-                <input
-                  type="text"
-                  value={purchaseorderNumber}
-                  onChange={(e) => setPurchaseorderNumber(e.target.value)}
-                  placeholder="Required PO number…"
-                  disabled={poAlreadyCreated}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              {/* Reference Number */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Reference Number
-                </label>
-                <input
-                  type="text"
-                  value={referenceNumber}
-                  onChange={(e) => setReferenceNumber(e.target.value)}
-                  placeholder="Optional reference…"
-                  disabled={poAlreadyCreated}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                  Notes
-                </label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Optional notes…"
-                  disabled={poAlreadyCreated}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
+          {allPOsCreated && (
+            <div className="flex justify-center pt-4">
               <button
-                onClick={handleSaveDraft}
-                disabled={saving || !!savedDraftId || !selectedVendor || poAlreadyCreated}
-                className="flex items-center gap-2 px-5 py-2.5 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium rounded-lg transition-colors"
+                onClick={reset}
+                className="text-sm text-blue-600 hover:underline dark:text-blue-400"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-                {savedDraftId ? 'Draft Saved' : saving ? 'Saving…' : 'Save Draft'}
-              </button>
-              <button
-                onClick={handleCreatePO}
-                disabled={creating || !selectedVendor || !poDate || poAlreadyCreated}
-                className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-                {creating ? 'Creating…' : 'Create Purchase Order'}
+                Upload another order
               </button>
             </div>
-          </div>
+          )}
         </>
-      )}
-
-      {/* Success state */}
-      {createdPO && (
-        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-6 space-y-3">
-          <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-            <CheckCircle className="w-6 h-6" />
-            <h2 className="text-lg font-semibold">Purchase Order Created</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-zinc-500 dark:text-zinc-400">PO Number</p>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{createdPO.purchaseorder_number}</p>
-            </div>
-            <div>
-              <p className="text-zinc-500 dark:text-zinc-400">Vendor</p>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{createdPO.vendor_name}</p>
-            </div>
-            <div>
-              <p className="text-zinc-500 dark:text-zinc-400">Date</p>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{createdPO.date}</p>
-            </div>
-            <div>
-              <p className="text-zinc-500 dark:text-zinc-400">Total</p>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                {createdPO.currency_code} {Number(createdPO.total ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={reset}
-            className="mt-2 text-sm text-blue-600 hover:underline dark:text-blue-400"
-          >
-            Upload another order
-          </button>
-        </div>
       )}
 
       {/* Missing items modal */}

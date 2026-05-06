@@ -277,33 +277,6 @@ const InvoiceReportGenerator = () => {
               </p>
             </div>
 
-            <div
-              className="flex items-center mb-4"
-              data-tooltip-target="tooltip-default"
-            >
-              <input
-                id="default-checkbox"
-                type="checkbox"
-                name="exclude_customers"
-                checked={formData.exclude_customers}
-                onChange={handleInputChange}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded-sm focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-              />
-              {/* <div
-                id="tooltip-default"
-                role="tooltip"
-                className="absolute z-10 inline-block px-3 py-2 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-xs opacity-0 tooltip dark:bg-gray-700"
-              >
-                Checking this box excludes the following customers: [ "(amzb2b)
-                Pupscribe Enterprises Pvt Ltd", "Pupscribe Enterprises Private
-                Limited", "(OSAMP) Office samples", "(PUPEV) PUPSCRIBE EVENTS",
-                "(SSAM) Sales samples", ]
-                <div className="tooltip-arrow" data-popper-arrow></div>
-              </div> */}
-              {/* <label className="ms-2 text-sm font-medium text-gray-900 dark:text-zinc-100">
-                Exclude Customers
-              </label> */}
-            </div>
             {/* Message Display */}
             {message.text && (
               <div
