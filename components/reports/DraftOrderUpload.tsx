@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle, ShoppingCart, Loader2, Trash2, RefreshCw } from 'lucide-react';
+import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle, ShoppingCart, Loader2, Trash2, RefreshCw, Package } from 'lucide-react';
 import { TABLE_CLASSES } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -29,6 +29,11 @@ interface DetectedVendor {
   contact_id: string;
   contact_name: string;
   currency_code: string;
+}
+
+interface VendorBrand {
+  name: string;
+  vendors: Array<{ contact_id: string; contact_name: string; currency_code?: string }>;
 }
 
 interface ValidationResult {
@@ -121,6 +126,13 @@ export default function DraftOrderUpload() {
   const [draftOrders, setDraftOrders] = useState<DraftOrder[]>([]);
   const [draftsLoading, setDraftsLoading] = useState(false);
 
+  const [vendorBrands, setVendorBrands] = useState<VendorBrand[]>([]);
+  const [creatingBrandOrder, setCreatingBrandOrder] = useState<Record<string, boolean>>({});
+  const [brandOrderCreated, setBrandOrderCreated] = useState<Record<string, boolean>>({});
+  const [brandPickerFor, setBrandPickerFor] = useState<{
+    key: string; vendorId: string; poNumber: string; poDate: string;
+  } | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── draft list ─────────────────────────────────────────────────────────
@@ -136,7 +148,12 @@ export default function DraftOrderUpload() {
     }
   }, []);
 
-  useEffect(() => { fetchDrafts(); }, [fetchDrafts]);
+  useEffect(() => {
+    fetchDrafts();
+    axios.get<{ brands: VendorBrand[] }>(`${API_URL}/vendors/brands`)
+      .then(r => setVendorBrands(r.data.brands || []))
+      .catch(() => {});
+  }, [fetchDrafts]);
 
   // ── reset ──────────────────────────────────────────────────────────────
   const reset = () => {
@@ -313,6 +330,34 @@ export default function DraftOrderUpload() {
       toast.success('Draft deleted');
     } catch {
       toast.error('Failed to delete draft');
+    }
+  };
+
+  // ── brand order creation ───────────────────────────────────────────────
+  const getBrandsForVendor = (vendorId: string) =>
+    vendorBrands.filter(b => b.vendors.some(v => v.contact_id === vendorId));
+
+  const handleCreateBrandOrder = async (key: string, vendorId: string, poNumber: string, poDate: string, brandName?: string) => {
+    if (!brandName) {
+      const matches = getBrandsForVendor(vendorId);
+      if (matches.length === 0) { toast.error('No brand mapping found for this vendor'); return; }
+      if (matches.length > 1) { setBrandPickerFor({ key, vendorId, poNumber, poDate }); return; }
+      brandName = matches[0].name;
+    }
+    setCreatingBrandOrder(p => ({ ...p, [key]: true }));
+    try {
+      const form = new FormData();
+      form.append('brand', brandName!);
+      form.append('vendor_id', vendorId);
+      form.append('purchaseorder_number', poNumber);
+      if (poDate) form.append('order_date', poDate);
+      await axios.post(`${API_URL}/brand_orders/`, form);
+      toast.success(`Brand order created for PO ${poNumber}`);
+      setBrandOrderCreated(p => ({ ...p, [key]: true }));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to create brand order');
+    } finally {
+      setCreatingBrandOrder(p => ({ ...p, [key]: false }));
     }
   };
 
@@ -520,34 +565,58 @@ export default function DraftOrderUpload() {
         )}
 
         {/* Success state */}
-        {gs.createdPO && (
-          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-6 space-y-3">
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-              <CheckCircle className="w-6 h-6" />
-              <h2 className="text-lg font-semibold">Purchase Order Created{isMultiCurrency ? ` (${currency})` : ''}</h2>
+        {gs.createdPO && (() => {
+          const vendorId = gs.selectedVendor?.contact_id ?? '';
+          const matchedBrands = getBrandsForVendor(vendorId);
+          const singleBrand = matchedBrands.length === 1 ? matchedBrands[0].name : null;
+          const key = currency;
+          return (
+            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-6 space-y-3">
+              <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                <CheckCircle className="w-6 h-6" />
+                <h2 className="text-lg font-semibold">Purchase Order Created{isMultiCurrency ? ` (${currency})` : ''}</h2>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-zinc-500 dark:text-zinc-400">PO Number</p>
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.purchaseorder_number}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 dark:text-zinc-400">Vendor</p>
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.vendor_name}</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 dark:text-zinc-400">Brand</p>
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    {matchedBrands.length === 0 ? <span className="text-zinc-400">—</span> : matchedBrands.map(b => b.name).join(', ')}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 dark:text-zinc-400">Total</p>
+                  <p className="font-semibold text-zinc-900 dark:text-zinc-100">
+                    {gs.createdPO.currency_code} {Number(gs.createdPO.total ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-end pt-2 border-t border-green-200 dark:border-green-800">
+                {brandOrderCreated[key] ? (
+                  <span className="flex items-center gap-1.5 text-sm text-green-700 dark:text-green-400 font-medium">
+                    <CheckCircle className="w-4 h-4" /> Brand Order Created
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleCreateBrandOrder(key, vendorId, gs.createdPO.purchaseorder_number, gs.poDate, singleBrand ?? undefined)}
+                    disabled={creatingBrandOrder[key] || matchedBrands.length === 0}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    {creatingBrandOrder[key] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+                    {creatingBrandOrder[key] ? 'Creating…' : 'Create Brand Order'}
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <p className="text-zinc-500 dark:text-zinc-400">PO Number</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.purchaseorder_number}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 dark:text-zinc-400">Vendor</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.vendor_name}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 dark:text-zinc-400">Date</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.date}</p>
-              </div>
-              <div>
-                <p className="text-zinc-500 dark:text-zinc-400">Total</p>
-                <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                  {gs.createdPO.currency_code} {Number(gs.createdPO.total ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     );
   };
@@ -598,74 +667,106 @@ export default function DraftOrderUpload() {
             <table className={TABLE_CLASSES.table}>
               <thead className={TABLE_CLASSES.thead}>
                 <tr>
-                  {['Description', 'Vendor', 'Date', 'Items', 'Status', 'PO Status', 'Created', 'Actions'].map(h => (
+                  {['Description', 'Vendor', 'Brand', 'Date', 'Items', 'Status', 'PO Status', 'Created', 'Actions'].map(h => (
                     <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className={TABLE_CLASSES.tbody}>
-                {draftOrders.map(draft => (
-                  <tr key={draft._id} className={TABLE_CLASSES.tr}>
-                    <td className={TABLE_CLASSES.td}>
-                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                        {draft.description || <span className="text-zinc-400 italic">—</span>}
-                      </span>
-                    </td>
-                    <td className={TABLE_CLASSES.td}>
-                      <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                        {draft.detected_vendor?.contact_name || <span className="text-zinc-400">—</span>}
-                      </span>
-                    </td>
-                    <td className={TABLE_CLASSES.td}>
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">{draft.date}</span>
-                    </td>
-                    <td className={TABLE_CLASSES.td}>
-                      <span className="text-sm text-zinc-700 dark:text-zinc-300">{draft.item_count}</span>
-                    </td>
-                    <td className={TABLE_CLASSES.td}>
-                      {draft.po_created ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                          PO Created{draft.po_number ? ` — ${draft.po_number}` : ''}
+                {draftOrders.map(draft => {
+                  const draftBrands = getBrandsForVendor(draft.detected_vendor?.contact_id ?? '');
+                  const draftBrandLabel = draftBrands.length === 0 ? '—' : draftBrands.map(b => b.name).join(', ');
+                  const draftKey = `draft_${draft._id}`;
+                  const canCreateBrandOrder = draft.po_created && !!draft.po_number && draftBrands.length > 0;
+                  return (
+                    <tr key={draft._id} className={TABLE_CLASSES.tr}>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                          {draft.description || <span className="text-zinc-400 italic">—</span>}
                         </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
-                          Draft
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                          {draft.detected_vendor?.contact_name || <span className="text-zinc-400">—</span>}
                         </span>
-                      )}
-                    </td>
-                    <td className={TABLE_CLASSES.td}>
-                      {draft.po_status ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                          {draft.po_status}
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className="text-sm text-zinc-700 dark:text-zinc-300">{draftBrandLabel}</span>
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className="text-sm text-zinc-600 dark:text-zinc-400">{draft.date}</span>
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className="text-sm text-zinc-700 dark:text-zinc-300">{draft.item_count}</span>
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        {draft.po_created ? (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            PO Created{draft.po_number ? ` — ${draft.po_number}` : ''}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                            Draft
+                          </span>
+                        )}
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        {draft.po_status ? (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                            {draft.po_status}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className="text-xs text-zinc-500">
+                          {new Date(draft.created_at).toLocaleDateString('en-IN')}
                         </span>
-                      ) : (
-                        <span className="text-zinc-400 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className={TABLE_CLASSES.td}>
-                      <span className="text-xs text-zinc-500">
-                        {new Date(draft.created_at).toLocaleDateString('en-IN')}
-                      </span>
-                    </td>
-                    <td className={TABLE_CLASSES.td}>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleLoadDraft(draft)}
-                          className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                        >
-                          Load
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDraft(draft._id)}
-                          className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
-                          title="Delete draft"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleLoadDraft(draft)}
+                            className="px-3 py-1 text-xs font-medium rounded border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          >
+                            Load
+                          </button>
+                          {canCreateBrandOrder && (
+                            brandOrderCreated[draftKey] ? (
+                              <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+                                <CheckCircle size={12} /> Brand Order Created
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleCreateBrandOrder(
+                                  draftKey,
+                                  draft.detected_vendor!.contact_id,
+                                  draft.po_number!,
+                                  draft.date,
+                                  draftBrands.length === 1 ? draftBrands[0].name : undefined,
+                                )}
+                                disabled={creatingBrandOrder[draftKey]}
+                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50 transition-colors"
+                                title="Create Brand Order"
+                              >
+                                {creatingBrandOrder[draftKey] ? <Loader2 size={11} className="animate-spin" /> : <Package size={11} />}
+                                {creatingBrandOrder[draftKey] ? 'Creating…' : 'Brand Order'}
+                              </button>
+                            )
+                          )}
+                          <button
+                            onClick={() => handleDeleteDraft(draft._id)}
+                            className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
+                            title="Delete draft"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -766,6 +867,42 @@ export default function DraftOrderUpload() {
           )}
         </>
       )}
+
+      {/* Brand picker modal */}
+      {brandPickerFor && (() => {
+        const matchedBrands = getBrandsForVendor(brandPickerFor.vendorId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Select Brand</h2>
+                <button onClick={() => setBrandPickerFor(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Multiple brands are mapped to this vendor. Choose which brand to create the order under.
+              </p>
+              <div className="space-y-2">
+                {matchedBrands.map(b => (
+                  <button
+                    key={b.name}
+                    onClick={() => {
+                      const { key, vendorId, poNumber, poDate } = brandPickerFor;
+                      setBrandPickerFor(null);
+                      handleCreateBrandOrder(key, vendorId, poNumber, poDate, b.name);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm font-medium text-zinc-800 dark:text-zinc-200 transition-colors text-left"
+                  >
+                    <Package className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Missing items modal */}
       {showMissingModal && validation && !validation.valid && (

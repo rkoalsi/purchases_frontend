@@ -1,20 +1,14 @@
 // components/AmazonSalesReport.tsx
 "use client";
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import "react-datepicker/dist/react-datepicker.css";
-import { format } from "date-fns";
-import dateUtils from "../common/DateUtils";
-import DatePicker from "../common/DatePicker";
+import React, { useState, useMemo, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { Package, TrendingUp, TrendingDown } from "lucide-react";
 import {
   SortIcon as StandardSortIcon,
-  TABLE_CLASSES,
   CONTROLS_CLASSES,
   LoadingState,
   SearchBar,
-  formatNumber as standardFormatNumber,
 } from './TableStyles';
 import DateRangeComponent from '@/components/reports/DateRange';
 
@@ -604,12 +598,45 @@ const processDownload = async (response: any) => {
                       <StandardSortIcon column="units_sold" sortConfig={sortConfig} />
                     </button>
                   </th>
+                  {(reportType === "fba" || reportType === "fba+seller_flex" || reportType === "all") && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
+                      <button
+                        onClick={() => handleSort("fba_returns")}
+                        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
+                      >
+                        FBA Returns
+                        <StandardSortIcon column="fba_returns" sortConfig={sortConfig} />
+                      </button>
+                    </th>
+                  )}
+                  {(reportType === "seller_flex" || reportType === "fba+seller_flex" || reportType === "all") && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[140px]">
+                      <button
+                        onClick={() => handleSort("seller_flex_returns")}
+                        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
+                      >
+                        SF Returns
+                        <StandardSortIcon column="seller_flex_returns" sortConfig={sortConfig} />
+                      </button>
+                    </th>
+                  )}
+                  {(reportType === "vendor_central" || reportType === "all") && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[130px]">
+                      <button
+                        onClick={() => handleSort("vc_returns")}
+                        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
+                      >
+                        VC Returns
+                        <StandardSortIcon column="vc_returns" sortConfig={sortConfig} />
+                      </button>
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider min-w-[120px]">
                     <button
                       onClick={() => handleSort("total_returns")}
                       className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors"
                     >
-                      FBA Returns
+                      Total Returns
                       <StandardSortIcon column="total_returns" sortConfig={sortConfig} />
                     </button>
                   </th>
@@ -708,8 +735,23 @@ const processDownload = async (response: any) => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.units_sold}
                         </td>
+                        {(reportType === "fba" || reportType === "fba+seller_flex" || reportType === "all") && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
+                            {item.fba_returns ?? 0}
+                          </td>
+                        )}
+                        {(reportType === "seller_flex" || reportType === "fba+seller_flex" || reportType === "all") && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
+                            {item.seller_flex_returns ?? 0}
+                          </td>
+                        )}
+                        {(reportType === "vendor_central" || reportType === "all") && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
+                            {item.vc_returns ?? 0}
+                          </td>
+                        )}
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
-                          {item.total_returns}
+                          {item.total_returns ?? 0}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.total_amount}
@@ -725,8 +767,12 @@ const processDownload = async (response: any) => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
                           {item.total_days_in_stock}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100 font-medium">
-                          {item.drr}
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                          {typeof item.drr === "string" ? (
+                            <span className="text-amber-600 dark:text-amber-400 text-xs">{item.drr}</span>
+                          ) : (
+                            <span className="text-gray-900 dark:text-zinc-100">{item.drr}</span>
+                          )}
                         </td>
                       </tr>
                     );
