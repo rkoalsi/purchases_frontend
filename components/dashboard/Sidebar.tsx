@@ -79,6 +79,7 @@ const PERMISSION_REQUIREMENTS = {
   BB_CODE_GENERATOR: { name: 'tools_bb_code_generator' },
   VENDOR_BRAND_MAPPING: { name: 'vendor_brand_mapping' },
   DRAFT_ORDERS: { name: 'vendors_draft_orders' },
+  BRAND_ORDERS: { anyOf: ['brand_orders_view', 'brand_orders_edit'] },
 };
 
 // Navigation items with required permissions
@@ -285,6 +286,12 @@ const navigation = [
         icon: ShoppingCart,
         requiredPermission: PERMISSION_REQUIREMENTS.DRAFT_ORDERS,
       },
+      {
+        name: 'Brand Orders',
+        href: '/brand_orders',
+        icon: Package,
+        requiredPermission: PERMISSION_REQUIREMENTS.BRAND_ORDERS,
+      },
     ],
   },
   {
@@ -385,7 +392,7 @@ export default function Sidebar({
 
   // Check if user has a specific permission with required action
   const hasPermission = (
-    requiredPermission: { name: string } | null
+    requiredPermission: { name: string } | { anyOf: string[] } | null
   ): boolean => {
     // If no permission required (like Settings), always allow
     if (requiredPermission === null) return true;
@@ -396,6 +403,11 @@ export default function Sidebar({
     // If user has no permissions array, deny access
     if (!user?.permissions || !Array.isArray(user.permissions)) return false;
 
+    if ('anyOf' in requiredPermission) {
+      return getUserPermissions?.some((permission) =>
+        requiredPermission.anyOf.includes(permission.name)
+      ) ?? false;
+    }
     const hasAccess = getUserPermissions?.some((permission) => {
       return permission.name === requiredPermission.name;
     });

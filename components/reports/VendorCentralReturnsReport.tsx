@@ -59,6 +59,12 @@ interface UploadResult {
   records_inserted: number;
 }
 
+interface BulkUpdateResult {
+  message: string;
+  records_updated: number;
+  records_skipped: number;
+}
+
 const today = new Date().toISOString().split('T')[0];
 const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   .toISOString()
@@ -170,6 +176,13 @@ const VendorCentralReturnsReport = () => {
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkError, setBulkError] = useState('');
+  const [bulkResult, setBulkResult] = useState<BulkUpdateResult | null>(null);
+  const [bulkDragOver, setBulkDragOver] = useState(false);
+
   const [startDate, setStartDate] = useState(firstOfMonth);
   const [endDate, setEndDate] = useState(today);
   const [records, setRecords] = useState<VcReturn[]>([]);
@@ -234,6 +247,51 @@ const VendorCentralReturnsReport = () => {
     setUploadResult(null);
     setUploadError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const acceptBulkFile = (file: File) => {
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      setBulkError('Please upload an Excel file (.xlsx or .xls)');
+      return;
+    }
+    setBulkError('');
+    setBulkResult(null);
+    setBulkFile(file);
+  };
+
+  const handleBulkUpdate = async () => {
+    if (!bulkFile) return;
+    setBulkUploading(true);
+    setBulkError('');
+    setBulkResult(null);
+    const formData = new FormData();
+    formData.append('file', bulkFile);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/amazon/upload/vendor-central-returns-bulk-update`,
+        {
+          method: 'POST',
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+          body: formData,
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      setBulkResult(data);
+      toast.success(`Updated ${data.records_updated} records`, { autoClose: 3000 });
+      fetchRecords();
+    } catch (err: any) {
+      setBulkError(err.message || 'Bulk update failed.');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const resetBulkUpload = () => {
+    setBulkFile(null);
+    setBulkResult(null);
+    setBulkError('');
+    if (bulkFileInputRef.current) bulkFileInputRef.current.value = '';
   };
 
   const fetchRecords = async (s = startDate, e = endDate) => {
@@ -395,6 +453,78 @@ const VendorCentralReturnsReport = () => {
         </div>
 
         <input type='file' accept='.xlsx,.xls' ref={fileInputRef} onChange={e => { const f = e.target.files?.[0]; if (f) acceptFile(f); }} className='hidden' />
+      </div>
+
+      {/* Bulk Update Section */}
+      <div className='bg-white rounded-lg shadow-md p-6 mb-6 dark:bg-zinc-900 dark:border dark:border-zinc-800'>
+        <h2 className='text-xl font-bold text-gray-800 dark:text-zinc-100 mb-1'>
+          Bulk Update Tracking Columns
+        </h2>
+        <p className='text-sm text-gray-500 dark:text-zinc-400 mb-4'>
+          Download the report, fill in <strong>Entry in Zoho</strong>, <strong>Transfer Orders / Inventory Adjustment</strong>, and <strong>Sent to Accounts Team</strong>, then upload it here. Only those 3 columns will be updated.
+        </p>
+
+        {bulkError && (
+          <div className='mb-4 p-3 bg-red-50 border-l-4 border-red-500 rounded-r-lg'>
+            <p className='text-sm font-medium text-red-800'>{bulkError}</p>
+          </div>
+        )}
+
+        {bulkResult && (
+          <div className='mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg'>
+            <p className='text-emerald-800 font-semibold mb-1'>{bulkResult.message}</p>
+            <p className='text-sm text-emerald-700'>
+              Updated: <strong>{bulkResult.records_updated}</strong>
+              &nbsp;·&nbsp; Skipped: <strong>{bulkResult.records_skipped}</strong>
+            </p>
+          </div>
+        )}
+
+        <div className='flex flex-col sm:flex-row gap-4 items-start'>
+          <div
+            className={`flex-1 relative rounded-xl border-2 border-dashed transition-all duration-200 p-6 text-center cursor-pointer
+              ${bulkDragOver ? 'border-violet-400 bg-violet-50' : 'border-gray-300 hover:border-violet-300 hover:bg-gray-50 dark:border-zinc-600 dark:hover:border-zinc-400'}`}
+            onDragOver={e => { e.preventDefault(); setBulkDragOver(true); }}
+            onDragLeave={e => { e.preventDefault(); setBulkDragOver(false); }}
+            onDrop={e => { e.preventDefault(); setBulkDragOver(false); const f = e.dataTransfer.files[0]; if (f) acceptBulkFile(f); }}
+            onClick={() => bulkFileInputRef.current?.click()}
+          >
+            <svg className='w-8 h-8 mx-auto mb-2 text-gray-400' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+              <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={1.5}
+                d='M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' />
+            </svg>
+            {bulkFile ? (
+              <p className='text-sm font-medium text-gray-700 dark:text-zinc-200'>{bulkFile.name}</p>
+            ) : (
+              <p className='text-sm text-gray-500 dark:text-zinc-400'>
+                Drop updated XLSX or <span className='text-violet-600'>browse</span>
+              </p>
+            )}
+          </div>
+
+          <div className='flex flex-col gap-2 justify-start pt-1'>
+            <button
+              onClick={handleBulkUpdate}
+              disabled={!bulkFile || bulkUploading}
+              className='px-5 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700
+                disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2'
+            >
+              {bulkUploading ? (
+                <><div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white' />Updating...</>
+              ) : 'Apply Updates'}
+            </button>
+            <button
+              onClick={resetBulkUpload}
+              disabled={bulkUploading}
+              className='px-5 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200
+                disabled:opacity-50 border border-gray-200 transition-colors dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <input type='file' accept='.xlsx,.xls' ref={bulkFileInputRef} onChange={e => { const f = e.target.files?.[0]; if (f) acceptBulkFile(f); }} className='hidden' />
       </div>
 
       {/* Report Section */}
