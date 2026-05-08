@@ -63,7 +63,6 @@ const BlinkitItemsTable: React.FC<BlinkitItemsTableProps> = ({ brand = '', brand
   // ===== DATA FETCHING =====
   useEffect(() => {
     fetchItems();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth, selectedYear]);
 
   const fetchItems = async () => {
