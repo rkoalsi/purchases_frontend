@@ -57,6 +57,7 @@ interface UploadResult {
   date_range: { start: string; end: string };
   existing_deleted: number;
   records_inserted: number;
+  records_updated: number;
 }
 
 interface BulkUpdateResult {
@@ -233,8 +234,11 @@ const VendorCentralReturnsReport = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
       setUploadResult(data);
-      toast.success(`Processed ${data.records_inserted} records`, { autoClose: 3000 });
-      fetchRecords();
+      const totalProcessed = (data.records_inserted || 0) + (data.records_updated || 0);
+      toast.success(`Processed ${totalProcessed} records`, { autoClose: 3000 });
+      setStartDate(data.date_range.start);
+      setEndDate(data.date_range.end);
+      fetchRecords(data.date_range.start, data.date_range.end);
     } catch (err: any) {
       setUploadError(err.message || 'Upload failed.');
     } finally {
@@ -403,7 +407,7 @@ const VendorCentralReturnsReport = () => {
             <p className='text-emerald-800 font-semibold mb-1'>{uploadResult.message}</p>
             <p className='text-sm text-emerald-700'>
               Range: <strong>{uploadResult.date_range.start}</strong> → <strong>{uploadResult.date_range.end}</strong>
-              &nbsp;·&nbsp; Processed: <strong>{uploadResult.records_inserted}</strong>
+              &nbsp;·&nbsp; Processed: <strong>{(uploadResult.records_inserted || 0) + (uploadResult.records_updated || 0)}</strong>
             </p>
           </div>
         )}
