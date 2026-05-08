@@ -284,7 +284,7 @@ export default function BrandOrders() {
   }, []);
 
   const toggleBrand = (n: string) =>
-    setExpandedBrands(prev => { const s = new Set(prev); s.has(n) ? s.delete(n) : s.add(n); return s; });
+    setExpandedBrands(prev => { const s = new Set(prev); if (s.has(n)) { s.delete(n); } else { s.add(n); } return s; });
 
   const toggleExpand = (id: string) => {
     if (expandedOrder === id) { setExpandedOrder(null); return; }
@@ -1158,7 +1158,7 @@ export default function BrandOrders() {
                                             >
                                               <FolderOpen size={13} />
                                               <input type="file" className="hidden" disabled={!!uploadingFor}
-                                                // @ts-ignore
+                                                // @ts-expect-error -- webkitdirectory is a non-standard HTML attribute not in React's type definitions
                                                 webkitdirectory=""
                                                 onChange={e => { if (e.target.files?.length) { handleUploadDoc(order._id, Array.from(e.target.files).map(file => ({ file, relativePath: (file as any).webkitRelativePath || undefined }))); if (expandedOrder !== order._id) toggleExpand(order._id); } }} />
                                             </label>
@@ -1246,7 +1246,7 @@ export default function BrandOrders() {
                                           Folder
                                           <input ref={el => { folderInputRefs.current[order._id] = el; }} type="file" className="hidden"
                                             disabled={!!uploadingFor}
-                                            // @ts-ignore
+                                            // @ts-expect-error -- webkitdirectory is a non-standard HTML attribute not in React's type definitions
                                             webkitdirectory=""
                                             onChange={e => { if (e.target.files?.length) handleUploadDoc(order._id, Array.from(e.target.files).map(file => ({ file, relativePath: (file as any).webkitRelativePath || undefined }))); }} />
                                         </label>
