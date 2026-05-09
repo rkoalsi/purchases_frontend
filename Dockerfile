@@ -6,8 +6,9 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-# Install dependencies
-RUN npm install
+COPY package-lock.json* ./
+# Install dependencies with exact locked versions
+RUN npm ci
 
 # Build stage
 FROM base AS builder
