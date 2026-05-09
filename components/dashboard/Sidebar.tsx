@@ -72,6 +72,7 @@ const PERMISSION_REQUIREMENTS = {
   MISSED_SALES: { name: 'reports_missed_sales' },
   AMAZON_LISTING_VALIDATION: { name: 'reports_amazon_listing_validation' },
   VENDOR_PO: { name: 'reports_vendor_po' },
+  ETRADE_SHIPMENT_SUMMARY: { name: 'reports_vendor_po' },
   SELLER_FLEX_RETURNS: { name: 'reports_amazon_seller_flex_returns' },
   FBA_RETURNS: { name: 'reports_amazon_fba_returns' },
   VENDOR_CENTRAL_RETURNS: { name: 'reports_amazon_vendor_central_returns' },
@@ -144,6 +145,12 @@ const navigation = [
             href: '/reports/vendor_po',
             icon: Truck,
             requiredPermission: PERMISSION_REQUIREMENTS.VENDOR_PO,
+          },
+          {
+            name: 'Etrade Shipment Summary',
+            href: '/reports/etrade_shipment_summary',
+            icon: Box,
+            requiredPermission: PERMISSION_REQUIREMENTS.ETRADE_SHIPMENT_SUMMARY,
           },
           {
             name: 'Seller Flex Returns',

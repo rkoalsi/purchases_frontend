@@ -1067,13 +1067,13 @@ export default function VendorPOReport() {
                             onChange={(e) => handleStatusChange(po.po_number, e.target.value, po.po_status)}
                             className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
                           >
-                            <option value="pending">pending</option>
-                            <option value="processing">processing</option>
-                            <option value="packed">packed</option>
-                            <option value="closed">closed</option>
-                            <option value="intransit">intransit</option>
-                            <option value="delivered">delivered</option>
-                            <option value="completed">completed</option>
+                            <option value="pending">Pending</option>
+                            <option value="processing">Processing</option>
+                            <option value="packed">Packed</option>
+                            <option value="closed">Closed</option>
+                            <option value="intransit">Intransit</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="completed">Completed</option>
                           </select>
                         </td>
                         <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
