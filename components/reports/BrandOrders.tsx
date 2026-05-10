@@ -7,7 +7,7 @@ import { useAuth } from '@/components/context/AuthContext';
 import {
   Plus, Upload, Trash2, Download, Pencil, X, Check, Loader2, RefreshCw,
   FileText, ChevronDown, ChevronRight, Package, Tag, AlertTriangle, Search,
-  Archive, Eye, FolderOpen, ArrowLeft, ArrowRight, Link2,
+  Archive, Eye, FolderOpen, ArrowLeft, ArrowRight, Link2, BarChart2,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -85,6 +85,71 @@ function fmtSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function daysBetween(a: string | undefined | null, b: string | undefined | null): number | null {
+  if (!a || !b) return null;
+  const diff = new Date(b).getTime() - new Date(a).getTime();
+  if (isNaN(diff)) return null;
+  return Math.round(diff / (1000 * 60 * 60 * 24));
+}
+
+interface LeadTimeMetrics {
+  orderProcessingDays: number | null;   // G = proforma - initiation
+  orderPreparingDays: number | null;    // I = ready - proforma
+  mfgLeadTime: number | null;           // N = G + I
+  readyToEtdDays: number | null;        // O = etd - ready
+  readyToEtdOverTarget: number | null;  // Q = O - 7
+  totalDays: number | null;             // R = O + N
+  sailDays: number | null;              // T = port - etd
+  portToWhDays: number | null;          // V = inward - port
+  portToWhOverTarget: number | null;    // X = V - 7
+  leadTime: number | null;              // AA = inward - proforma
+}
+
+function computeLeadTimeMetrics(form: Partial<CreateFormState>): LeadTimeMetrics {
+  const G = daysBetween(form.initiation_date, form.proforma_date);
+  const I_ = daysBetween(form.proforma_date, form.ready_date);
+  const N = G != null && I_ != null ? G + I_ : null;
+  const O = daysBetween(form.ready_date, form.etd_date);
+  const Q = O != null ? O - 7 : null;
+  const R = O != null && N != null ? O + N : null;
+  const T = daysBetween(form.etd_date, form.eta_port_date);
+  const V = daysBetween(form.eta_port_date, form.inward_date);
+  const X = V != null ? V - 7 : null;
+  const AA = daysBetween(form.proforma_date, form.inward_date);
+  return {
+    orderProcessingDays: G,
+    orderPreparingDays: I_,
+    mfgLeadTime: N,
+    readyToEtdDays: O,
+    readyToEtdOverTarget: Q,
+    totalDays: R,
+    sailDays: T,
+    portToWhDays: V,
+    portToWhOverTarget: X,
+    leadTime: AA,
+  };
+}
+
+function overTargetClass(val: number | null): string {
+  if (val === null) return 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400';
+  if (val <= 0) return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300';
+  if (val <= 3) return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300';
+  if (val <= 6) return 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300';
+  return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300';
+}
+
+function MetricCell({ label, value, unit = 'd', highlight }: { label: string; value: number | null; unit?: string; highlight?: string }) {
+  const base = highlight ?? 'bg-zinc-50 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300';
+  return (
+    <div className={`flex flex-col items-center justify-center rounded-lg px-2 py-1.5 ${base}`}>
+      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 text-center leading-tight mb-0.5">{label}</span>
+      <span className="text-sm font-bold tabular-nums">
+        {value != null ? `${value}${unit}` : <span className="text-zinc-300 dark:text-zinc-600">—</span>}
+      </span>
+    </div>
+  );
+}
+
 const COMPLETED_PO_STATUSES = new Set(['billed', 'closed', 'received', 'cancelled']);
 function isEtaOverdue(eta: string, poStatus: string | null) {
   if (!eta) return false;
@@ -116,6 +181,7 @@ function fileIconColor(contentType: string, filename: string) {
 export default function BrandOrders() {
   const { user, accessToken } = useAuth();
   const [canEdit, setCanEdit] = useState(false);
+  const isAdmin = user?.role === 'admin';
 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [orders, setOrders] = useState<BrandOrder[]>([]);
@@ -141,6 +207,8 @@ export default function BrandOrders() {
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<Record<string, { done: number; total: number }>>({});
   const [zippingOrder, setZippingOrder] = useState<string | null>(null);
+  const [downloadingReport, setDownloadingReport] = useState(false);
+  const [reportBrand, setReportBrand] = useState<string>('');
 
   const [createForVendor, setCreateForVendor] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -520,6 +588,29 @@ export default function BrandOrders() {
     finally { setZippingOrder(null); }
   };
 
+  const handleDownloadLeadTimeReport = async (brand?: string) => {
+    if (!accessToken) { toast.error('Not authenticated'); return; }
+    setDownloadingReport(true);
+    try {
+      const params = brand ? { brand } : {};
+      const response = await axios.get(`${API_URL}/brand_orders/lead-time-report`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        params,
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `Lead_Time_Report_${date}.xlsx`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      const detail = err?.response?.data ? 'Access denied or server error' : 'Failed to download report';
+      toast.error(detail);
+    } finally { setDownloadingReport(false); }
+  };
+
   const handleDeleteDoc = async (orderId: string, docId: string) => {
     if (!confirm('Delete this document?')) return;
     setDeletingDoc(docId);
@@ -552,14 +643,35 @@ export default function BrandOrders() {
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
-          {canEdit && (
+          {isAdmin && (
+            <div className="flex items-center gap-1.5">
+              <select
+                value={reportBrand}
+                onChange={e => setReportBrand(e.target.value)}
+                className="h-9 px-2.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">All Brands</option>
+                {brands.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+              </select>
+              <button
+                onClick={() => handleDownloadLeadTimeReport(reportBrand || undefined)}
+                disabled={downloadingReport}
+                title="Download Lead Time Report"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+              >
+                {downloadingReport ? <Loader2 size={14} className="animate-spin" /> : <BarChart2 size={14} />}
+                Lead Time Report 
+              </button>
+            </div>
+          )}
+          {/* {canEdit && (
             <button
               onClick={() => setShowCreateBrand(true)}
               className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
             >
               <Plus size={15} /> New Brand
             </button>
-          )}
+          )} */}
         </div>
       </div>
 
@@ -965,13 +1077,13 @@ export default function BrandOrders() {
                                         {/* Manual date fields */}
                                         <div className="grid grid-cols-2 gap-2">
                                           {([
-                                            ['initiation_date', 'Date of Initiation'],
-                                            ['proforma_date', 'Proforma Invoice'],
-                                            ['ready_date', 'Order Ready Date'],
-                                            ['etd_date', 'ETD / Sailing Date'],
-                                            ['eta_port_date', 'Port / ETA Date'],
-                                            ['duty_payment_date', 'Duty Payment Date'],
-                                            ['inward_date', 'Inward Date'],
+                                            ['initiation_date', 'Date of Initiation (E)'],
+                                            ['proforma_date', 'Proforma Invoice (F)'],
+                                            ['ready_date', 'Order Ready Date (H)'],
+                                            ['etd_date', 'ETD / Sailing Date (M)'],
+                                            ['eta_port_date', 'Port / ETA Date (S)'],
+                                            ['duty_payment_date', 'Duty Payment Date (Y)'],
+                                            ['inward_date', 'Inward / WH Date (U/Z)'],
                                           ] as [keyof CreateFormState, string][]).map(([field, label]) => (
                                             <div key={field}>
                                               <label className="block text-xs text-zinc-400 mb-0.5">{label}</label>
@@ -980,6 +1092,63 @@ export default function BrandOrders() {
                                             </div>
                                           ))}
                                         </div>
+
+                                        {/* ── Lead Time Analytics ── */}
+                                        {(() => {
+                                          const m = computeLeadTimeMetrics(editForm);
+                                          const hasAny = Object.values(m).some(v => v !== null);
+                                          if (!hasAny) return null;
+                                          return (
+                                            <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
+                                                <BarChart2 size={11} className="text-blue-500" />
+                                                <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Lead Time Analysis</span>
+                                              </div>
+                                              <div className="p-2 space-y-2 bg-white dark:bg-zinc-900">
+
+                                                {/* Manufacturer Phase */}
+                                                <div>
+                                                  <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Manufacturer Phase</p>
+                                                  <div className="grid grid-cols-3 gap-1.5">
+                                                    <MetricCell label="Processing Days (G)" value={m.orderProcessingDays} />
+                                                    <MetricCell label="Preparing Days (I)" value={m.orderPreparingDays} />
+                                                    <MetricCell label="Mfg. Lead Time (N)" value={m.mfgLeadTime} highlight="bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" />
+                                                  </div>
+                                                </div>
+
+                                                {/* Shipping Phase */}
+                                                <div>
+                                                  <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Shipping Phase</p>
+                                                  <div className="grid grid-cols-4 gap-1.5">
+                                                    <MetricCell label="Ready→ETD (O)" value={m.readyToEtdDays} />
+                                                    <MetricCell
+                                                      label="Over Target (Q=O-7)"
+                                                      value={m.readyToEtdOverTarget}
+                                                      highlight={overTargetClass(m.readyToEtdOverTarget)}
+                                                    />
+                                                    <MetricCell label="Sail Days (T)" value={m.sailDays} />
+                                                    <MetricCell label="Total Days (R)" value={m.totalDays} highlight="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300" />
+                                                  </div>
+                                                </div>
+
+                                                {/* Last Mile Phase */}
+                                                <div>
+                                                  <p className="text-[9px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Last Mile Phase</p>
+                                                  <div className="grid grid-cols-3 gap-1.5">
+                                                    <MetricCell label="Port→WH (V)" value={m.portToWhDays} />
+                                                    <MetricCell
+                                                      label="Over Target (X=V-7)"
+                                                      value={m.portToWhOverTarget}
+                                                      highlight={overTargetClass(m.portToWhOverTarget)}
+                                                    />
+                                                    <MetricCell label="Total Lead Time (AA)" value={m.leadTime} highlight="bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300" />
+                                                  </div>
+                                                </div>
+
+                                              </div>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     ) : (
                                       <>
