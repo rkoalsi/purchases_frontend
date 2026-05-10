@@ -98,19 +98,19 @@ const navigation = [
     requiredPermission: null, // visible if any child is accessible
     children: [
       {
-        name: 'Amazon',
+        name: 'Amazon Items',
         href: '/items/amazon',
         icon: AmazonIcon,
         requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_ITEMS,
       },
       {
-        name: 'Blinkit',
+        name: 'Blinkit Items',
         href: '/items/blinkit',
         icon: Zap,
         requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_ITEMS,
       },
       {
-        name: 'Zoho',
+        name: 'Zoho Items',
         href: '/items/zoho',
         icon: Building2,
         requiredPermission: PERMISSION_REQUIREMENTS.ZOHO_ITEMS,
@@ -129,7 +129,7 @@ const navigation = [
         requiredPermission: null,
         children: [
           {
-            name: 'Amazon',
+            name: 'Amazon PSR',
             href: '/reports/amazon',
             icon: AmazonIcon,
             requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_REPORTS,
@@ -141,16 +141,22 @@ const navigation = [
             requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_SETTLEMENTS,
           },
           {
-            name: 'Vendor Central POs',
+            name: 'VC POs',
             href: '/reports/vendor_po',
             icon: Truck,
             requiredPermission: PERMISSION_REQUIREMENTS.VENDOR_PO,
           },
           {
-            name: 'Etrade Shipment Summary',
+            name: 'VC Shipment Summary',
             href: '/reports/etrade_shipment_summary',
             icon: Box,
             requiredPermission: PERMISSION_REQUIREMENTS.ETRADE_SHIPMENT_SUMMARY,
+          },
+          {
+            name: 'VC Returns',
+            href: '/reports/amazon_vendor_central_returns',
+            icon: AmazonIcon,
+            requiredPermission: PERMISSION_REQUIREMENTS.VENDOR_CENTRAL_RETURNS,
           },
           {
             name: 'Seller Flex Returns',
@@ -164,12 +170,7 @@ const navigation = [
             icon: AmazonIcon,
             requiredPermission: PERMISSION_REQUIREMENTS.FBA_RETURNS,
           },
-          {
-            name: 'Vendor Central Returns',
-            href: '/reports/amazon_vendor_central_returns',
-            icon: AmazonIcon,
-            requiredPermission: PERMISSION_REQUIREMENTS.VENDOR_CENTRAL_RETURNS,
-          },
+
         ],
       },
       {
@@ -178,7 +179,7 @@ const navigation = [
         requiredPermission: null,
         children: [
           {
-            name: 'Blinkit',
+            name: 'Blinkit PSR',
             href: '/reports/blinkit',
             icon: Zap,
             requiredPermission: PERMISSION_REQUIREMENTS.BLINKIT_REPORTS,
@@ -197,13 +198,13 @@ const navigation = [
         requiredPermission: null,
         children: [
           {
-            name: 'Retail',
+            name: 'Retail PSR',
             href: '/reports/zoho',
             icon: Building2,
             requiredPermission: PERMISSION_REQUIREMENTS.ZOHO_REPORTS,
           },
           {
-            name: 'Master',
+            name: 'Master Report',
             href: '/reports/master',
             icon: SquareKanban,
             requiredPermission: PERMISSION_REQUIREMENTS.MASTER_REPORTS,
@@ -262,20 +263,6 @@ const navigation = [
     ],
   },
   {
-    name: 'Tools',
-    href: '/tools',
-    icon: Code2,
-    requiredPermission: null,
-    children: [
-      {
-        name: 'BB Code Generator',
-        href: '/tools/bb_code_generator',
-        icon: Code2,
-        requiredPermission: PERMISSION_REQUIREMENTS.BB_CODE_GENERATOR,
-      },
-    ],
-  },
-  {
     name: 'Vendors',
     href: '/vendors',
     icon: UsersIcon,
@@ -302,10 +289,18 @@ const navigation = [
     ],
   },
   {
-    name: 'Users',
-    href: '/users',
-    icon: User,
-    requiredPermission: PERMISSION_REQUIREMENTS.USERS,
+    name: 'Tools',
+    href: '/tools',
+    icon: Code2,
+    requiredPermission: null,
+    children: [
+      {
+        name: 'BB Code Generator',
+        href: '/tools/bb_code_generator',
+        icon: Code2,
+        requiredPermission: PERMISSION_REQUIREMENTS.BB_CODE_GENERATOR,
+      },
+    ],
   },
   {
     name: 'Settings',
@@ -331,8 +326,15 @@ const navigation = [
         icon: Box,
         requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS,
       },
+      {
+        name: 'Manage Users/Permissions',
+        href: '/users',
+        icon: User,
+        requiredPermission: PERMISSION_REQUIREMENTS.USERS,
+      },
     ],
   },
+
 ];
 
 export default function Sidebar({
@@ -511,16 +513,17 @@ export default function Sidebar({
     setExpandedItems(newExpandedItems);
   }, [pathname, filteredNavigation]);
 
-  // Toggle submenu
-  const toggleSubmenu = (name: string) => {
+  // Toggle submenu — collapse sibling groups at the same level when expanding
+  const toggleSubmenu = (name: string, siblings: string[] = []) => {
     if (isCollapsed) {
       setIsCollapsed(false);
     }
-    setExpandedItems((prev) =>
-      prev.includes(name)
-        ? prev.filter((item) => item !== name)
-        : [...prev, name]
-    );
+    setExpandedItems((prev) => {
+      if (prev.includes(name)) {
+        return prev.filter((item) => item !== name);
+      }
+      return [...prev.filter((item) => !siblings.includes(item)), name];
+    });
   };
 
   // Toggle collapse
@@ -537,6 +540,10 @@ export default function Sidebar({
 
   // Recursive function to render navigation items
   const renderNavItems = (items: any[], level = 0) => {
+    const siblingNames = items
+      .filter((i) => i.children && i.children.length > 0)
+      .map((i) => i.name);
+
     return items.map((item) => {
       const isItemActive = item.href && isActive(item.href);
       const isExpanded = expandedItems.includes(item.name);
@@ -544,11 +551,11 @@ export default function Sidebar({
       const isGroup = level === 1 && item.children && item.children.length > 0;
 
       return (
-        <div key={item.name} className={level > 0 ? 'ml-2' : ''}>
+        <div key={item.name} className={level > 0 ? 'ml-1.5' : ''}>
           {item.children && item.children.length > 0 ? (
             <div className={isGroup ? 'mb-3' : ''}>
               <button
-                onClick={() => toggleSubmenu(item.name)}
+                onClick={() => toggleSubmenu(item.name, siblingNames)}
                 className={`
                   group w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-all duration-150 ease-in-out
                   ${isGroup
