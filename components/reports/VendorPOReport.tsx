@@ -57,6 +57,8 @@ interface POItem {
   target_stock: number;
   max_allowed_qty: number;
   final_supply_qty: number;
+  final_drr: number | null;
+  final_drr_flag: string | null;
 }
 
 interface POReport {
@@ -854,6 +856,15 @@ export default function VendorPOReport() {
     return `Last 30D Sales (${f(start)}–${f(end)})`;
   }, [report?.po_date]);
 
+  const drrLabel = useMemo(() => {
+    if (!report?.po_date) return 'Final DRR';
+    const end = new Date(report.po_date + 'T00:00:00');
+    const start = new Date(end);
+    start.setDate(start.getDate() - 30);
+    const f = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `Final DRR (${f(start)} – ${f(end)})`;
+  }, [report?.po_date]);
+
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
@@ -1389,6 +1400,7 @@ export default function VendorPOReport() {
                       { label: 'Target Stock', yellow: true },
                       { label: 'Max Allowed Qty', yellow: true },
                       { label: 'Final Supply Qty', yellow: true },
+                      { label: drrLabel, yellow: true },
                     ].map(({ label, yellow }) => (
                       <th
                         key={label}
@@ -1472,6 +1484,13 @@ export default function VendorPOReport() {
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.target_stock)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.max_allowed_qty)}</td>
                         <td className="px-3 py-2 text-center font-bold text-blue-700 dark:text-blue-400 text-sm">{fmtInt(item.final_supply_qty)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">
+                          {item.final_drr != null
+                            ? item.final_drr.toFixed(1)
+                            : item.final_drr_flag
+                              ? <span className="text-amber-600 dark:text-amber-400 text-xs">{item.final_drr_flag}</span>
+                              : '—'}
+                        </td>
                       </tr>
                     );
                   })}
