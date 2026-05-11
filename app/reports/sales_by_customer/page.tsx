@@ -254,6 +254,34 @@ const InvoiceReportGenerator = () => {
                 ))}
               </select>
             </div>
+            {/* Exclude Customers */}
+            <div className="flex items-start gap-3 p-4 border border-gray-200 dark:border-zinc-700 rounded-lg bg-gray-50 dark:bg-zinc-800/50">
+              <input
+                type="checkbox"
+                id="exclude_customers"
+                name="exclude_customers"
+                checked={formData.exclude_customers}
+                onChange={handleInputChange}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+              <div>
+                <label
+                  htmlFor="exclude_customers"
+                  className="block text-sm font-medium text-gray-700 dark:text-zinc-300 cursor-pointer"
+                >
+                  Exclude Internal / Non-Trade Customers
+                </label>
+                <p className="mt-1 text-xs text-gray-500 dark:text-zinc-500">
+                  Removes the following customers from the report:
+                </p>
+                <ul className="mt-1 text-xs text-gray-500 dark:text-zinc-500 list-disc list-inside space-y-0.5">
+                  {excludedCustomers.map((customer, index) => (
+                    <li key={index}>{customer}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
             {/* Min Quantity Filter */}
             <div>
               <label
@@ -335,14 +363,6 @@ const InvoiceReportGenerator = () => {
                 • File includes Invoice ID, Customer, Item, Quantity, and Date
                 information
               </li>
-              {/* <li>
-                • The Exclude Customers Checkbox above, once checked removes the following customers from the generated report:
-                <ul className="ml-6 mt-2 space-y-1">
-                  {excludedCustomers.map((customer, index) => (
-                    <li key={index}>{index + 1}. {customer}</li>
-                  ))}
-                </ul>
-              </li> */}
             </ul>
           </div>
         </div>
