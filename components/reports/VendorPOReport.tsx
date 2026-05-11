@@ -3,13 +3,24 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X, Trash2, Search, FileUp, ExternalLink } from 'lucide-react';
+import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X, Trash2, Search, FileUp, ExternalLink, FileText, Link2 } from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PAGE_SIZE = 10;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface EtradeAddress {
+  address_id: string;
+  attention: string;
+  address: string;
+  street2: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+}
 
 interface POListItem {
   po_number: string;
@@ -22,6 +33,8 @@ interface POListItem {
   total_accepted_qty: number;
   total_received_qty: number;
   order_file_s3_key?: string;
+  estimate_number?: string;
+  zoho_estimate_id?: string;
 }
 
 interface POItem {
@@ -69,6 +82,8 @@ interface POReport {
   inventory_date: string | null;
   zoho_stock_date: string | null;
   po_update_date: string | null;
+  estimate_number?: string;
+  zoho_estimate_id?: string;
   items: POItem[];
 }
 
@@ -517,6 +532,18 @@ export default function VendorPOReport() {
   const [deleteConfirmPO, setDeleteConfirmPO] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // estimate modals
+  const [createEstimateOpen, setCreateEstimateOpen] = useState(false);
+  const [linkEstimateOpen, setLinkEstimateOpen] = useState(false);
+  const [etradeAddresses, setEtradeAddresses] = useState<EtradeAddress[]>([]);
+  const [billingAddressId, setBillingAddressId] = useState('');
+  const [shippingAddressId, setShippingAddressId] = useState('');
+  const [estimateDate, setEstimateDate] = useState('');
+  const [creatingEstimate, setCreatingEstimate] = useState(false);
+  const [linkEstimateNumber, setLinkEstimateNumber] = useState('');
+  const [linkingEstimate, setLinkingEstimate] = useState(false);
+  const [unlinkingEstimate, setUnlinkingEstimate] = useState(false);
+
   // search + jump-to-page
   const [poSearch, setPoSearch] = useState('');
   const [jumpPage, setJumpPage] = useState('');
@@ -841,6 +868,82 @@ export default function VendorPOReport() {
   }, [selectedPO, fetchReport]);
 
 
+  // ─── estimate handlers ────────────────────────────────────────────────────────
+
+  const openCreateEstimateModal = async () => {
+    setEstimateDate(new Date().toISOString().slice(0, 10));
+    setCreateEstimateOpen(true);
+    if (etradeAddresses.length === 0) {
+      try {
+        const { data } = await axios.get<{ contact_id: string; addresses: EtradeAddress[] }>(`${API_URL}/vendor_po/etrade_customer`);
+        setEtradeAddresses(data.addresses);
+        if (data.addresses.length > 0) {
+          setBillingAddressId(data.addresses[0].address_id);
+          setShippingAddressId(data.addresses[0].address_id);
+        }
+      } catch {
+        toast.error('Failed to load ETRADE addresses');
+      }
+    }
+  };
+
+  const handleCreateEstimate = async () => {
+    if (!selectedPO || !billingAddressId || !shippingAddressId) return;
+    setCreatingEstimate(true);
+    try {
+      const { data } = await axios.post<{ estimate_id: string; estimate_number: string; total: number; skipped_items?: string[] }>(
+        `${API_URL}/vendor_po/${selectedPO}/estimate`,
+        { billing_address_id: billingAddressId, shipping_address_id: shippingAddressId, date: estimateDate || undefined },
+      );
+      toast.success(`Estimate ${data.estimate_number} created`);
+      if (data.skipped_items?.length) toast.warn(`Skipped ${data.skipped_items.length} item(s) without Zoho item ID`);
+      setReport(prev => prev ? { ...prev, estimate_number: data.estimate_number, zoho_estimate_id: data.estimate_id } : prev);
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, estimate_number: data.estimate_number } : p));
+      setCreateEstimateOpen(false);
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to create estimate';
+      toast.error(msg);
+    } finally {
+      setCreatingEstimate(false);
+    }
+  };
+
+  const handleLinkEstimate = async () => {
+    if (!selectedPO || !linkEstimateNumber.trim()) return;
+    setLinkingEstimate(true);
+    try {
+      const { data } = await axios.patch<{ estimate_number: string; estimate_id: string }>(
+        `${API_URL}/vendor_po/${selectedPO}/estimate`,
+        { estimate_number: linkEstimateNumber.trim() },
+      );
+      toast.success(`Estimate ${data.estimate_number} linked`);
+      setReport(prev => prev ? { ...prev, estimate_number: data.estimate_number, zoho_estimate_id: data.estimate_id } : prev);
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, estimate_number: data.estimate_number } : p));
+      setLinkEstimateOpen(false);
+      setLinkEstimateNumber('');
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to link estimate';
+      toast.error(msg);
+    } finally {
+      setLinkingEstimate(false);
+    }
+  };
+
+  const handleUnlinkEstimate = async () => {
+    if (!selectedPO) return;
+    setUnlinkingEstimate(true);
+    try {
+      await axios.delete(`${API_URL}/vendor_po/${selectedPO}/estimate`);
+      toast.success('Estimate unlinked');
+      setReport(prev => prev ? { ...prev, estimate_number: undefined, zoho_estimate_id: undefined } : prev);
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, estimate_number: undefined, zoho_estimate_id: undefined } : p));
+    } catch {
+      toast.error('Failed to unlink estimate');
+    } finally {
+      setUnlinkingEstimate(false);
+    }
+  };
+
   // ─── render ──────────────────────────────────────────────────────────────────
 
   const invDateLabel = report?.inventory_date ?? 'Latest';
@@ -1042,7 +1145,7 @@ export default function VendorPOReport() {
                           title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
                         />
                       </th>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Accepted Qty', 'Received Qty', 'Status', 'Uploaded At', 'Order File', 'Actions'].map(h => (
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Accepted Qty', 'Received Qty', 'Status', 'Uploaded At', 'Estimate', 'Order File', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -1088,6 +1191,15 @@ export default function VendorPOReport() {
                           </select>
                         </td>
                         <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
+                        <td className={TABLE_CLASSES.td}>
+                          {po.estimate_number ? (
+                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono whitespace-nowrap">
+                              {po.estimate_number}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-zinc-400">—</span>
+                          )}
+                        </td>
                         <td className={TABLE_CLASSES.td}>
                           {po.order_file_s3_key ? (
                             <div className="flex items-center gap-1.5">
@@ -1357,6 +1469,39 @@ export default function VendorPOReport() {
                 <Download size={13} />
                 {downloading ? 'Downloading…' : 'Download Excel'}
               </button>
+              {report && (report.estimate_number ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono">
+                    <FileText size={12} />
+                    {report.estimate_number}
+                  </span>
+                  <button
+                    onClick={handleUnlinkEstimate}
+                    disabled={unlinkingEstimate}
+                    title="Unlink estimate"
+                    className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors disabled:opacity-50"
+                  >
+                    {unlinkingEstimate ? <RefreshCw size={12} className="animate-spin" /> : <X size={12} />}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={openCreateEstimateModal}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition-colors"
+                  >
+                    <FileText size={13} />
+                    Create Estimate
+                  </button>
+                  <button
+                    onClick={() => { setLinkEstimateOpen(true); setLinkEstimateNumber(''); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <Link2 size={13} />
+                    Link Estimate
+                  </button>
+                </>
+              ))}
             </div>
           </div>
 
@@ -1395,12 +1540,11 @@ export default function VendorPOReport() {
                       { label: 'Open PO', yellow: true },
                       { label: 'Total Qty', yellow: true },
                       { label: salesLabel, yellow: true },
-                      { label: 'ADS', yellow: true },
+                      { label: drrLabel, yellow: true },
                       { label: 'Coverage Days', yellow: false },
                       { label: 'Target Stock', yellow: true },
                       { label: 'Max Allowed Qty', yellow: true },
                       { label: 'Final Supply Qty', yellow: true },
-                      { label: drrLabel, yellow: true },
                     ].map(({ label, yellow }) => (
                       <th
                         key={label}
@@ -1479,11 +1623,6 @@ export default function VendorPOReport() {
                         </td>
                         <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{fmtInt(item.total_qty)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.last_30_sales)}</td>
-                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.ads.toFixed(1)}</td>
-                        <td className="px-3 py-2 text-center text-zinc-500">{item.coverage_days}</td>
-                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.target_stock)}</td>
-                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.max_allowed_qty)}</td>
-                        <td className="px-3 py-2 text-center font-bold text-blue-700 dark:text-blue-400 text-sm">{fmtInt(item.final_supply_qty)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">
                           {item.final_drr != null
                             ? item.final_drr.toFixed(1)
@@ -1491,6 +1630,10 @@ export default function VendorPOReport() {
                               ? <span className="text-amber-600 dark:text-amber-400 text-xs">{item.final_drr_flag}</span>
                               : '—'}
                         </td>
+                        <td className="px-3 py-2 text-center text-zinc-500">{item.coverage_days}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.target_stock)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.max_allowed_qty)}</td>
+                        <td className="px-3 py-2 text-center font-bold text-blue-700 dark:text-blue-400 text-sm">{fmtInt(item.final_supply_qty)}</td>
                       </tr>
                     );
                   })}
@@ -1498,6 +1641,140 @@ export default function VendorPOReport() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Create Estimate Modal ── */}
+      {createEstimateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">
+                <FileText size={18} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Create Zoho Estimate</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{selectedPO}</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Creates an estimate in Zoho Books for <strong>all PO items</strong> — items with Final Supply Qty = 0 appear on the estimate with quantity 0.
+              Customer is fixed to <strong>ETRADE MARKETING PRIVATE LIMITED</strong>.
+              Reference number will be the PO number.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Estimate Date</label>
+                <input
+                  type="date"
+                  value={estimateDate}
+                  onChange={e => setEstimateDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Billing Address</label>
+                {etradeAddresses.length === 0 ? (
+                  <p className="text-xs text-zinc-400 italic">Loading addresses…</p>
+                ) : (
+                  <select
+                    value={billingAddressId}
+                    onChange={e => setBillingAddressId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    {etradeAddresses.map(addr => (
+                      <option key={addr.address_id} value={addr.address_id}>
+                        {addr.attention || addr.city} — {addr.address}{addr.city ? `, ${addr.city}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Shipping Address</label>
+                {etradeAddresses.length === 0 ? (
+                  <p className="text-xs text-zinc-400 italic">Loading addresses…</p>
+                ) : (
+                  <select
+                    value={shippingAddressId}
+                    onChange={e => setShippingAddressId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    {etradeAddresses.map(addr => (
+                      <option key={addr.address_id} value={addr.address_id}>
+                        {addr.attention || addr.city} — {addr.address}{addr.city ? `, ${addr.city}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => setCreateEstimateOpen(false)}
+                disabled={creatingEstimate}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateEstimate}
+                disabled={creatingEstimate || !billingAddressId || !shippingAddressId}
+                className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {creatingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <FileText size={13} />}
+                {creatingEstimate ? 'Creating…' : 'Create Estimate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Estimate Modal ── */}
+      {linkEstimateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <Link2 size={18} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Link Existing Estimate</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{selectedPO}</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Enter the estimate number (e.g. <span className="font-mono">EST/26-27/0457</span>). It must exist in the estimates collection.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Estimate Number</label>
+              <input
+                type="text"
+                value={linkEstimateNumber}
+                onChange={e => setLinkEstimateNumber(e.target.value)}
+                placeholder="EST/26-27/0457"
+                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-mono placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onKeyDown={e => { if (e.key === 'Enter') handleLinkEstimate(); }}
+              />
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => { setLinkEstimateOpen(false); setLinkEstimateNumber(''); }}
+                disabled={linkingEstimate}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLinkEstimate}
+                disabled={linkingEstimate || !linkEstimateNumber.trim()}
+                className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {linkingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <Link2 size={13} />}
+                {linkingEstimate ? 'Linking…' : 'Link'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
