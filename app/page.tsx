@@ -515,6 +515,7 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
+  const [hasDashboardAccess, setHasDashboardAccess] = useState<boolean | null>(null);
 
   // Default: last 90 days ending previous Sunday (matches master report default)
   const [startDate, setStartDate] = useState(() => {
@@ -546,6 +547,17 @@ export default function Page() {
     }
   }, [accessToken, API, startDate, endDate]);
 
+  useEffect(() => {
+    if (!accessToken || !user) return;
+    fetch(`${API}/users/permissions`, { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then((r) => r.json())
+      .then((allPerms: any[]) => {
+        const userPerms = allPerms.filter((p) => user.permissions?.includes(p._id));
+        setHasDashboardAccess(userPerms.some((p) => p.name === 'dashboard'));
+      })
+      .catch(() => setHasDashboardAccess(false));
+  }, [accessToken, user]);
+
   useEffect(() => { if (accessToken) fetchData(); }, [accessToken]);
 
   const toggleBrand = (brand: string) =>
@@ -563,15 +575,21 @@ export default function Page() {
   );
 
   if (!accessToken) {
-    setTimeout(() => router.push('/login'), 3000);
+    router.push('/login');
+    return null;
+  }
+
+  if (hasDashboardAccess === null) {
     return (
       <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 flex items-center justify-center'>
-        <div className='bg-white dark:bg-zinc-900 p-8 rounded-lg shadow-md text-center'>
-          <p className='text-xl text-gray-700 dark:text-zinc-300'>Please log in to see this content.</p>
-          <p className='text-sm text-gray-500 dark:text-zinc-400 mt-1'>Redirecting to login…</p>
-        </div>
+        <Loader2 className='animate-spin h-10 w-10 text-blue-600' />
       </div>
     );
+  }
+
+  if (!hasDashboardAccess) {
+    router.replace('/no-access');
+    return null;
   }
 
   const t = data?.totals;
