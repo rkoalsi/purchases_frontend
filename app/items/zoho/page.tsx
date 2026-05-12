@@ -10,6 +10,8 @@ const PAGE_SIZE = 10;
 
 type Tab = 'products' | 'composites';
 
+// ─── Pagination ───────────────────────────────────────────────────────────────
+
 function Pagination({
   currentPage,
   totalPages,
@@ -80,6 +82,8 @@ function Pagination({
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function ZohoItemsPage() {
   const { isLoading, accessToken } = useAuth();
   const [tab, setTab] = useState<Tab>('products');
@@ -95,7 +99,8 @@ export default function ZohoItemsPage() {
   const [prodTotal, setProdTotal] = useState(0);
   const [prodTotalPages, setProdTotalPages] = useState(1);
   const [prodLoading, setProdLoading] = useState(false);
-  const [prodShowInactive, setProdShowInactive] = useState(false);
+  const [prodZohoStatus, setProdZohoStatus] = useState('active');
+  const [prodPurchaseStatus, setProdPurchaseStatus] = useState('');
 
   // Purchase status updating
   const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
@@ -145,7 +150,8 @@ export default function ZohoItemsPage() {
           page: prodPage,
           limit: PAGE_SIZE,
           search: prodSearch || undefined,
-          status: prodShowInactive ? undefined : 'active',
+          status: prodZohoStatus || undefined,
+          purchase_status: prodPurchaseStatus || undefined,
           brand: prodBrand || undefined,
         },
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -156,7 +162,7 @@ export default function ZohoItemsPage() {
     } finally {
       setProdLoading(false);
     }
-  }, [prodPage, prodSearch, prodShowInactive, prodBrand, accessToken]);
+  }, [prodPage, prodSearch, prodZohoStatus, prodPurchaseStatus, prodBrand, accessToken]);
 
   const fetchComposites = useCallback(async () => {
     setCompLoading(true);
@@ -177,7 +183,7 @@ export default function ZohoItemsPage() {
   useEffect(() => { if (accessToken) fetchComposites(); }, [fetchComposites, accessToken]);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setProdPage(1); }, [prodSearch, prodShowInactive, prodBrand]);
+  useEffect(() => { setProdPage(1); }, [prodSearch, prodZohoStatus, prodPurchaseStatus, prodBrand]);
   useEffect(() => { setCompPage(1); }, [compSearch]);
 
   const fmt = (n: number) =>
@@ -247,6 +253,8 @@ export default function ZohoItemsPage() {
         <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden'>
           <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-3 flex-wrap'>
             <h2 className='text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider shrink-0'>Products</h2>
+
+            {/* Search */}
             <div className='relative flex-1 min-w-[160px] max-w-sm'>
               <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400' />
               <input
@@ -257,6 +265,8 @@ export default function ZohoItemsPage() {
                 className='w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
               />
             </div>
+
+            {/* Brand */}
             {brands.length > 0 && (
               <select
                 value={prodBrand}
@@ -269,16 +279,29 @@ export default function ZohoItemsPage() {
                 ))}
               </select>
             )}
-            <button
-              onClick={() => setProdShowInactive((v) => !v)}
-              className={`shrink-0 text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                prodShowInactive
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400'
-                  : 'border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-400 hover:text-gray-400 dark:hover:text-zinc-400'
-              }`}
+
+            {/* Zoho Status filter */}
+            <select
+              value={prodZohoStatus}
+              onChange={(e) => setProdZohoStatus(e.target.value)}
+              className='shrink-0 pl-3 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer'
             >
-              {prodShowInactive ? 'Showing all' : 'Active only'}
-            </button>
+              <option value=''>All Zoho Statuses</option>
+              <option value='active'>Zoho: Active</option>
+              <option value='inactive'>Zoho: Inactive</option>
+            </select>
+
+            {/* Purchase Status filter */}
+            <select
+              value={prodPurchaseStatus}
+              onChange={(e) => setProdPurchaseStatus(e.target.value)}
+              className='shrink-0 pl-3 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer'
+            >
+              <option value=''>All Purchase Statuses</option>
+              <option value='active'>Purchase: Active</option>
+              <option value='inactive'>Purchase: Inactive</option>
+              <option value='discontinued until stock lasts'>Disc. until stock lasts</option>
+            </select>
           </div>
 
           {prodLoading ? (
@@ -302,7 +325,7 @@ export default function ZohoItemsPage() {
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Price</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Stock</th>
-                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Status</th>
+                      <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Zoho Status</th>
                       <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Purchase Status</th>
                     </tr>
                   </thead>

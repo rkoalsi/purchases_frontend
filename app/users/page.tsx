@@ -18,6 +18,7 @@ import {
   Eye,
   EyeOff,
   Search,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
@@ -50,6 +51,13 @@ export default function UserManagementPage() {
   });
   const [creatingUser, setCreatingUser] = useState(false);
   const [showNewUserPassword, setShowNewUserPassword] = useState(false);
+
+  // Delete user
+  const [deleteConfirmUser, setDeleteConfirmUser] = useState<any | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
+
+  // All permissions accordion
+  const [showAllPermissions, setShowAllPermissions] = useState(false);
 
   // Create permission modal
   const [showCreatePermission, setShowCreatePermission] = useState(false);
@@ -152,6 +160,25 @@ export default function UserManagementPage() {
   const handleCancelEdit = () => {
     setEditingUser(null);
     setEditForm({});
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteConfirmUser) return;
+    setDeletingUser(true);
+    try {
+      await axios.delete(
+        `${process.env.NEXT_PUBLIC_API_URL}/users/${deleteConfirmUser._id}`,
+        authHeaders
+      );
+      setUsers((prev) => prev.filter((u) => u._id !== deleteConfirmUser._id));
+      toast.success('User deleted');
+    } catch (error: any) {
+      console.error('Failed to delete user:', error);
+      toast.error(error.response?.data?.detail || 'Failed to delete user');
+    } finally {
+      setDeletingUser(false);
+      setDeleteConfirmUser(null);
+    }
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -702,6 +729,57 @@ export default function UserManagementPage() {
           </div>
         )}
 
+        {/* Delete Confirmation Modal */}
+        {deleteConfirmUser && (
+          <div className='fixed inset-0 z-50 flex items-center justify-center'>
+            <div
+              className='absolute inset-0 bg-black/40 backdrop-blur-sm'
+              onClick={() => !deletingUser && setDeleteConfirmUser(null)}
+            />
+            <div className='relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-sm mx-4 p-6'>
+              <div className='flex items-center gap-3 mb-4'>
+                <div className='p-2 bg-red-100 dark:bg-red-900/30 rounded-lg'>
+                  <Trash2 className='h-5 w-5 text-red-600 dark:text-red-400' />
+                </div>
+                <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                  Delete User
+                </h3>
+              </div>
+              <p className='text-sm text-gray-600 dark:text-gray-400 mb-1'>
+                Are you sure you want to delete{' '}
+                <span className='font-semibold text-gray-900 dark:text-white'>
+                  {deleteConfirmUser.name}
+                </span>
+                ?
+              </p>
+              <p className='text-xs text-gray-400 dark:text-gray-500 mb-6'>
+                This action cannot be undone.
+              </p>
+              <div className='flex justify-end gap-2'>
+                <button
+                  onClick={() => setDeleteConfirmUser(null)}
+                  disabled={deletingUser}
+                  className='px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-50'
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={deletingUser}
+                  className='inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50'
+                >
+                  {deletingUser ? (
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                  ) : (
+                    <Trash2 className='h-4 w-4' />
+                  )}
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {filteredUsers.length === 0 && !loading ? (
           <div className='bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12'>
             <div className='flex flex-col items-center justify-center text-center'>
@@ -883,6 +961,15 @@ export default function UserManagementPage() {
                           >
                             <Edit3 className='h-4 w-4' />
                           </button>
+                          {isAdminOrPurchaseAdmin && user._id !== currentUser?._id && (
+                            <button
+                              onClick={() => setDeleteConfirmUser(user)}
+                              className='p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors'
+                              title='Delete user'
+                            >
+                              <Trash2 className='h-4 w-4' />
+                            </button>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1034,87 +1121,100 @@ export default function UserManagementPage() {
         {/* All Permissions Overview */}
         {availablePermissions.length > 0 && (
           <div className='bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden'>
-            <div className='px-5 py-4 border-b border-gray-200 dark:border-gray-700'>
+            <button
+              onClick={() => setShowAllPermissions((v) => !v)}
+              className='w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors'
+            >
               <h2 className='text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2'>
                 <Shield className='h-4 w-4 text-indigo-500' />
                 All Permissions
+                <span className='ml-1 text-xs font-normal text-gray-400 dark:text-gray-500'>
+                  ({availablePermissions.length})
+                </span>
               </h2>
-            </div>
-            <div className='p-4 space-y-5'>
-              {Object.entries(groupPermissionsByCategory(availablePermissions)).map(
-                ([category, perms]) => (
-                  <div key={category}>
-                    <h3 className='text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2.5'>
-                      {CATEGORY_LABELS[category] ?? category}
-                    </h3>
-                    <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5'>
-                      {(perms as any[]).map((permission: any) => (
-                        <div
-                          key={permission._id}
-                          className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
-                            permission.is_active !== false
-                              ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50'
-                              : 'border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10 opacity-60'
-                          }`}
-                        >
-                          <div className='min-w-0'>
-                            <div
-                              className={`text-sm font-medium truncate ${
-                                permission.is_active !== false
-                                  ? 'text-gray-900 dark:text-white'
-                                  : 'text-red-500 dark:text-red-400 line-through'
-                              }`}
-                            >
-                              {permission.name}
-                            </div>
-                            {permission.description && (
-                              <div className='text-xs text-gray-400 truncate mt-0.5'>
-                                {permission.description}
+              {showAllPermissions ? (
+                <ChevronUp className='h-4 w-4 text-gray-400' />
+              ) : (
+                <ChevronDown className='h-4 w-4 text-gray-400' />
+              )}
+            </button>
+            {showAllPermissions && (
+              <div className='border-t border-gray-200 dark:border-gray-700 p-4 space-y-5'>
+                {Object.entries(groupPermissionsByCategory(availablePermissions)).map(
+                  ([category, perms]) => (
+                    <div key={category}>
+                      <h3 className='text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2.5'>
+                        {CATEGORY_LABELS[category] ?? category}
+                      </h3>
+                      <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5'>
+                        {(perms as any[]).map((permission: any) => (
+                          <div
+                            key={permission._id}
+                            className={`flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
+                              permission.is_active !== false
+                                ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50'
+                                : 'border-red-200 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10 opacity-60'
+                            }`}
+                          >
+                            <div className='min-w-0'>
+                              <div
+                                className={`text-sm font-medium truncate ${
+                                  permission.is_active !== false
+                                    ? 'text-gray-900 dark:text-white'
+                                    : 'text-red-500 dark:text-red-400 line-through'
+                                }`}
+                              >
+                                {permission.name}
                               </div>
+                              {permission.description && (
+                                <div className='text-xs text-gray-400 truncate mt-0.5'>
+                                  {permission.description}
+                                </div>
+                              )}
+                            </div>
+                            {isAdminOrPurchaseAdmin ? (
+                              <button
+                                onClick={() => togglePermissionActive(permission)}
+                                className={`shrink-0 ml-3 p-1.5 rounded-lg transition-colors ${
+                                  permission.is_active !== false
+                                    ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                    : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                }`}
+                                title={
+                                  permission.is_active !== false
+                                    ? 'Deactivate'
+                                    : 'Activate'
+                                }
+                              >
+                                {permission.is_active !== false ? (
+                                  <ToggleRight className='h-5 w-5' />
+                                ) : (
+                                  <ToggleLeft className='h-5 w-5' />
+                                )}
+                              </button>
+                            ) : (
+                              <span
+                                className={`shrink-0 ml-3 p-1.5 ${
+                                  permission.is_active !== false
+                                    ? 'text-emerald-400'
+                                    : 'text-gray-300 dark:text-gray-600'
+                                }`}
+                              >
+                                {permission.is_active !== false ? (
+                                  <ToggleRight className='h-5 w-5' />
+                                ) : (
+                                  <ToggleLeft className='h-5 w-5' />
+                                )}
+                              </span>
                             )}
                           </div>
-                          {isAdminOrPurchaseAdmin ? (
-                            <button
-                              onClick={() => togglePermissionActive(permission)}
-                              className={`shrink-0 ml-3 p-1.5 rounded-lg transition-colors ${
-                                permission.is_active !== false
-                                  ? 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
-                                  : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                              }`}
-                              title={
-                                permission.is_active !== false
-                                  ? 'Deactivate'
-                                  : 'Activate'
-                              }
-                            >
-                              {permission.is_active !== false ? (
-                                <ToggleRight className='h-5 w-5' />
-                              ) : (
-                                <ToggleLeft className='h-5 w-5' />
-                              )}
-                            </button>
-                          ) : (
-                            <span
-                              className={`shrink-0 ml-3 p-1.5 ${
-                                permission.is_active !== false
-                                  ? 'text-emerald-400'
-                                  : 'text-gray-300 dark:text-gray-600'
-                              }`}
-                            >
-                              {permission.is_active !== false ? (
-                                <ToggleRight className='h-5 w-5' />
-                              ) : (
-                                <ToggleLeft className='h-5 w-5' />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )
-              )}
-            </div>
+                  )
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

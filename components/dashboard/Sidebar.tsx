@@ -29,6 +29,8 @@ import {
   TrendingUp,
   Code2,
   UsersIcon,
+  Palette,
+  Sparkles,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -81,6 +83,9 @@ const PERMISSION_REQUIREMENTS = {
   VENDOR_BRAND_MAPPING: { name: 'vendor_brand_mapping' },
   DRAFT_ORDERS: { name: 'vendors_draft_orders' },
   BRAND_ORDERS: { anyOf: ['brand_orders_view', 'brand_orders_edit'] },
+  BRAND_LOGISTICS: { name: 'settings_brand_logistics' },
+  PRODUCT_LOGISTICS: { name: 'settings_product_logistics' },
+  DESIGN_NEW_ITEMS: { name: 'design_new_items' },
 };
 
 // Navigation items with required permissions
@@ -289,6 +294,20 @@ const navigation = [
     ],
   },
   {
+    name: 'Design',
+    href: '/design',
+    icon: Palette,
+    requiredPermission: null,
+    children: [
+      {
+        name: 'New Items',
+        href: '/design/new-items',
+        icon: Sparkles,
+        requiredPermission: PERMISSION_REQUIREMENTS.DESIGN_NEW_ITEMS,
+      },
+    ],
+  },
+  {
     name: 'Tools',
     href: '/tools',
     icon: Code2,
@@ -306,25 +325,25 @@ const navigation = [
     name: 'Settings',
     href: '/settings',
     icon: Settings,
-    requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS, // null - always visible
+    requiredPermission: null, // visible if any child is accessible
     children: [
       {
         name: 'Account',
         href: '/settings/account',
         icon: UserCircle,
-        requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS,
+        requiredPermission: null,
       },
       {
         name: 'Brand Logistics',
         href: '/settings/brand-logistics',
         icon: Truck,
-        requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS,
+        requiredPermission: PERMISSION_REQUIREMENTS.BRAND_LOGISTICS,
       },
       {
         name: 'Product Logistics',
         href: '/settings/product-logistics',
         icon: Box,
-        requiredPermission: PERMISSION_REQUIREMENTS.SETTINGS,
+        requiredPermission: PERMISSION_REQUIREMENTS.PRODUCT_LOGISTICS,
       },
       {
         name: 'Manage Users/Permissions',

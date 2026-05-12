@@ -41,21 +41,13 @@ export default function AuthGuard({
     }
 
     // Define paths that don't require authentication
-    const publicPaths = ['/login', '/signup', '/']; // Adjust as needed
+    const publicPaths = ['/login', '/signup'];
 
     if (!isLoggedIn && !publicPaths.includes(pathname)) {
       // If not logged in and trying to access a protected path, redirect to login
       router.push('/login');
-    } else if (
-      isLoggedIn &&
-      publicPaths.includes(pathname) &&
-      pathname !== '/'
-    ) {
-      // Optional: If logged in and trying to access login/signup, redirect to dashboard
-      // Adjust redirection logic as per your app flow
-      if (pathname === '/login' || pathname === '/signup') {
-        router.push('/');
-      }
+    } else if (isLoggedIn && (pathname === '/login' || pathname === '/signup')) {
+      router.push('/');
     }
   }, [isLoggedIn, isLoading, pathname, router]); // Re-run if these change
 
