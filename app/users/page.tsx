@@ -73,7 +73,7 @@ export default function UserManagementPage() {
   };
 
   const isAdminOrPurchaseAdmin =
-    currentUser?.role === 'admin' || currentUser?.role === 'purchase_admin';
+    currentUser?.role === 'admin';
 
   const activePermissions = useMemo(
     () => availablePermissions.filter((p) => p.is_active !== false),
@@ -363,8 +363,10 @@ export default function UserManagementPage() {
     switch (role) {
       case 'admin':
         return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
-      case 'purchase_admin':
+      case 'ecom':
         return 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300';
+      case 'warehouse':
+        return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
       case 'purchase':
         return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
       case 'design':
@@ -562,7 +564,8 @@ export default function UserManagementPage() {
                       className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none'
                     >
                       <option value='admin'>Admin</option>
-                      <option value='purchase_admin'>Purchase Admin</option>
+                      <option value='ecom'>Ecom</option>
+                      <option value='warehouse'>Warehouse</option>
                       <option value='purchase'>Purchase</option>
                       <option value='design'>Design</option>
                       <option value='user'>User</option>
@@ -875,9 +878,8 @@ export default function UserManagementPage() {
                               className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none'
                             >
                               <option value='admin'>Admin</option>
-                              <option value='purchase_admin'>
-                                Purchase Admin
-                              </option>
+                              <option value='ecom'>Ecom</option>
+                              <option value='warehouse'>Warehouse</option>
                               <option value='purchase'>Purchase</option>
                               <option value='design'>Design</option>
                               <option value='user'>User</option>
