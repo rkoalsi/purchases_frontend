@@ -383,7 +383,7 @@ const processDownload = async (response: any) => {
 
   // Get filename from Content-Disposition header
   const contentDisposition = response.headers['content-disposition'];
-  let filename = `amazon_sales_inventory_report_${startDate}_to_${endDate}_${reportType}.xlsx`;
+  let filename = `amazon_psr_report_${startDate}_to_${endDate}_${reportType}.xlsx`;
 
   if (contentDisposition) {
     const filenameMatch = contentDisposition.match(
