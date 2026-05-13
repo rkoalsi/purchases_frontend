@@ -40,7 +40,7 @@ const ALL_PAGES = [
   { name: 'Amazon Settlements', href: '/reports/amazon_settlements', permission: 'reports_amazon_settlements', icon: SquareKanban, group: 'Reports' },
   { name: 'VC POs', href: '/reports/vendor_po', permission: 'reports_vendor_po', icon: Truck, group: 'Reports' },
   { name: 'VC Shipment Summary', href: '/reports/etrade_shipment_summary', permission: 'reports_vendor_po', icon: Box, group: 'Reports' },
-  { name: 'VC Returns', href: '/reports/amazon_vendor_central_returns', permission: 'reports_amazon_vendor_central_returns', icon: AmazonIcon, group: 'Reports' },
+  { name: 'B2B VC Returns', href: '/reports/amazon_vendor_central_returns', permission: 'reports_amazon_vendor_central_returns', icon: AmazonIcon, group: 'Reports' },
   { name: 'Seller Flex Returns', href: '/reports/amazon_seller_flex_returns', permission: 'reports_amazon_seller_flex_returns', icon: AmazonIcon, group: 'Reports' },
   { name: 'FBA Returns', href: '/reports/amazon_fba_returns', permission: 'reports_amazon_fba_returns', icon: AmazonIcon, group: 'Reports' },
   { name: 'Blinkit PSR', href: '/reports/blinkit', permission: 'reports_blinkit', icon: Zap, group: 'Reports' },
