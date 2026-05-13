@@ -1625,7 +1625,7 @@ export default function VendorPOReport() {
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.last_30_sales)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">
                           {item.final_drr != null
-                            ? item.final_drr.toFixed(1)
+                            ? item.final_drr.toFixed(3)
                             : item.final_drr_flag
                               ? <span className="text-amber-600 dark:text-amber-400 text-xs">{item.final_drr_flag}</span>
                               : '—'}

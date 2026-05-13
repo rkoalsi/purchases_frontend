@@ -158,7 +158,7 @@ const navigation = [
             requiredPermission: PERMISSION_REQUIREMENTS.ETRADE_SHIPMENT_SUMMARY,
           },
           {
-            name: 'VC Returns',
+            name: 'B2B VC Returns',
             href: '/reports/amazon_vendor_central_returns',
             icon: AmazonIcon,
             requiredPermission: PERMISSION_REQUIREMENTS.VENDOR_CENTRAL_RETURNS,
