@@ -1,9 +1,9 @@
 'use client';
 
 import { useAuth } from '@/components/context/AuthContext';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { ChevronLeft, ChevronRight, Palette, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Palette, Search, X, ZoomIn } from 'lucide-react';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/design`;
 const PAGE_SIZE = 20;
@@ -26,7 +26,171 @@ const fmtDate = (val?: string) => {
   });
 };
 
-// ─── Badges ──────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getProductImages(p: any): string[] {
+  const imgs: string[] = [];
+  if (Array.isArray(p.images)) {
+    for (const img of p.images) {
+      const url = typeof img === 'string' ? img : img?.image_url ?? img?.url ?? '';
+      if (url) imgs.push(url);
+    }
+  }
+  if (p.image_url && !imgs.includes(p.image_url)) imgs.unshift(p.image_url);
+  return imgs;
+}
+
+// ─── Image Carousel Modal ─────────────────────────────────────────────────────
+
+function ImageCarouselModal({
+  images,
+  productName,
+  initialIndex,
+  onClose,
+}: {
+  images: string[];
+  productName: string;
+  initialIndex: number;
+  onClose: () => void;
+}) {
+  const [current, setCurrent] = useState(initialIndex);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight') setCurrent((c) => (c + 1) % images.length);
+      if (e.key === 'ArrowLeft') setCurrent((c) => (c - 1 + images.length) % images.length);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [images.length, onClose]);
+
+  return (
+    <div
+      ref={overlayRef}
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      className='fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4'
+    >
+      <div className='relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden'>
+        {/* Header */}
+        <div className='flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-zinc-800'>
+          <p className='text-sm font-medium text-gray-800 dark:text-zinc-200 truncate max-w-[80%]'>
+            {productName}
+          </p>
+          <div className='flex items-center gap-3'>
+            {images.length > 1 && (
+              <span className='text-xs text-gray-400 dark:text-zinc-500'>
+                {current + 1} / {images.length}
+              </span>
+            )}
+            <button
+              onClick={onClose}
+              className='p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors'
+            >
+              <X className='w-4 h-4' />
+            </button>
+          </div>
+        </div>
+
+        {/* Image */}
+        <div className='relative bg-gray-50 dark:bg-zinc-950 flex items-center justify-center' style={{ minHeight: 320 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={images[current]}
+            alt={productName}
+            className='max-h-[60vh] max-w-full object-contain p-4'
+          />
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={() => setCurrent((c) => (c - 1 + images.length) % images.length)}
+                className='absolute left-3 p-2 rounded-full bg-white/90 dark:bg-zinc-800/90 shadow text-gray-600 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-700 transition-colors'
+              >
+                <ChevronLeft className='w-5 h-5' />
+              </button>
+              <button
+                onClick={() => setCurrent((c) => (c + 1) % images.length)}
+                className='absolute right-3 p-2 rounded-full bg-white/90 dark:bg-zinc-800/90 shadow text-gray-600 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-700 transition-colors'
+              >
+                <ChevronRight className='w-5 h-5' />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Thumbnails */}
+        {images.length > 1 && (
+          <div className='flex gap-2 px-5 py-3 overflow-x-auto border-t border-gray-100 dark:border-zinc-800'>
+            {images.map((url, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${
+                  i === current
+                    ? 'border-purple-500'
+                    : 'border-transparent hover:border-gray-300 dark:hover:border-zinc-600'
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt='' className='w-full h-full object-cover' />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Product Thumbnail ────────────────────────────────────────────────────────
+
+function ProductThumbnail({
+  product,
+  onOpenCarousel,
+}: {
+  product: any;
+  onOpenCarousel: () => void;
+}) {
+  const images = getProductImages(product);
+  const [imgError, setImgError] = useState(false);
+
+  if (images.length > 0 && !imgError) {
+    return (
+      <button
+        onClick={onOpenCarousel}
+        className='group relative w-10 h-10 rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-700 shrink-0 bg-gray-50 dark:bg-zinc-800 hover:ring-2 hover:ring-purple-400 transition-all'
+        title='View image'
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={images[0]}
+          alt={product.name}
+          className='w-full h-full object-cover'
+          onError={() => setImgError(true)}
+        />
+        <div className='absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center'>
+          <ZoomIn className='w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity' />
+        </div>
+        {images.length > 1 && (
+          <span className='absolute bottom-0.5 right-0.5 bg-purple-600 text-white text-[9px] font-bold rounded px-0.5 leading-tight'>
+            {images.length}
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <div className='w-10 h-10 rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shrink-0'>
+      <span className='text-white text-xs font-semibold'>
+        {(product.name || 'P').charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
+}
+
+// ─── Badges ───────────────────────────────────────────────────────────────────
 
 const ZOHO_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   active: {
@@ -189,6 +353,8 @@ export default function DesignNewItemsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  const [carousel, setCarousel] = useState<{ product: any; index: number } | null>(null);
+
   useEffect(() => {
     if (!accessToken) return;
     axios
@@ -243,6 +409,16 @@ export default function DesignNewItemsPage() {
 
   return (
     <div className='space-y-6'>
+      {/* Carousel modal */}
+      {carousel && (
+        <ImageCarouselModal
+          images={getProductImages(carousel.product)}
+          productName={carousel.product.name || 'Product'}
+          initialIndex={carousel.index}
+          onClose={() => setCarousel(null)}
+        />
+      )}
+
       {/* Header */}
       <div className='flex items-start justify-between'>
         <div className='flex items-center gap-3'>
@@ -336,6 +512,7 @@ export default function DesignNewItemsPage() {
                 <thead>
                   <tr className='bg-gray-50 dark:bg-zinc-800/60'>
                     <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider w-10'>#</th>
+                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Image</th>
                     <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Product</th>
                     <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU Code</th>
                     <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Brand</th>
@@ -356,16 +533,15 @@ export default function DesignNewItemsPage() {
                         {(page - 1) * PAGE_SIZE + i + 1}
                       </td>
                       <td className='px-4 py-3.5'>
-                        <div className='flex items-center gap-3'>
-                          <div className='w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center shrink-0'>
-                            <span className='text-white text-xs font-semibold'>
-                              {(p.name || 'P').charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <span className='font-medium text-gray-800 dark:text-zinc-200'>
-                            {p.name || 'Unnamed'}
-                          </span>
-                        </div>
+                        <ProductThumbnail
+                          product={p}
+                          onOpenCarousel={() => setCarousel({ product: p, index: 0 })}
+                        />
+                      </td>
+                      <td className='px-4 py-3.5'>
+                        <span className='font-medium text-gray-800 dark:text-zinc-200'>
+                          {p.name || 'Unnamed'}
+                        </span>
                       </td>
                       <td className='px-4 py-3.5'>
                         {p.cf_sku_code ? (
