@@ -42,6 +42,13 @@ interface DesignerOrder {
   inward_date?: string;
 }
 
+interface GlobalFileResult {
+  order_id: string;
+  order_name: string;
+  brand: string;
+  doc: Document;
+}
+
 function fmtDate(s?: string | null) {
   if (!s) return '—';
   try { return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
@@ -111,6 +118,12 @@ export default function DesignerOrders() {
   const [downloadingZip, setDownloadingZip] = useState<string | null>(null);
   const [docSearch, setDocSearch] = useState<Record<string, string>>({});
   const [docPage, setDocPage] = useState<Record<string, number>>({});
+  const [globalFileQuery, setGlobalFileQuery] = useState('');
+  const [globalFileResults, setGlobalFileResults] = useState<GlobalFileResult[]>([]);
+  const [globalFileLoading, setGlobalFileLoading] = useState(false);
+  const [globalFileOpen, setGlobalFileOpen] = useState(false);
+  const globalFileRef = useRef<HTMLDivElement>(null);
+  const globalFileDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const folderInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -317,6 +330,57 @@ export default function DesignerOrders() {
     finally { setDownloadingZip(null); }
   }, []);
 
+  // debounced global file search
+  useEffect(() => {
+    if (globalFileDebounce.current) clearTimeout(globalFileDebounce.current);
+    if (!globalFileQuery.trim()) {
+      setGlobalFileResults([]);
+      setGlobalFileLoading(false);
+      return;
+    }
+    setGlobalFileLoading(true);
+    globalFileDebounce.current = setTimeout(async () => {
+      try {
+        const { data } = await axios.get<GlobalFileResult[]>(
+          `${API_URL}/design/documents/search`,
+          { params: { q: globalFileQuery.trim() } }
+        );
+        setGlobalFileResults(data);
+        setGlobalFileOpen(true);
+      } catch { toast.error('File search failed'); }
+      finally { setGlobalFileLoading(false); }
+    }, 300);
+    return () => { if (globalFileDebounce.current) clearTimeout(globalFileDebounce.current); };
+  }, [globalFileQuery]);
+
+  // close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (globalFileRef.current && !globalFileRef.current.contains(e.target as Node))
+        setGlobalFileOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const jumpToOrder = useCallback((result: GlobalFileResult) => {
+    setGlobalFileOpen(false);
+    setGlobalFileQuery('');
+    setExpandedBrands(prev => new Set([...prev, result.brand]));
+    setExpandedOrders(prev => {
+      const next = new Set([...prev, result.order_id]);
+      return next;
+    });
+    setDocsMap(prev => {
+      if (prev[result.order_id]) return prev;
+      const order = orders.find(o => o._id === result.order_id);
+      return order ? { ...prev, [result.order_id]: order.designer_documents || [] } : prev;
+    });
+    setTimeout(() => {
+      document.getElementById(`order-${result.order_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }, [orders]);
+
   const totalOrders = orders.length;
   const totalDocs = orders.reduce((sum, o) => sum + (o.doc_count || 0), 0);
 
@@ -357,7 +421,70 @@ export default function DesignerOrders() {
           </div>
         </div>
 
-        {/* Search */}
+        {/* Global file search */}
+        <div ref={globalFileRef} className="relative mb-3">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-violet-400 pointer-events-none" />
+          <input
+            type="text"
+            value={globalFileQuery}
+            onChange={e => { setGlobalFileQuery(e.target.value); setGlobalFileOpen(true); }}
+            onFocus={() => { if (globalFileResults.length) setGlobalFileOpen(true); }}
+            placeholder="Search files across all orders…"
+            className="w-full pl-9 pr-9 py-2 text-sm bg-white dark:bg-zinc-900 border border-violet-200 dark:border-violet-800 rounded-xl text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+          />
+          {globalFileLoading && (
+            <Loader2 size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-violet-400 animate-spin" />
+          )}
+          {!globalFileLoading && globalFileQuery && (
+            <button
+              onClick={() => { setGlobalFileQuery(''); setGlobalFileResults([]); setGlobalFileOpen(false); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+            >
+              <X size={13} />
+            </button>
+          )}
+          {globalFileOpen && globalFileResults.length > 0 && (
+            <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg overflow-hidden">
+              <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  {globalFileResults.length} result{globalFileResults.length !== 1 ? 's' : ''}
+                </span>
+                <button onClick={() => setGlobalFileOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                  <X size={11} />
+                </button>
+              </div>
+              <div className="max-h-72 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                {globalFileResults.map(r => (
+                  <button
+                    key={`${r.order_id}-${r.doc.doc_id}`}
+                    onClick={() => jumpToOrder(r)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors text-left"
+                  >
+                    <FileText size={13} className={`flex-shrink-0 ${fileIconColor(r.doc.content_type, r.doc.filename)}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{r.doc.filename}</p>
+                      <p className="text-xs text-zinc-400 mt-0.5 truncate">
+                        <span className="text-violet-500 font-medium">{r.brand}</span>
+                        <span className="mx-1 text-zinc-300 dark:text-zinc-700">·</span>
+                        {r.order_name}
+                        <span className="mx-1 text-zinc-300 dark:text-zinc-700">·</span>
+                        {fmtSize(r.doc.size)}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {globalFileOpen && !globalFileLoading && globalFileQuery.trim() && globalFileResults.length === 0 && (
+            <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg px-4 py-6 text-center">
+              <FileText size={18} className="mx-auto mb-2 text-zinc-300 dark:text-zinc-600" />
+              <p className="text-sm text-zinc-400">No files found for &ldquo;{globalFileQuery}&rdquo;</p>
+            </div>
+          )}
+        </div>
+
+        {/* Order search */}
         <div className="relative mb-4">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
           <input
@@ -437,7 +564,7 @@ export default function DesignerOrders() {
                         const uploadProgress = isUploading ? progress : null;
 
                         return (
-                          <div key={order._id}>
+                          <div key={order._id} id={`order-${order._id}`}>
                             {/* Order row */}
                             <div className="px-4 py-3">
                               <div className="flex items-start gap-3">
