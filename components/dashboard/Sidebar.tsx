@@ -86,6 +86,7 @@ const PERMISSION_REQUIREMENTS = {
   BRAND_LOGISTICS: { name: 'settings_brand_logistics' },
   PRODUCT_LOGISTICS: { name: 'settings_product_logistics' },
   DESIGN_NEW_ITEMS: { name: 'design_new_items' },
+  DESIGNER_ORDERS: { anyOf: ['design_orders_view', 'design_orders_edit'] },
 };
 
 // Navigation items with required permissions
@@ -304,6 +305,12 @@ const navigation = [
         href: '/design/new-items',
         icon: Sparkles,
         requiredPermission: PERMISSION_REQUIREMENTS.DESIGN_NEW_ITEMS,
+      },
+      {
+        name: 'Designer Orders',
+        href: '/design/orders',
+        icon: Package,
+        requiredPermission: PERMISSION_REQUIREMENTS.DESIGNER_ORDERS,
       },
     ],
   },
