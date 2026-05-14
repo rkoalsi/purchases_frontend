@@ -90,6 +90,33 @@ interface POReport {
   items: POItem[];
 }
 
+interface EstimateDiffItem {
+  model_number: string;
+  title: string;
+  asin: string;
+  supply_qty: number;
+  po_rate: number | null;
+  po_item_total: number | null;
+  in_estimate: boolean;
+  estimate_qty: number | null;
+  estimate_rate: number | null;
+  estimate_item_total: number | null;
+  qty_diff: number | null;
+  rate_diff: number | null;
+  total_diff: number | null;
+}
+
+interface EstimateDiff {
+  po_number: string;
+  estimate_number: string;
+  estimate_sub_total: number | null;
+  estimate_total: number | null;
+  po_computed_total: number | null;
+  po_computed_total_gst: number | null;
+  items: EstimateDiffItem[];
+  only_in_estimate: { sku: string; name: string; quantity: number | null; rate: number | null; item_total: number | null }[];
+}
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (v: number | null | undefined, decimals = 2) =>
@@ -535,6 +562,12 @@ export default function VendorPOReport() {
   const [deleteConfirmPO, setDeleteConfirmPO] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // report tabs
+  const [reportTab, setReportTab] = useState<'report' | 'estimate_diff'>('report');
+  const [estimateDiff, setEstimateDiff] = useState<EstimateDiff | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffError, setDiffError] = useState<string | null>(null);
+
   // estimate modals
   const [createEstimateOpen, setCreateEstimateOpen] = useState(false);
   const [linkEstimateOpen, setLinkEstimateOpen] = useState(false);
@@ -585,6 +618,9 @@ export default function VendorPOReport() {
     setReport(null);
     setReportError(null);
     setReportLoading(true);
+    setReportTab('report');
+    setEstimateDiff(null);
+    setDiffError(null);
     try {
       const { data } = await axios.get<POReport>(`${API_URL}/vendor_po/${poNumber}/report`);
       setReport(data);
@@ -593,6 +629,20 @@ export default function VendorPOReport() {
       setReportError(msg);
     } finally {
       setReportLoading(false);
+    }
+  }, []);
+
+  const fetchEstimateDiff = useCallback(async (poNumber: string) => {
+    setDiffLoading(true);
+    setDiffError(null);
+    try {
+      const { data } = await axios.get<EstimateDiff>(`${API_URL}/vendor_po/${poNumber}/estimate_diff`);
+      setEstimateDiff(data);
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Unknown error';
+      setDiffError(msg);
+    } finally {
+      setDiffLoading(false);
     }
   }, []);
 
@@ -1511,10 +1561,145 @@ export default function VendorPOReport() {
             </div>
           </div>
 
+          {/* Tabs */}
+          {report && !reportLoading && (
+            <div className="flex gap-1 px-1 pt-2 border-b border-zinc-200 dark:border-zinc-700">
+              <button
+                onClick={() => setReportTab('report')}
+                className={`px-4 py-2 text-xs font-medium rounded-t transition-colors ${reportTab === 'report' ? 'bg-white dark:bg-zinc-900 border border-b-white dark:border-zinc-700 dark:border-b-zinc-900 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+              >
+                Report
+              </button>
+              {report.estimate_number && (
+                <button
+                  onClick={() => { setReportTab('estimate_diff'); if (!estimateDiff && !diffLoading) fetchEstimateDiff(report.po_number); }}
+                  className={`px-4 py-2 text-xs font-medium rounded-t transition-colors ${reportTab === 'estimate_diff' ? 'bg-white dark:bg-zinc-900 border border-b-white dark:border-zinc-700 dark:border-b-zinc-900 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                >
+                  Estimate Comparison
+                </button>
+              )}
+            </div>
+          )}
+
           {reportLoading && <LoadingState message="Generating report…" />}
           {reportError && <ErrorState error={reportError} onRetry={() => fetchReport(selectedPO)} />}
 
-          {report && !reportLoading && (
+          {report && !reportLoading && reportTab === 'estimate_diff' && (
+            <div className="p-4 space-y-4">
+              {diffLoading && <LoadingState message="Loading estimate comparison…" />}
+              {diffError && <ErrorState error={diffError} onRetry={() => fetchEstimateDiff(report.po_number)} />}
+              {estimateDiff && !diffLoading && (
+                <>
+                  {/* Summary */}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[
+                      { label: 'PO Computed Total', value: estimateDiff.po_computed_total },
+                      { label: 'Estimate Sub-Total', value: estimateDiff.estimate_sub_total },
+                      { label: 'PO Computed Total w/ GST', value: estimateDiff.po_computed_total_gst },
+                      { label: 'Estimate Total', value: estimateDiff.estimate_total },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5">
+                          {value != null ? `₹${fmt(value)}` : '—'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-4 text-xs text-zinc-500 dark:text-zinc-400">
+                    <span>
+                      Total diff (w/o GST):{' '}
+                      <strong className={(estimateDiff.estimate_sub_total ?? 0) - (estimateDiff.po_computed_total ?? 0) === 0 ? 'text-green-600' : 'text-red-500'}>
+                        ₹{fmt((estimateDiff.estimate_sub_total ?? 0) - (estimateDiff.po_computed_total ?? 0))}
+                      </strong>
+                    </span>
+                    <span>
+                      {estimateDiff.items.filter(i => !i.in_estimate && i.supply_qty > 0).length} item(s) with supply qty &gt; 0 missing from estimate
+                    </span>
+                    {estimateDiff.only_in_estimate.length > 0 && (
+                      <span>{estimateDiff.only_in_estimate.length} item(s) only in estimate</span>
+                    )}
+                  </div>
+
+                  {/* Per-item table */}
+                  <div className={TABLE_CLASSES.overflow}>
+                    <table className="w-full text-xs">
+                      <thead className="bg-zinc-50 dark:bg-zinc-800/50 sticky top-0 z-10">
+                        <tr>
+                          {['Model No.', 'Title', 'PO Supply Qty', 'PO Rate', 'PO Item Total', 'In Estimate', 'Est Qty', 'Est Rate', 'Est Item Total', 'Qty Diff', 'Rate Diff', 'Total Diff'].map(h => (
+                            <th key={h} className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap border-b border-zinc-200 dark:border-zinc-700">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {estimateDiff.items.map((row, idx) => {
+                          const missing = !row.in_estimate && row.supply_qty > 0;
+                          const hasDiff = row.in_estimate && (row.qty_diff !== 0 || (row.rate_diff != null && Math.abs(row.rate_diff) > 0.01));
+                          return (
+                            <tr key={idx} className={`transition-colors ${missing ? 'bg-red-50 dark:bg-red-900/10' : hasDiff ? 'bg-amber-50 dark:bg-amber-900/10' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'}`}>
+                              <td className="px-3 py-2 font-mono text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{row.model_number}</td>
+                              <td className="px-3 py-2 max-w-xs truncate text-zinc-800 dark:text-zinc-200" title={row.title}>{row.title}</td>
+                              <td className="px-3 py-2 text-center font-semibold">{row.supply_qty}</td>
+                              <td className="px-3 py-2 text-right">{row.po_rate != null ? `₹${fmt(row.po_rate)}` : '—'}</td>
+                              <td className="px-3 py-2 text-right">{row.po_item_total != null ? `₹${fmt(row.po_item_total)}` : '—'}</td>
+                              <td className="px-3 py-2 text-center">
+                                {row.in_estimate
+                                  ? <span className="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400">Yes</span>
+                                  : <span className="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400">No</span>}
+                              </td>
+                              <td className="px-3 py-2 text-center">{row.estimate_qty ?? '—'}</td>
+                              <td className="px-3 py-2 text-right">{row.estimate_rate != null ? `₹${fmt(row.estimate_rate)}` : '—'}</td>
+                              <td className="px-3 py-2 text-right">{row.estimate_item_total != null ? `₹${fmt(row.estimate_item_total)}` : '—'}</td>
+                              <td className={`px-3 py-2 text-center font-semibold ${row.qty_diff != null && row.qty_diff !== 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                                {row.qty_diff != null ? (row.qty_diff > 0 ? `+${row.qty_diff}` : row.qty_diff) : '—'}
+                              </td>
+                              <td className={`px-3 py-2 text-right ${row.rate_diff != null && Math.abs(row.rate_diff) > 0.01 ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
+                                {row.rate_diff != null && Math.abs(row.rate_diff) > 0.01 ? `₹${fmt(row.rate_diff)}` : '—'}
+                              </td>
+                              <td className={`px-3 py-2 text-right font-semibold ${row.total_diff != null && row.total_diff !== 0 ? (row.total_diff > 0 ? 'text-red-500' : 'text-green-600') : ''}`}>
+                                {row.total_diff != null && row.total_diff !== 0 ? `₹${fmt(row.total_diff)}` : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Items only in estimate */}
+                  {estimateDiff.only_in_estimate.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-2">Items in estimate but not in PO</h4>
+                      <div className={TABLE_CLASSES.overflow}>
+                        <table className="w-full text-xs">
+                          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                            <tr>
+                              {['SKU', 'Name', 'Qty', 'Rate', 'Item Total'].map(h => (
+                                <th key={h} className="px-3 py-2 text-left font-semibold text-zinc-700 dark:text-zinc-300 border-b border-zinc-200 dark:border-zinc-700">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            {estimateDiff.only_in_estimate.map((row, idx) => (
+                              <tr key={idx} className="bg-amber-50 dark:bg-amber-900/10">
+                                <td className="px-3 py-2 font-mono">{row.sku}</td>
+                                <td className="px-3 py-2 max-w-xs truncate" title={row.name}>{row.name}</td>
+                                <td className="px-3 py-2 text-center">{row.quantity}</td>
+                                <td className="px-3 py-2 text-right">{row.rate != null ? `₹${fmt(row.rate)}` : '—'}</td>
+                                <td className="px-3 py-2 text-right">{row.item_total != null ? `₹${fmt(row.item_total)}` : '—'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {report && !reportLoading && reportTab === 'report' && (
             <div className={TABLE_CLASSES.overflow}>
               <table className="w-full text-xs">
                 <thead className="bg-zinc-50 dark:bg-zinc-800/50 sticky top-0 z-10">
