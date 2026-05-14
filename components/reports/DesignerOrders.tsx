@@ -7,7 +7,7 @@ import { useAuth } from '@/components/context/AuthContext';
 import {
   Upload, Trash2, Download, Loader2, RefreshCw, FileText, ChevronDown,
   ChevronRight, Tag, Search, Eye, FolderOpen, ArrowLeft, ArrowRight, X, Archive,
-  Calendar, Package,
+  Calendar, Package, Plus, Layers, Filter,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -20,6 +20,18 @@ interface Document {
   size: number;
   uploaded_at: string;
   s3_key: string;
+  category?: string;
+  item_id?: string;
+  item_name?: string;
+}
+
+interface LineItem {
+  item_id: string;
+  name: string;
+  description?: string;
+  account_name?: string;
+  quantity: number;
+  item_total?: number;
 }
 
 interface DesignerOrder {
@@ -64,6 +76,12 @@ function fmtDateTime(s: string) {
   } catch { return s; }
 }
 
+function lineItemLabel(item: LineItem): string {
+  const label = item.name?.trim() || item.description?.trim() || 'Unnamed item';
+  const isSample = item.account_name?.trim().toLowerCase() === 'sample';
+  return isSample ? `${label} (Sample)` : label;
+}
+
 function fmtSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -100,6 +118,8 @@ function DateBadge({ label, value, highlight }: DateBadgeProps) {
   );
 }
 
+const ITEM_UPLOAD_BTN = 'flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer px-2 py-1 border border-blue-200 dark:border-blue-800 rounded-lg transition-all';
+
 export default function DesignerOrders() {
   const { user, accessToken } = useAuth();
   const [orders, setOrders] = useState<DesignerOrder[]>([]);
@@ -116,12 +136,31 @@ export default function DesignerOrders() {
   const [downloadingDoc, setDownloadingDoc] = useState<string | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<string | null>(null);
   const [downloadingZip, setDownloadingZip] = useState<string | null>(null);
+  const [downloadingItemZip, setDownloadingItemZip] = useState<string | null>(null);
   const [docSearch, setDocSearch] = useState<Record<string, string>>({});
   const [docPage, setDocPage] = useState<Record<string, number>>({});
+  const [docCatFilter, setDocCatFilter] = useState<Record<string, string>>({});
+  const [docItemFilter, setDocItemFilter] = useState<Record<string, string>>({});
   const [globalFileQuery, setGlobalFileQuery] = useState('');
   const [globalFileResults, setGlobalFileResults] = useState<GlobalFileResult[]>([]);
   const [globalFileLoading, setGlobalFileLoading] = useState(false);
   const [globalFileOpen, setGlobalFileOpen] = useState(false);
+
+  // categories
+  const [categories, setCategories] = useState<string[]>([]);
+  const [orderUploadCategory, setOrderUploadCategory] = useState<Record<string, string>>({});
+  const [addingCatForOrder, setAddingCatForOrder] = useState<string | null>(null);
+  const [catInput, setCatInput] = useState('');
+  const [addingCat, setAddingCat] = useState(false);
+  const [recatDoc, setRecatDoc] = useState<string | null>(null);
+  const [recatLoading, setRecatLoading] = useState<string | null>(null);
+
+  // line items
+  const [lineItemsMap, setLineItemsMap] = useState<Record<string, LineItem[]>>({});
+  const [lineItemsLoading, setLineItemsLoading] = useState<Record<string, boolean>>({});
+  const [expandedLineItems, setExpandedLineItems] = useState<Record<string, Set<string>>>({});
+  const [expandedLineItemSections, setExpandedLineItemSections] = useState<Set<string>>(new Set());
+
   const globalFileRef = useRef<HTMLDivElement>(null);
   const globalFileDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -148,6 +187,13 @@ export default function DesignerOrders() {
       })
       .catch(() => { setCanEdit(isAdmin); });
   }, [user, accessToken]);
+
+  // fetch categories on mount
+  useEffect(() => {
+    axios.get(`${API_URL}/design/categories`)
+      .then(({ data }) => setCategories(data))
+      .catch(() => setCategories(['products', 'catalogue']));
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -204,6 +250,22 @@ export default function DesignerOrders() {
     });
   };
 
+  const fetchLineItemsForOrder = useCallback((orderId: string) => {
+    setLineItemsLoading(prev => ({ ...prev, [orderId]: true }));
+    axios.get<LineItem[]>(`${API_URL}/design/${orderId}/line-items`)
+      .then(({ data }) => setLineItemsMap(prev => ({ ...prev, [orderId]: data })))
+      .catch(() => setLineItemsMap(prev => ({ ...prev, [orderId]: [] })))
+      .finally(() => setLineItemsLoading(prev => ({ ...prev, [orderId]: false })));
+  }, []);
+
+  const toggleLineItem = useCallback((orderId: string, itemId: string) => {
+    setExpandedLineItems(prev => {
+      const set = new Set(prev[orderId] || []);
+      if (set.has(itemId)) set.delete(itemId); else set.add(itemId);
+      return { ...prev, [orderId]: set };
+    });
+  }, []);
+
   const handleToggleOrder = useCallback((orderId: string) => {
     const isOpen = expandedOrders.has(orderId);
     setExpandedOrders(prev => {
@@ -211,11 +273,16 @@ export default function DesignerOrders() {
       if (isOpen) { next.delete(orderId); } else { next.add(orderId); }
       return next;
     });
-    if (!isOpen && docsMap[orderId] === undefined) {
+    if (!isOpen) {
       const order = orders.find(o => o._id === orderId);
-      if (order) setDocsMap(prev => ({ ...prev, [orderId]: order.designer_documents || [] }));
+      if (order && docsMap[orderId] === undefined) {
+        setDocsMap(prev => ({ ...prev, [orderId]: order.designer_documents || [] }));
+      }
+      if (order?.purchaseorder_number && lineItemsMap[orderId] === undefined) {
+        fetchLineItemsForOrder(orderId);
+      }
     }
-  }, [expandedOrders, docsMap, orders]);
+  }, [expandedOrders, docsMap, orders, lineItemsMap, fetchLineItemsForOrder]);
 
   // keep docs in sync when orders refresh
   useEffect(() => {
@@ -228,7 +295,10 @@ export default function DesignerOrders() {
 
   const handleUploadDoc = useCallback(async (
     orderId: string,
-    files: { file: File; relativePath?: string }[]
+    files: { file: File; relativePath?: string }[],
+    category?: string,
+    itemId?: string,
+    itemName?: string,
   ) => {
     if (!files.length) return;
     setUploadingFor(orderId);
@@ -239,6 +309,9 @@ export default function DesignerOrders() {
         const fd = new FormData();
         fd.append('file', file);
         if (relativePath) fd.append('relative_path', relativePath);
+        if (category) fd.append('category', category);
+        if (itemId) fd.append('item_id', itemId);
+        if (itemName) fd.append('item_name', itemName);
         const { data } = await axios.post<Document>(
           `${API_URL}/design/${orderId}/designer-documents`, fd,
           { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -263,6 +336,57 @@ export default function DesignerOrders() {
     setProgress(null);
     if (fileInputRefs.current[orderId]) fileInputRefs.current[orderId]!.value = '';
     if (folderInputRefs.current[orderId]) folderInputRefs.current[orderId]!.value = '';
+  }, []);
+
+  const handleAddCategory = useCallback(async (orderId: string) => {
+    const name = catInput.trim();
+    if (!name) { setAddingCatForOrder(null); return; }
+    if (categories.includes(name)) {
+      setOrderUploadCategory(prev => ({ ...prev, [orderId]: name }));
+      setAddingCatForOrder(null);
+      setCatInput('');
+      return;
+    }
+    setAddingCat(true);
+    try {
+      await axios.post(`${API_URL}/design/categories`, { name });
+      setCategories(prev => [...prev, name]);
+      setOrderUploadCategory(prev => ({ ...prev, [orderId]: name }));
+      setAddingCatForOrder(null);
+      setCatInput('');
+    } catch {
+      toast.error('Failed to add category');
+    } finally {
+      setAddingCat(false);
+    }
+  }, [catInput, categories]);
+
+  const handleDeleteCategory = useCallback(async (name: string) => {
+    if (!confirm(`Delete category "${name}"? It won't remove files already tagged with it.`)) return;
+    try {
+      await axios.delete(`${API_URL}/design/categories/${encodeURIComponent(name)}`);
+      setCategories(prev => prev.filter(c => c !== name));
+      setOrderUploadCategory(prev => {
+        const next = { ...prev };
+        Object.keys(next).forEach(k => { if (next[k] === name) delete next[k]; });
+        return next;
+      });
+    } catch {
+      toast.error('Failed to delete category');
+    }
+  }, []);
+
+  const handleRecategorize = useCallback(async (orderId: string, docId: string, newCategory: string) => {
+    setRecatLoading(docId);
+    try {
+      await axios.patch(`${API_URL}/design/${orderId}/designer-documents/${docId}`, { category: newCategory });
+      setDocsMap(prev => ({
+        ...prev,
+        [orderId]: (prev[orderId] || []).map(d => d.doc_id === docId ? { ...d, category: newCategory } : d),
+      }));
+      setRecatDoc(null);
+    } catch { toast.error('Failed to update category'); }
+    finally { setRecatLoading(null); }
   }, []);
 
   const handleViewDoc = useCallback(async (orderId: string, docId: string) => {
@@ -316,7 +440,7 @@ export default function DesignerOrders() {
   const handleDownloadZip = useCallback(async (orderId: string, orderName: string) => {
     setDownloadingZip(orderId);
     try {
-      const { data } = await axios.get<{ url: string }>(
+      const { data } = await axios.get(
         `${API_URL}/design/${orderId}/designer-documents/zip`,
         { responseType: 'blob' }
       );
@@ -328,6 +452,46 @@ export default function DesignerOrders() {
       URL.revokeObjectURL(url);
     } catch { toast.error('Failed to download ZIP'); }
     finally { setDownloadingZip(null); }
+  }, []);
+
+  const handleDeleteItemDocs = useCallback(async (orderId: string, itemId: string, itemName: string) => {
+    const docs = docsMap[orderId] || [];
+    const targets = docs.filter(d => d.item_id === itemId);
+    if (!targets.length) return;
+    if (!confirm(`Delete all ${targets.length} file${targets.length !== 1 ? 's' : ''} for "${itemName}"? This cannot be undone.`)) return;
+    for (const doc of targets) {
+      try {
+        await axios.delete(`${API_URL}/design/${orderId}/designer-documents/${doc.doc_id}`);
+        setDocsMap(prev => ({ ...prev, [orderId]: (prev[orderId] || []).filter(d => d.doc_id !== doc.doc_id) }));
+        setOrders(prev => prev.map(o =>
+          o._id === orderId
+            ? { ...o, doc_count: Math.max(0, (o.doc_count || 0) - 1), designer_documents: (o.designer_documents || []).filter(d => d.doc_id !== doc.doc_id) }
+            : o
+        ));
+      } catch {
+        toast.error(`Failed to delete ${doc.filename}`);
+      }
+    }
+    toast.success(`Deleted all files for "${itemName}"`);
+  }, [docsMap]);
+
+  const handleDownloadItemZip = useCallback(async (
+    orderId: string, orderName: string, itemId: string, itemName: string,
+  ) => {
+    setDownloadingItemZip(itemId);
+    try {
+      const { data } = await axios.get(
+        `${API_URL}/design/${orderId}/designer-documents/zip`,
+        { responseType: 'blob', params: { item_id: itemId } }
+      );
+      const url = URL.createObjectURL(data as unknown as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${orderName}_${itemName}_designer.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { toast.error('No files to download for this item'); }
+    finally { setDownloadingItemZip(null); }
   }, []);
 
   // debounced global file search
@@ -367,22 +531,55 @@ export default function DesignerOrders() {
     setGlobalFileOpen(false);
     setGlobalFileQuery('');
     setExpandedBrands(prev => new Set([...prev, result.brand]));
-    setExpandedOrders(prev => {
-      const next = new Set([...prev, result.order_id]);
-      return next;
-    });
+    setExpandedOrders(prev => new Set([...prev, result.order_id]));
     setDocsMap(prev => {
       if (prev[result.order_id]) return prev;
       const order = orders.find(o => o._id === result.order_id);
       return order ? { ...prev, [result.order_id]: order.designer_documents || [] } : prev;
     });
+    const order = orders.find(o => o._id === result.order_id);
+    if (order?.purchaseorder_number && lineItemsMap[result.order_id] === undefined) {
+      fetchLineItemsForOrder(result.order_id);
+    }
     setTimeout(() => {
       document.getElementById(`order-${result.order_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 100);
-  }, [orders]);
+  }, [orders, lineItemsMap, fetchLineItemsForOrder]);
 
   const totalOrders = orders.length;
   const totalDocs = orders.reduce((sum, o) => sum + (o.doc_count || 0), 0);
+
+  // Reusable file action buttons
+  const FileActions = useCallback(({ orderId, doc }: { orderId: string; doc: Document }) => (
+    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+      <button
+        onClick={() => handleViewDoc(orderId, doc.doc_id)}
+        disabled={viewingDoc === doc.doc_id}
+        className="p-1.5 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+        title="View"
+      >
+        {viewingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
+      </button>
+      <button
+        onClick={() => handleDownloadDoc(orderId, doc.doc_id, doc.filename)}
+        disabled={downloadingDoc === doc.doc_id}
+        className="p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+        title="Download"
+      >
+        {downloadingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+      </button>
+      {canEdit && (
+        <button
+          onClick={() => handleDeleteDoc(orderId, doc.doc_id)}
+          disabled={deletingDoc === doc.doc_id}
+          className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+          title="Delete"
+        >
+          {deletingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+        </button>
+      )}
+    </div>
+  ), [viewingDoc, downloadingDoc, deletingDoc, canEdit, handleViewDoc, handleDownloadDoc, handleDeleteDoc]);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -554,14 +751,55 @@ export default function DesignerOrders() {
                         const isOrderExpanded = expandedOrders.has(order._id);
                         const docs = docsMap[order._id] ?? (order.designer_documents || []);
                         const dsq = (docSearch[order._id] || '').toLowerCase();
-                        const filteredDocs = dsq
-                          ? docs.filter(d => d.filename.toLowerCase().includes(dsq))
-                          : docs;
+                        const catFilter = docCatFilter[order._id] || '';
+                        const itemFilter = docItemFilter[order._id] || '';
+
+                        const filteredDocs = docs.filter(d => {
+                          if (dsq) {
+                            const text = [d.filename, d.item_name || '', d.category || ''].join(' ').toLowerCase();
+                            if (!text.includes(dsq)) return false;
+                          }
+                          if (catFilter) {
+                            const dCat = d.category?.trim() || 'general';
+                            if (dCat !== catFilter) return false;
+                          }
+                          if (itemFilter.startsWith('__cat__')) {
+                            const catVal = itemFilter.slice(7);
+                            if ((d.category?.trim() || '') !== catVal) return false;
+                          } else if (itemFilter === '__none__') {
+                            if (d.item_id) return false;
+                          } else if (itemFilter) {
+                            if (d.item_id !== itemFilter) return false;
+                          }
+                          return true;
+                        });
+
                         const page = docPage[order._id] || 0;
                         const totalPages = Math.ceil(filteredDocs.length / DOCS_PER_PAGE);
                         const pagedDocs = filteredDocs.slice(page * DOCS_PER_PAGE, (page + 1) * DOCS_PER_PAGE);
                         const isUploading = uploadingFor === order._id;
                         const uploadProgress = isUploading ? progress : null;
+                        const lineItems = lineItemsMap[order._id] || [];
+                        const lineItemsAreLoading = lineItemsLoading[order._id] ?? false;
+                        const rawUploadCat = orderUploadCategory[order._id];
+                        const selectedCategory = rawUploadCat === '' ? 'other' : (rawUploadCat || categories[0] || 'other');
+                        const expandedItems = expandedLineItems[order._id] || new Set<string>();
+
+                        // Category counts for filter pills
+                        const catCounts = docs.reduce<Record<string, number>>((acc, d) => {
+                          const c = d.category?.trim() || 'general';
+                          acc[c] = (acc[c] || 0) + 1;
+                          return acc;
+                        }, {});
+                        const docCatKeys = Object.keys(catCounts).sort();
+
+                        // Item file counts
+                        const itemDocCounts = docs.reduce<Record<string, number>>((acc, d) => {
+                          if (d.item_id) acc[d.item_id] = (acc[d.item_id] || 0) + 1;
+                          return acc;
+                        }, {});
+                        const hasUncategorizedFiles = docs.some(d => !d.item_id);
+                        const hasActiveFilters = !!(dsq || catFilter || itemFilter);
 
                         return (
                           <div key={order._id} id={`order-${order._id}`}>
@@ -572,9 +810,7 @@ export default function DesignerOrders() {
                                   onClick={() => handleToggleOrder(order._id)}
                                   className="flex-shrink-0 mt-0.5 p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
                                 >
-                                  {isOrderExpanded
-                                    ? <ChevronDown size={14} />
-                                    : <ChevronRight size={14} />}
+                                  {isOrderExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                 </button>
 
                                 <div className="flex-1 min-w-0">
@@ -625,218 +861,561 @@ export default function DesignerOrders() {
                               </div>
                             </div>
 
-                            {/* Documents panel */}
+                            {/* Expanded panel */}
                             {isOrderExpanded && (
-                              <div className="mx-4 mb-4 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                              <div className="px-4 pb-4 space-y-3">
 
-                                {/* Docs toolbar */}
-                                <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800">
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    <FileText size={12} className="text-zinc-400" />
-                                    <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Files</span>
-                                    {docs.length > 0 && (
-                                      <span className="text-xs bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 px-1.5 py-0.5 rounded-full font-medium">
-                                        {dsq && filteredDocs.length !== docs.length
-                                          ? `${filteredDocs.length}/${docs.length}`
-                                          : docs.length}
+                                {/* ── Line Items Accordion ── */}
+                                {order.purchaseorder_number && (
+                                  <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 overflow-hidden">
+                                    {/* Section header — toggles the whole section */}
+                                    <button
+                                      onClick={() => setExpandedLineItemSections(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(order._id)) next.delete(order._id); else next.add(order._id);
+                                        return next;
+                                      })}
+                                      className="w-full flex items-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors text-left"
+                                    >
+                                      <Layers size={12} className="text-blue-500 flex-shrink-0" />
+                                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex-1">
+                                        Line Items — {order.purchaseorder_number}
                                       </span>
-                                    )}
+                                      {lineItemsAreLoading && <Loader2 size={11} className="animate-spin text-blue-400" />}
+                                      {!lineItemsAreLoading && lineItems.length > 0 && (
+                                        <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium">
+                                          {lineItems.length}
+                                        </span>
+                                      )}
+                                      {expandedLineItemSections.has(order._id)
+                                        ? <ChevronDown size={13} className="text-blue-400 flex-shrink-0" />
+                                        : <ChevronRight size={13} className="text-blue-400 flex-shrink-0" />}
+                                    </button>
+
+                                    {expandedLineItemSections.has(order._id) && (lineItemsAreLoading ? (
+                                      <div className="flex items-center justify-center gap-2 text-zinc-400 text-sm py-6 bg-white dark:bg-zinc-900">
+                                        <Loader2 size={13} className="animate-spin" /> Loading line items…
+                                      </div>
+                                    ) : lineItems.length === 0 ? (
+                                      <div className="px-4 py-5 text-center bg-white dark:bg-zinc-900">
+                                        <p className="text-xs text-zinc-400">No line items found for this PO.</p>
+                                      </div>
+                                    ) : (
+                                      <div className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                                        {lineItems.map(item => {
+                                          const itemDocs = docs.filter(d => d.item_id === item.item_id);
+                                          const itemFileCount = itemDocs.length;
+                                          const isItemOpen = expandedItems.has(item.item_id);
+
+                                          return (
+                                            <div key={item.item_id}>
+                                              {/* Item header row */}
+                                              <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
+                                                <button
+                                                  onClick={() => itemFileCount > 0 && toggleLineItem(order._id, item.item_id)}
+                                                  className={`flex-shrink-0 transition-colors ${
+                                                    itemFileCount > 0
+                                                      ? 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer'
+                                                      : 'text-zinc-200 dark:text-zinc-700 cursor-default'
+                                                  }`}
+                                                >
+                                                  {isItemOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                                </button>
+                                                <div className="flex-1 min-w-0">
+                                                  <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block truncate">
+                                                    {lineItemLabel(item)}
+                                                  </span>
+                                                  <span className="text-xs text-zinc-400">Qty: {item.quantity}</span>
+                                                </div>
+                                                {/* File count badge */}
+                                                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${
+                                                  itemFileCount > 0
+                                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600'
+                                                }`}>
+                                                  {itemFileCount} {itemFileCount === 1 ? 'file' : 'files'}
+                                                </span>
+                                                {/* Download ZIP for this item */}
+                                                {itemFileCount > 0 && (
+                                                  <button
+                                                    onClick={() => handleDownloadItemZip(order._id, order.name, item.item_id, lineItemLabel(item))}
+                                                    disabled={downloadingItemZip === item.item_id}
+                                                    className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                    title="Download all files for this item as ZIP"
+                                                  >
+                                                    {downloadingItemZip === item.item_id
+                                                      ? <Loader2 size={12} className="animate-spin" />
+                                                      : <Archive size={12} />}
+                                                  </button>
+                                                )}
+                                                {/* Delete all files for this item */}
+                                                {canEdit && itemFileCount > 0 && (
+                                                  <button
+                                                    onClick={() => handleDeleteItemDocs(order._id, item.item_id, lineItemLabel(item))}
+                                                    className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                    title="Delete all files for this item"
+                                                  >
+                                                    <Trash2 size={12} />
+                                                  </button>
+                                                )}
+                                                {/* Upload buttons */}
+                                                {canEdit && (
+                                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                                    <label className={ITEM_UPLOAD_BTN} title={`Upload files for ${lineItemLabel(item)}`}>
+                                                      {isUploading ? <Loader2 size={10} className="animate-spin" /> : <Upload size={10} />}
+                                                      Files
+                                                      <input
+                                                        type="file"
+                                                        multiple
+                                                        className="hidden"
+                                                        disabled={!!uploadingFor}
+                                                        onChange={e => {
+                                                          if (e.target.files?.length)
+                                                            handleUploadDoc(
+                                                              order._id,
+                                                              Array.from(e.target.files).map(f => ({ file: f })),
+                                                              'product',
+                                                              item.item_id,
+                                                              lineItemLabel(item),
+                                                            );
+                                                          e.target.value = '';
+                                                        }}
+                                                      />
+                                                    </label>
+                                                    <label className={ITEM_UPLOAD_BTN} title={`Upload folder for ${lineItemLabel(item)}`}>
+                                                      <FolderOpen size={10} />
+                                                      Folder
+                                                      <input
+                                                        type="file"
+                                                        className="hidden"
+                                                        disabled={!!uploadingFor}
+                                                        // @ts-expect-error -- webkitdirectory is non-standard
+                                                        webkitdirectory=""
+                                                        onChange={e => {
+                                                          if (e.target.files?.length)
+                                                            handleUploadDoc(
+                                                              order._id,
+                                                              Array.from(e.target.files).map(f => ({
+                                                                file: f,
+                                                                relativePath: (f as any).webkitRelativePath || undefined,
+                                                              })),
+                                                              'product',
+                                                              item.item_id,
+                                                              lineItemLabel(item),
+                                                            );
+                                                          e.target.value = '';
+                                                        }}
+                                                      />
+                                                    </label>
+                                                  </div>
+                                                )}
+                                              </div>
+
+                                              {/* Expanded item files */}
+                                              {isItemOpen && itemDocs.length > 0 && (
+                                                <div className="border-t border-blue-100 dark:border-blue-900/30 divide-y divide-blue-50 dark:divide-blue-900/20 bg-blue-50/40 dark:bg-blue-950/10">
+                                                  {itemDocs.map(doc => (
+                                                    <div key={doc.doc_id} className="flex items-center gap-3 pl-10 pr-4 py-2 group hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                                      <FileText size={12} className={`flex-shrink-0 ${fileIconColor(doc.content_type, doc.filename)}`} />
+                                                      <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200 truncate">{doc.filename}</p>
+                                                        <p className="text-xs text-zinc-400">{fmtSize(doc.size)} · {fmtDateTime(doc.uploaded_at)}</p>
+                                                      </div>
+                                                      <FileActions orderId={order._id} doc={doc} />
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* ── Files Section ── */}
+                                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+
+                                  {/* Upload toolbar */}
+                                  <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <FileText size={12} className="text-zinc-400" />
+                                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Files</span>
+                                        {docs.length > 0 && (
+                                          <span className="text-xs bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 px-1.5 py-0.5 rounded-full font-medium">
+                                            {hasActiveFilters && filteredDocs.length !== docs.length
+                                              ? `${filteredDocs.length}/${docs.length}`
+                                              : docs.length}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {canEdit && (
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {/* Category pill selector for upload */}
+                                          <div className="flex items-center gap-1 flex-wrap">
+                                            <span className="text-xs text-zinc-400">Upload to:</span>
+                                            {addingCatForOrder === order._id ? (
+                                              <>
+                                                <input
+                                                  autoFocus
+                                                  value={catInput}
+                                                  onChange={e => setCatInput(e.target.value)}
+                                                  onKeyDown={e => {
+                                                    if (e.key === 'Enter') handleAddCategory(order._id);
+                                                    if (e.key === 'Escape') { setAddingCatForOrder(null); setCatInput(''); }
+                                                  }}
+                                                  placeholder="New category…"
+                                                  className="w-28 text-xs px-2 py-0.5 bg-white dark:bg-zinc-800 border border-violet-300 dark:border-violet-700 rounded-full text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                                />
+                                                <button
+                                                  onClick={() => handleAddCategory(order._id)}
+                                                  disabled={addingCat || !catInput.trim()}
+                                                  className="text-xs font-medium px-2 py-0.5 bg-violet-600 text-white rounded-full disabled:opacity-40 hover:bg-violet-700 transition-colors"
+                                                >
+                                                  {addingCat ? <Loader2 size={10} className="animate-spin" /> : 'Save'}
+                                                </button>
+                                                <button
+                                                  onClick={() => { setAddingCatForOrder(null); setCatInput(''); }}
+                                                  className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-full"
+                                                >
+                                                  <X size={11} />
+                                                </button>
+                                              </>
+                                            ) : (
+                                              <>
+                                                {categories.map(cat => (
+                                                  <span key={cat} className={`inline-flex items-center gap-0.5 text-xs rounded-full border font-medium transition-all ${
+                                                    selectedCategory === cat
+                                                      ? 'bg-violet-600 border-violet-600 text-white shadow-sm'
+                                                      : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300'
+                                                  }`}>
+                                                    <button
+                                                      onClick={() => setOrderUploadCategory(prev => ({ ...prev, [order._id]: selectedCategory === cat ? '' : cat }))}
+                                                      className="pl-2.5 pr-1 py-0.5"
+                                                    >
+                                                      {cat}
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleDeleteCategory(cat)}
+                                                      className={`pr-1.5 py-0.5 rounded-r-full transition-colors ${selectedCategory === cat ? 'hover:text-red-200' : 'hover:text-red-500 dark:hover:text-red-400'}`}
+                                                      title={`Delete category "${cat}"`}
+                                                    >
+                                                      <X size={9} />
+                                                    </button>
+                                                  </span>
+                                                ))}
+                                                <button
+                                                  onClick={() => { setAddingCatForOrder(order._id); setCatInput(''); }}
+                                                  className="text-xs px-1.5 py-0.5 rounded-full border border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-400 hover:text-violet-600 hover:border-violet-400 dark:hover:border-violet-600 transition-all flex items-center gap-0.5"
+                                                  title="Add new category"
+                                                >
+                                                  <Plus size={10} /> New
+                                                </button>
+                                              </>
+                                            )}
+                                          </div>
+
+                                          {/* Upload buttons */}
+                                          <div className="flex items-center gap-1">
+                                            <label className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-white hover:bg-violet-600 dark:text-violet-400 dark:hover:text-white dark:hover:bg-violet-600 cursor-pointer px-2.5 py-1 border border-violet-200 dark:border-violet-800 rounded-lg transition-all">
+                                              {isUploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                                              Files
+                                              <input
+                                                ref={el => { fileInputRefs.current[order._id] = el; }}
+                                                type="file"
+                                                multiple
+                                                className="hidden"
+                                                disabled={!!uploadingFor}
+                                                onChange={e => {
+                                                  if (e.target.files?.length)
+                                                    handleUploadDoc(
+                                                      order._id,
+                                                      Array.from(e.target.files).map(f => ({ file: f })),
+                                                      selectedCategory,
+                                                    );
+                                                }}
+                                              />
+                                            </label>
+                                            <label className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-white hover:bg-violet-600 dark:text-violet-400 dark:hover:text-white dark:hover:bg-violet-600 cursor-pointer px-2.5 py-1 border border-violet-200 dark:border-violet-800 rounded-lg transition-all">
+                                              <FolderOpen size={11} />
+                                              Folder
+                                              <input
+                                                ref={el => { folderInputRefs.current[order._id] = el; }}
+                                                type="file"
+                                                className="hidden"
+                                                disabled={!!uploadingFor}
+                                                // @ts-expect-error -- webkitdirectory is non-standard
+                                                webkitdirectory=""
+                                                onChange={e => {
+                                                  if (e.target.files?.length)
+                                                    handleUploadDoc(
+                                                      order._id,
+                                                      Array.from(e.target.files).map(f => ({
+                                                        file: f,
+                                                        relativePath: (f as any).webkitRelativePath || undefined,
+                                                      })),
+                                                      selectedCategory,
+                                                    );
+                                                }}
+                                              />
+                                            </label>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
 
+                                  {/* Filter bar */}
                                   {docs.length > 0 && (
-                                    <div className="relative flex-1 min-w-[140px]">
-                                      <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-                                      <input
-                                        type="text"
-                                        value={docSearch[order._id] || ''}
-                                        onChange={e => {
-                                          setDocSearch(prev => ({ ...prev, [order._id]: e.target.value }));
-                                          setDocPage(prev => ({ ...prev, [order._id]: 0 }));
-                                        }}
-                                        placeholder="Filter files…"
-                                        className="w-full pl-7 pr-6 py-1 text-xs bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500"
-                                      />
-                                      {docSearch[order._id] && (
+                                    <div className="px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/60 flex flex-wrap items-center gap-3">
+                                      {/* Search */}
+                                      <div className="relative flex-1 min-w-[160px]">
+                                        <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                                        <input
+                                          type="text"
+                                          value={docSearch[order._id] || ''}
+                                          onChange={e => {
+                                            setDocSearch(prev => ({ ...prev, [order._id]: e.target.value }));
+                                            setDocPage(prev => ({ ...prev, [order._id]: 0 }));
+                                          }}
+                                          placeholder="Search files, products, categories…"
+                                          className="w-full pl-7 pr-6 py-1 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                        />
+                                        {docSearch[order._id] && (
+                                          <button
+                                            onClick={() => {
+                                              setDocSearch(prev => ({ ...prev, [order._id]: '' }));
+                                              setDocPage(prev => ({ ...prev, [order._id]: 0 }));
+                                            }}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                                          >
+                                            <X size={10} />
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      {/* Category filter pills */}
+                                      {docCatKeys.length > 1 && (
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                          <Filter size={10} className="text-zinc-400 flex-shrink-0" />
+                                          <button
+                                            onClick={() => {
+                                              setDocCatFilter(prev => ({ ...prev, [order._id]: '' }));
+                                              setDocPage(prev => ({ ...prev, [order._id]: 0 }));
+                                            }}
+                                            className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-all ${
+                                              !catFilter
+                                                ? 'bg-zinc-700 dark:bg-zinc-300 border-zinc-700 dark:border-zinc-300 text-white dark:text-zinc-900'
+                                                : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400'
+                                            }`}
+                                          >
+                                            All
+                                          </button>
+                                          {docCatKeys.map(cat => (
+                                            <button
+                                              key={cat}
+                                              onClick={() => {
+                                                setDocCatFilter(prev => ({ ...prev, [order._id]: prev[order._id] === cat ? '' : cat }));
+                                                setDocPage(prev => ({ ...prev, [order._id]: 0 }));
+                                              }}
+                                              className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-all ${
+                                                catFilter === cat
+                                                  ? 'bg-violet-600 border-violet-600 text-white'
+                                                  : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-violet-400 dark:hover:border-violet-600'
+                                              }`}
+                                            >
+                                              {cat}
+                                              <span className="ml-1 opacity-60">{catCounts[cat]}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {/* Product/item/category filter — dropdown */}
+                                      {(categories.length > 0 || lineItems.length > 0) && (
+                                        <div className="flex items-center gap-1.5">
+                                          <Package size={10} className="text-zinc-400 flex-shrink-0" />
+                                          <select
+                                            value={itemFilter}
+                                            onChange={e => {
+                                              setDocItemFilter(prev => ({ ...prev, [order._id]: e.target.value }));
+                                              setDocPage(prev => ({ ...prev, [order._id]: 0 }));
+                                            }}
+                                            className="text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[220px]"
+                                          >
+                                            <option value="">Other</option>
+                                            {categories.map(cat => (
+                                              <option key={`__cat__${cat}`} value={`__cat__${cat}`}>{cat}</option>
+                                            ))}
+                                            {lineItems.filter(item => itemDocCounts[item.item_id]).map(item => (
+                                              <option key={item.item_id} value={item.item_id}>
+                                                {lineItemLabel(item)} ({itemDocCounts[item.item_id]})
+                                              </option>
+                                            ))}
+                                            {hasUncategorizedFiles && (
+                                              <option value="__none__">
+                                                Uncategorized ({docs.filter(d => !d.item_id).length})
+                                              </option>
+                                            )}
+                                          </select>
+                                        </div>
+                                      )}
+
+                                      {/* Clear filters */}
+                                      {hasActiveFilters && (
                                         <button
                                           onClick={() => {
                                             setDocSearch(prev => ({ ...prev, [order._id]: '' }));
+                                            setDocCatFilter(prev => ({ ...prev, [order._id]: '' }));
+                                            setDocItemFilter(prev => ({ ...prev, [order._id]: '' }));
                                             setDocPage(prev => ({ ...prev, [order._id]: 0 }));
                                           }}
-                                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                                          className="text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400 flex items-center gap-0.5 transition-colors"
                                         >
-                                          <X size={10} />
+                                          <X size={10} /> Clear filters
                                         </button>
                                       )}
                                     </div>
                                   )}
 
-                                  {canEdit && (
-                                    <div className="flex items-center gap-1 ml-auto flex-shrink-0">
-                                      <label className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-white hover:bg-violet-600 dark:text-violet-400 dark:hover:text-white dark:hover:bg-violet-600 cursor-pointer px-2.5 py-1 border border-violet-200 dark:border-violet-800 rounded-lg transition-all">
-                                        {isUploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
-                                        Files
-                                        <input
-                                          ref={el => { fileInputRefs.current[order._id] = el; }}
-                                          type="file"
-                                          multiple
-                                          className="hidden"
-                                          disabled={!!uploadingFor}
-                                          onChange={e => {
-                                            if (e.target.files?.length)
-                                              handleUploadDoc(order._id, Array.from(e.target.files).map(f => ({ file: f })));
-                                          }}
+                                  {/* Upload progress */}
+                                  {uploadProgress && (
+                                    <div className="px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b border-violet-100 dark:border-violet-900/40">
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-xs font-medium text-violet-700 dark:text-violet-300">
+                                          Uploading {uploadProgress.done} of {uploadProgress.total} file{uploadProgress.total !== 1 ? 's' : ''}…
+                                        </span>
+                                        <span className="text-xs tabular-nums text-violet-500 dark:text-violet-400">
+                                          {Math.round((uploadProgress.done / uploadProgress.total) * 100)}%
+                                        </span>
+                                      </div>
+                                      <div className="w-full h-1.5 bg-violet-100 dark:bg-violet-900/50 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full bg-violet-500 rounded-full transition-all duration-300 ease-out"
+                                          style={{ width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%` }}
                                         />
-                                      </label>
-                                      <label className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-white hover:bg-violet-600 dark:text-violet-400 dark:hover:text-white dark:hover:bg-violet-600 cursor-pointer px-2.5 py-1 border border-violet-200 dark:border-violet-800 rounded-lg transition-all">
-                                        <FolderOpen size={11} />
-                                        Folder
-                                        <input
-                                          ref={el => { folderInputRefs.current[order._id] = el; }}
-                                          type="file"
-                                          className="hidden"
-                                          disabled={!!uploadingFor}
-                                          // @ts-expect-error -- webkitdirectory is non-standard
-                                          webkitdirectory=""
-                                          onChange={e => {
-                                            if (e.target.files?.length)
-                                              handleUploadDoc(order._id, Array.from(e.target.files).map(f => ({
-                                                file: f,
-                                                relativePath: (f as any).webkitRelativePath || undefined,
-                                              })));
-                                          }}
-                                        />
-                                      </label>
+                                      </div>
                                     </div>
                                   )}
-                                </div>
 
-                                {/* Upload progress */}
-                                {uploadProgress && (
-                                  <div className="px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b border-violet-100 dark:border-violet-900/40">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                      <span className="text-xs font-medium text-violet-700 dark:text-violet-300">
-                                        Uploading {uploadProgress.done} of {uploadProgress.total} file{uploadProgress.total !== 1 ? 's' : ''}…
-                                      </span>
-                                      <span className="text-xs tabular-nums text-violet-500 dark:text-violet-400">
-                                        {Math.round((uploadProgress.done / uploadProgress.total) * 100)}%
-                                      </span>
+                                  {/* Doc rows */}
+                                  {docsLoading[order._id] ? (
+                                    <div className="flex items-center justify-center gap-2 text-zinc-400 text-sm py-8 bg-white dark:bg-zinc-900">
+                                      <Loader2 size={14} className="animate-spin" /> Loading…
                                     </div>
-                                    <div className="w-full h-1.5 bg-violet-100 dark:bg-violet-900/50 rounded-full overflow-hidden">
-                                      <div
-                                        className="h-full bg-violet-500 rounded-full transition-all duration-300 ease-out"
-                                        style={{ width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%` }}
-                                      />
+                                  ) : docs.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-10 text-zinc-400 bg-white dark:bg-zinc-900">
+                                      <FileText size={22} className="mb-2 opacity-30" />
+                                      <p className="text-sm">No files uploaded yet.</p>
+                                      {canEdit && (
+                                        <p className="text-xs mt-1 text-zinc-400">Use the buttons above to upload files or a folder.</p>
+                                      )}
                                     </div>
-                                  </div>
-                                )}
-
-                                {/* Doc rows */}
-                                {docsLoading[order._id] ? (
-                                  <div className="flex items-center justify-center gap-2 text-zinc-400 text-sm py-8 bg-white dark:bg-zinc-900">
-                                    <Loader2 size={14} className="animate-spin" /> Loading…
-                                  </div>
-                                ) : docs.length === 0 ? (
-                                  <div className="flex flex-col items-center justify-center py-10 text-zinc-400 bg-white dark:bg-zinc-900">
-                                    <FileText size={22} className="mb-2 opacity-30" />
-                                    <p className="text-sm">No files uploaded yet.</p>
-                                    {canEdit && (
-                                      <p className="text-xs mt-1 text-zinc-400">Use the buttons above to upload files or a folder.</p>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <>
-                                    <div className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                                      {pagedDocs.map(doc => (
-                                        <div
-                                          key={doc.doc_id}
-                                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors group"
-                                        >
-                                          <FileText size={13} className={`flex-shrink-0 ${fileIconColor(doc.content_type, doc.filename)}`} />
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{doc.filename}</p>
-                                            <p className="text-xs text-zinc-400 mt-0.5">
-                                              {fmtSize(doc.size)}
-                                              <span className="mx-1.5 text-zinc-300 dark:text-zinc-700">·</span>
-                                              {fmtDateTime(doc.uploaded_at)}
-                                            </p>
-                                          </div>
-                                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                            <button
-                                              onClick={() => handleViewDoc(order._id, doc.doc_id)}
-                                              disabled={viewingDoc === doc.doc_id}
-                                              className="p-1.5 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
-                                              title="View"
-                                            >
-                                              {viewingDoc === doc.doc_id
-                                                ? <Loader2 size={12} className="animate-spin" />
-                                                : <Eye size={12} />}
-                                            </button>
-                                            <button
-                                              onClick={() => handleDownloadDoc(order._id, doc.doc_id, doc.filename)}
-                                              disabled={downloadingDoc === doc.doc_id}
-                                              className="p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                              title="Download"
-                                            >
-                                              {downloadingDoc === doc.doc_id
-                                                ? <Loader2 size={12} className="animate-spin" />
-                                                : <Download size={12} />}
-                                            </button>
-                                            {canEdit && (
-                                              <button
-                                                onClick={() => handleDeleteDoc(order._id, doc.doc_id)}
-                                                disabled={deletingDoc === doc.doc_id}
-                                                className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                title="Delete"
-                                              >
-                                                {deletingDoc === doc.doc_id
-                                                  ? <Loader2 size={12} className="animate-spin" />
-                                                  : <Trash2 size={12} />}
-                                              </button>
-                                            )}
-                                          </div>
-                                        </div>
-                                      ))}
+                                  ) : filteredDocs.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-8 text-zinc-400 bg-white dark:bg-zinc-900">
+                                      <Filter size={18} className="mb-2 opacity-30" />
+                                      <p className="text-sm">No files match the current filters.</p>
                                     </div>
-
-                                    {/* Pagination */}
-                                    {totalPages > 1 && (
-                                      <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
-                                        <span className="text-xs text-zinc-400 tabular-nums">
-                                          {page * DOCS_PER_PAGE + 1}–{Math.min((page + 1) * DOCS_PER_PAGE, filteredDocs.length)} of {filteredDocs.length}
-                                        </span>
-                                        <div className="flex items-center gap-1">
-                                          <button
-                                            onClick={() => setDocPage(prev => ({ ...prev, [order._id]: page - 1 }))}
-                                            disabled={page === 0}
-                                            className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors"
+                                  ) : (
+                                    <>
+                                      <div className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                                        {pagedDocs.map(doc => (
+                                          <div
+                                            key={doc.doc_id}
+                                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors group"
                                           >
-                                            <ArrowLeft size={12} />
-                                          </button>
-                                          {Array.from({ length: totalPages }, (_, i) => (
-                                            <button
-                                              key={i}
-                                              onClick={() => setDocPage(prev => ({ ...prev, [order._id]: i }))}
-                                              className={`w-6 h-6 text-xs rounded font-medium transition-colors ${
-                                                i === page
-                                                  ? 'bg-violet-600 text-white'
-                                                  : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                                              }`}
-                                            >
-                                              {i + 1}
-                                            </button>
-                                          ))}
-                                          <button
-                                            onClick={() => setDocPage(prev => ({ ...prev, [order._id]: page + 1 }))}
-                                            disabled={page === totalPages - 1}
-                                            className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors"
-                                          >
-                                            <ArrowRight size={12} />
-                                          </button>
-                                        </div>
+                                            <FileText size={13} className={`flex-shrink-0 ${fileIconColor(doc.content_type, doc.filename)}`} />
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{doc.filename}</p>
+                                                {doc.item_name && (
+                                                  <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                                                    {doc.item_name}
+                                                  </span>
+                                                )}
+                                                {canEdit ? (
+                                                  recatDoc === doc.doc_id ? (
+                                                    <select
+                                                      autoFocus
+                                                      value={doc.category || 'general'}
+                                                      onChange={e => handleRecategorize(order._id, doc.doc_id, e.target.value)}
+                                                      onBlur={() => setRecatDoc(null)}
+                                                      disabled={recatLoading === doc.doc_id}
+                                                      className="text-xs px-1.5 py-0.5 rounded-full border border-violet-300 dark:border-violet-700 bg-white dark:bg-zinc-800 text-violet-600 dark:text-violet-400 focus:outline-none focus:ring-1 focus:ring-violet-500 flex-shrink-0"
+                                                    >
+                                                      {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                                    </select>
+                                                  ) : (
+                                                    <button
+                                                      onClick={() => setRecatDoc(doc.doc_id)}
+                                                      className="text-xs bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors"
+                                                      title="Click to change category"
+                                                    >
+                                                      {recatLoading === doc.doc_id ? <Loader2 size={10} className="animate-spin inline" /> : (doc.category || 'general')}
+                                                    </button>
+                                                  )
+                                                ) : (
+                                                  doc.category && doc.category !== 'general' && (
+                                                    <span className="text-xs bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                                                      {doc.category}
+                                                    </span>
+                                                  )
+                                                )}
+                                              </div>
+                                              <p className="text-xs text-zinc-400 mt-0.5">
+                                                {fmtSize(doc.size)}
+                                                <span className="mx-1.5 text-zinc-300 dark:text-zinc-700">·</span>
+                                                {fmtDateTime(doc.uploaded_at)}
+                                              </p>
+                                            </div>
+                                            <FileActions orderId={order._id} doc={doc} />
+                                          </div>
+                                        ))}
                                       </div>
-                                    )}
-                                  </>
-                                )}
+
+                                      {/* Pagination */}
+                                      {totalPages > 1 && (
+                                        <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
+                                          <span className="text-xs text-zinc-400 tabular-nums">
+                                            {page * DOCS_PER_PAGE + 1}–{Math.min((page + 1) * DOCS_PER_PAGE, filteredDocs.length)} of {filteredDocs.length}
+                                          </span>
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              onClick={() => setDocPage(prev => ({ ...prev, [order._id]: page - 1 }))}
+                                              disabled={page === 0}
+                                              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors"
+                                            >
+                                              <ArrowLeft size={12} />
+                                            </button>
+                                            {Array.from({ length: totalPages }, (_, i) => (
+                                              <button
+                                                key={i}
+                                                onClick={() => setDocPage(prev => ({ ...prev, [order._id]: i }))}
+                                                className={`w-6 h-6 text-xs rounded font-medium transition-colors ${
+                                                  i === page
+                                                    ? 'bg-violet-600 text-white'
+                                                    : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                                                }`}
+                                              >
+                                                {i + 1}
+                                              </button>
+                                            ))}
+                                            <button
+                                              onClick={() => setDocPage(prev => ({ ...prev, [order._id]: page + 1 }))}
+                                              disabled={page === totalPages - 1}
+                                              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors"
+                                            >
+                                              <ArrowRight size={12} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
