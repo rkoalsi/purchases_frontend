@@ -32,6 +32,9 @@ interface POListItem {
   total_requested_qty: number;
   total_accepted_qty: number;
   total_received_qty: number;
+  total_supply_qty: number;
+  total_cost: number | null;
+  total_cost_gst: number | null;
   order_file_s3_key?: string;
   estimate_number?: string;
   zoho_estimate_id?: string;
@@ -1145,7 +1148,7 @@ export default function VendorPOReport() {
                           title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
                         />
                       </th>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Accepted Qty', 'Received Qty', 'Status', 'Uploaded At', 'Estimate', 'Order File', 'Actions'].map(h => (
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost', 'Total Cost w/ GST', 'Status', 'Uploaded At', 'Estimate', 'Order File', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -1171,10 +1174,13 @@ export default function VendorPOReport() {
                         <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.po_date}</span></td>
                         <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.item_count}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_requested_qty)}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_supply_qty)}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_accepted_qty)}</span></td>
                         <td className={TABLE_CLASSES.td}>
                           <POListReceivedQtyCell poNumber={po.po_number} value={po.total_received_qty} onSaved={handlePOReceivedQtySaved} />
                         </td>
+                        <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.total_cost != null ? `₹${fmt(po.total_cost)}` : '—'}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.total_cost_gst != null ? `₹${fmt(po.total_cost_gst)}` : '—'}</span></td>
                         <td className={TABLE_CLASSES.td}>
                           <select
                             value={po.po_status}
