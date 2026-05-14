@@ -199,7 +199,7 @@ export default function DesignerOrders() {
   const toggleBrand = (brand: string) => {
     setExpandedBrands(prev => {
       const next = new Set(prev);
-      next.has(brand) ? next.delete(brand) : next.add(brand);
+      if (next.has(brand)) { next.delete(brand); } else { next.add(brand); }
       return next;
     });
   };
@@ -208,7 +208,7 @@ export default function DesignerOrders() {
     const isOpen = expandedOrders.has(orderId);
     setExpandedOrders(prev => {
       const next = new Set(prev);
-      isOpen ? next.delete(orderId) : next.add(orderId);
+      if (isOpen) { next.delete(orderId); } else { next.add(orderId); }
       return next;
     });
     if (!isOpen && docsMap[orderId] === undefined) {
@@ -224,7 +224,7 @@ export default function DesignerOrders() {
         setDocsMap(prev => ({ ...prev, [order._id]: order.designer_documents || [] }));
       }
     }
-  }, [orders]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orders, expandedOrders]);
 
   const handleUploadDoc = useCallback(async (
     orderId: string,
