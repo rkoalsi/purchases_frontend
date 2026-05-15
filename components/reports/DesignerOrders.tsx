@@ -52,6 +52,8 @@ interface DesignerOrder {
   eta_port_date?: string;
   duty_payment_date?: string;
   inward_date?: string;
+  vendor_id?: string | null;
+  vendor_name?: string | null;
 }
 
 interface GlobalFileResult {
@@ -146,6 +148,9 @@ export default function DesignerOrders() {
   const [globalFileLoading, setGlobalFileLoading] = useState(false);
   const [globalFileOpen, setGlobalFileOpen] = useState(false);
 
+  // vendor → brand names (from brands collection, authoritative)
+  const [vendorBrandNames, setVendorBrandNames] = useState<Record<string, string[]>>({});
+
   // categories
   const [categories, setCategories] = useState<string[]>([]);
   const [orderUploadCategory, setOrderUploadCategory] = useState<Record<string, string>>({});
@@ -188,11 +193,14 @@ export default function DesignerOrders() {
       .catch(() => { setCanEdit(isAdmin); });
   }, [user, accessToken]);
 
-  // fetch categories on mount
+  // fetch categories and vendor→brand map on mount
   useEffect(() => {
     axios.get(`${API_URL}/design/categories`)
       .then(({ data }) => setCategories(data))
       .catch(() => setCategories(['products', 'catalogue']));
+    axios.get<Record<string, string[]>>(`${API_URL}/design/vendor-brands`)
+      .then(({ data }) => setVendorBrandNames(data))
+      .catch(() => {});
   }, []);
 
   const fetchOrders = useCallback(async () => {
@@ -206,7 +214,7 @@ export default function DesignerOrders() {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // group by brand
+  // group by brand name (original behaviour)
   const brandGroups = useMemo(() => {
     const map: Record<string, DesignerOrder[]> = {};
     for (const order of orders) {
@@ -216,6 +224,7 @@ export default function DesignerOrders() {
     }
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
   }, [orders]);
+
 
   const filteredBrandGroups = useMemo(() => {
     if (!searchQuery.trim()) return brandGroups;
@@ -716,7 +725,12 @@ export default function DesignerOrders() {
           <div className="space-y-3">
             {filteredBrandGroups.map(([brand, brandOrders]) => {
               const isExpanded = expandedBrands.has(brand);
-              const brandDocCount = brandOrders.reduce((s, o) => s + (o.doc_count || 0), 0);
+              const brandDocCount = brandOrders.reduce((s: number, o: DesignerOrder) => s + (o.doc_count || 0), 0);
+              // other brands sharing the same vendor
+              const vendorId = brandOrders.find(o => o.vendor_id)?.vendor_id;
+              const siblingBrands = vendorId
+                ? (vendorBrandNames[vendorId] || []).filter(b => b !== brand)
+                : [];
               return (
                 <div key={brand} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
 
@@ -730,6 +744,9 @@ export default function DesignerOrders() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{brand}</span>
+                      {siblingBrands.length > 0 && (
+                        <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500">also: {siblingBrands.join(', ')}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full font-medium">
@@ -747,7 +764,7 @@ export default function DesignerOrders() {
                   {/* Orders list */}
                   {isExpanded && (
                     <div className="border-t border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                      {brandOrders.map(order => {
+                      {brandOrders.map((order: DesignerOrder) => {
                         const isOrderExpanded = expandedOrders.has(order._id);
                         const docs = docsMap[order._id] ?? (order.designer_documents || []);
                         const dsq = (docSearch[order._id] || '').toLowerCase();
