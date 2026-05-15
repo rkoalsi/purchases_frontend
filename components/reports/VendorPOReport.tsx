@@ -120,6 +120,28 @@ interface EstimateDiff {
   only_in_estimate: { sku: string; name: string; quantity: number | null; rate: number | null; item_total: number | null }[];
 }
 
+interface PackageBreakdownItem {
+  sku: string;
+  name: string;
+  qty: number;
+  asin: string | null;
+  etrade_asp: number | null;
+  gst: number;
+  mrp_wo_gst: number | null;
+  margin: number | null;
+  unit_cost: number | null;
+  item_total: number | null;
+  item_total_gst: number | null;
+}
+
+interface PackageBreakdown {
+  po_number: string;
+  package_number: string;
+  accepted_total_cost: number | null;
+  accepted_total_cost_gst: number | null;
+  items: PackageBreakdownItem[];
+}
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (v: number | null | undefined, decimals = 2) =>
@@ -566,10 +588,13 @@ export default function VendorPOReport() {
   const [deleting, setDeleting] = useState(false);
 
   // report tabs
-  const [reportTab, setReportTab] = useState<'report' | 'estimate_diff'>('report');
+  const [reportTab, setReportTab] = useState<'report' | 'estimate_diff' | 'package_breakdown'>('report');
   const [estimateDiff, setEstimateDiff] = useState<EstimateDiff | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffError, setDiffError] = useState<string | null>(null);
+  const [packageBreakdown, setPackageBreakdown] = useState<PackageBreakdown | null>(null);
+  const [pkgBreakdownLoading, setPkgBreakdownLoading] = useState(false);
+  const [pkgBreakdownError, setPkgBreakdownError] = useState<string | null>(null);
 
   // estimate modals
   const [createEstimateOpen, setCreateEstimateOpen] = useState(false);
@@ -630,6 +655,8 @@ export default function VendorPOReport() {
     setReportTab('report');
     setEstimateDiff(null);
     setDiffError(null);
+    setPackageBreakdown(null);
+    setPkgBreakdownError(null);
     try {
       const { data } = await axios.get<POReport>(`${API_URL}/vendor_po/${poNumber}/report`);
       setReport(data);
@@ -652,6 +679,20 @@ export default function VendorPOReport() {
       setDiffError(msg);
     } finally {
       setDiffLoading(false);
+    }
+  }, []);
+
+  const fetchPackageBreakdown = useCallback(async (poNumber: string) => {
+    setPkgBreakdownLoading(true);
+    setPkgBreakdownError(null);
+    try {
+      const { data } = await axios.get<PackageBreakdown>(`${API_URL}/vendor_po/${poNumber}/package_breakdown`);
+      setPackageBreakdown(data);
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Unknown error';
+      setPkgBreakdownError(msg);
+    } finally {
+      setPkgBreakdownLoading(false);
     }
   }, []);
 
@@ -1661,6 +1702,14 @@ export default function VendorPOReport() {
                   Estimate Comparison
                 </button>
               )}
+              {poList.find(p => p.po_number === selectedPO)?.package_number && (
+                <button
+                  onClick={() => { setReportTab('package_breakdown'); if (!packageBreakdown && !pkgBreakdownLoading) fetchPackageBreakdown(report.po_number); }}
+                  className={`px-4 py-2 text-xs font-medium rounded-t transition-colors ${reportTab === 'package_breakdown' ? 'bg-white dark:bg-zinc-900 border border-b-white dark:border-zinc-700 dark:border-b-zinc-900 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
+                >
+                  Package Breakdown
+                </button>
+              )}
             </div>
           )}
 
@@ -1777,6 +1826,74 @@ export default function VendorPOReport() {
                       </div>
                     </div>
                   )}
+                </>
+              )}
+            </div>
+          )}
+
+          {report && !reportLoading && reportTab === 'package_breakdown' && (
+            <div className="p-4 space-y-4">
+              {pkgBreakdownLoading && <LoadingState message="Loading package breakdown…" />}
+              {pkgBreakdownError && <ErrorState error={pkgBreakdownError} onRetry={() => fetchPackageBreakdown(report.po_number)} />}
+              {packageBreakdown && !pkgBreakdownLoading && (
+                <>
+                  {/* Summary */}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[
+                      { label: 'Package', value: packageBreakdown.package_number, isText: true },
+                      { label: 'Line Items', value: packageBreakdown.items.length, isInt: true },
+                      { label: 'Accepted Total Cost', value: packageBreakdown.accepted_total_cost },
+                      { label: 'Accepted Total Cost w/ GST', value: packageBreakdown.accepted_total_cost_gst },
+                    ].map(({ label, value, isText, isInt }) => (
+                      <div key={label} className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5 font-mono">
+                          {isText ? value : isInt ? fmtInt(value as number) : (value != null ? `₹${fmt(value as number)}` : '—')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Per-item table */}
+                  <div className={TABLE_CLASSES.overflow}>
+                    <table className="w-full text-xs">
+                      <thead className="bg-zinc-50 dark:bg-zinc-800/50 sticky top-0 z-10">
+                        <tr>
+                          {['SKU', 'Name', 'ASIN', 'Accepted Qty', 'eTrade ASP', 'GST %', 'MRP w/o GST', 'Margin %', 'Unit Cost', 'Item Total', 'Item Total w/ GST'].map(h => (
+                            <th key={h} className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap border-b border-zinc-200 dark:border-zinc-700">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {packageBreakdown.items.map((row, idx) => (
+                          <tr key={idx} className={`transition-colors ${row.item_total == null ? 'bg-amber-50 dark:bg-amber-900/10' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40'}`}>
+                            <td className="px-3 py-2 font-mono text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{row.sku}</td>
+                            <td className="px-3 py-2 max-w-xs truncate text-zinc-800 dark:text-zinc-200" title={row.name}>{row.name || '—'}</td>
+                            <td className="px-3 py-2 font-mono text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{row.asin || '—'}</td>
+                            <td className="px-3 py-2 text-center font-semibold">{fmtInt(row.qty)}</td>
+                            <td className="px-3 py-2 text-right">{row.etrade_asp != null ? `₹${fmt(row.etrade_asp)}` : '—'}</td>
+                            <td className="px-3 py-2 text-center">{row.gst ? `${row.gst}%` : '—'}</td>
+                            <td className="px-3 py-2 text-right">{row.mrp_wo_gst != null ? `₹${fmt(row.mrp_wo_gst)}` : '—'}</td>
+                            <td className="px-3 py-2 text-center">{row.margin != null ? `${fmt(row.margin)}%` : '—'}</td>
+                            <td className="px-3 py-2 text-right">{row.unit_cost != null ? `₹${fmt(row.unit_cost, 4)}` : '—'}</td>
+                            <td className="px-3 py-2 text-right font-semibold">{row.item_total != null ? `₹${fmt(row.item_total)}` : '—'}</td>
+                            <td className="px-3 py-2 text-right font-semibold">{row.item_total_gst != null ? `₹${fmt(row.item_total_gst)}` : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="border-t-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/50">
+                        <tr>
+                          <td colSpan={9} className="px-3 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 text-right">Total</td>
+                          <td className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                            {packageBreakdown.accepted_total_cost != null ? `₹${fmt(packageBreakdown.accepted_total_cost)}` : '—'}
+                          </td>
+                          <td className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                            {packageBreakdown.accepted_total_cost_gst != null ? `₹${fmt(packageBreakdown.accepted_total_cost_gst)}` : '—'}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </>
               )}
             </div>
