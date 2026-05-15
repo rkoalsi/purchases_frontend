@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X, Trash2, Search, FileUp, ExternalLink, FileText, Link2 } from 'lucide-react';
+import { Upload, Download, RefreshCw, FileSpreadsheet, ChevronDown, ChevronUp, Edit2, Check, X, Trash2, Search, FileUp, ExternalLink, FileText, Link2, Package } from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -38,6 +38,9 @@ interface POListItem {
   order_file_s3_key?: string;
   estimate_number?: string;
   zoho_estimate_id?: string;
+  package_number?: string;
+  accepted_total_cost?: number | null;
+  accepted_total_cost_gst?: number | null;
 }
 
 interface POItem {
@@ -580,6 +583,12 @@ export default function VendorPOReport() {
   const [linkingEstimate, setLinkingEstimate] = useState(false);
   const [unlinkingEstimate, setUnlinkingEstimate] = useState(false);
 
+  // package modals
+  const [linkPackageOpen, setLinkPackageOpen] = useState(false);
+  const [linkPackageNumber, setLinkPackageNumber] = useState('');
+  const [linkingPackage, setLinkingPackage] = useState(false);
+  const [unlinkingPackage, setUnlinkingPackage] = useState(false);
+
   // search + jump-to-page
   const [poSearch, setPoSearch] = useState('');
   const [jumpPage, setJumpPage] = useState('');
@@ -997,6 +1006,42 @@ export default function VendorPOReport() {
     }
   };
 
+  // ─── package handlers ────────────────────────────────────────────────────────
+
+  const handleLinkPackage = async () => {
+    if (!selectedPO || !linkPackageNumber.trim()) return;
+    setLinkingPackage(true);
+    try {
+      const { data } = await axios.patch<{ package_number: string; accepted_total_cost: number | null; accepted_total_cost_gst: number | null }>(
+        `${API_URL}/vendor_po/${selectedPO}/package`,
+        { package_number: linkPackageNumber.trim() },
+      );
+      toast.success(`Package ${data.package_number} linked`);
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, package_number: data.package_number, accepted_total_cost: data.accepted_total_cost, accepted_total_cost_gst: data.accepted_total_cost_gst } : p));
+      setLinkPackageOpen(false);
+      setLinkPackageNumber('');
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to link package';
+      toast.error(msg);
+    } finally {
+      setLinkingPackage(false);
+    }
+  };
+
+  const handleUnlinkPackage = async () => {
+    if (!selectedPO) return;
+    setUnlinkingPackage(true);
+    try {
+      await axios.delete(`${API_URL}/vendor_po/${selectedPO}/package`);
+      toast.success('Package unlinked');
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, package_number: undefined, accepted_total_cost: undefined, accepted_total_cost_gst: undefined } : p));
+    } catch {
+      toast.error('Failed to unlink package');
+    } finally {
+      setUnlinkingPackage(false);
+    }
+  };
+
   // ─── render ──────────────────────────────────────────────────────────────────
 
   const invDateLabel = report?.inventory_date ?? 'Latest';
@@ -1198,7 +1243,7 @@ export default function VendorPOReport() {
                           title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
                         />
                       </th>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost', 'Total Cost w/ GST', 'Status', 'Uploaded At', 'Estimate', 'Order File', 'Actions'].map(h => (
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost', 'Total Cost w/ GST', 'Accepted Total Cost', 'Accepted Total Cost w/ GST', 'Status', 'Uploaded At', 'Estimate', 'Package', 'Order File', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -1231,6 +1276,8 @@ export default function VendorPOReport() {
                         </td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.total_cost != null ? `₹${fmt(po.total_cost)}` : '—'}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.total_cost_gst != null ? `₹${fmt(po.total_cost_gst)}` : '—'}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.accepted_total_cost != null ? `₹${fmt(po.accepted_total_cost)}` : '—'}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.accepted_total_cost_gst != null ? `₹${fmt(po.accepted_total_cost_gst)}` : '—'}</span></td>
                         <td className={TABLE_CLASSES.td}>
                           <select
                             value={po.po_status}
@@ -1251,6 +1298,15 @@ export default function VendorPOReport() {
                           {po.estimate_number ? (
                             <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono whitespace-nowrap">
                               {po.estimate_number}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-zinc-400">—</span>
+                          )}
+                        </td>
+                        <td className={TABLE_CLASSES.td}>
+                          {po.package_number ? (
+                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono whitespace-nowrap">
+                              {po.package_number}
                             </span>
                           ) : (
                             <span className="text-xs text-zinc-400">—</span>
@@ -1558,6 +1614,33 @@ export default function VendorPOReport() {
                   </button>
                 </>
               ))}
+              {report && (() => {
+                const currentPO = poList.find(p => p.po_number === selectedPO);
+                return currentPO?.package_number ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono">
+                      <Package size={12} />
+                      {currentPO.package_number}
+                    </span>
+                    <button
+                      onClick={handleUnlinkPackage}
+                      disabled={unlinkingPackage}
+                      title="Unlink package"
+                      className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors disabled:opacity-50"
+                    >
+                      {unlinkingPackage ? <RefreshCw size={12} className="animate-spin" /> : <X size={12} />}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setLinkPackageOpen(true); setLinkPackageNumber(''); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    <Package size={13} />
+                    Link Package
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -1963,6 +2046,54 @@ export default function VendorPOReport() {
               >
                 {linkingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <Link2 size={13} />}
                 {linkingEstimate ? 'Linking…' : 'Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Package Modal ── */}
+      {linkPackageOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <Package size={18} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Link Package</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{selectedPO}</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Enter the package number (e.g. <span className="font-mono">PKG-00237</span>). It must exist in the packages collection.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Package Number</label>
+              <input
+                type="text"
+                value={linkPackageNumber}
+                onChange={e => setLinkPackageNumber(e.target.value)}
+                placeholder="PKG-00237"
+                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-mono placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onKeyDown={e => { if (e.key === 'Enter') handleLinkPackage(); }}
+              />
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => { setLinkPackageOpen(false); setLinkPackageNumber(''); }}
+                disabled={linkingPackage}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLinkPackage}
+                disabled={linkingPackage || !linkPackageNumber.trim()}
+                className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {linkingPackage ? <RefreshCw size={13} className="animate-spin" /> : <Package size={13} />}
+                {linkingPackage ? 'Linking…' : 'Link'}
               </button>
             </div>
           </div>
