@@ -77,7 +77,6 @@ interface POItem {
   open_po: number;
   open_po_override: number | null;
   total_qty: number;
-  last_30_sales: number;
   ads: number;
   coverage_days: number;
   coverage_days_override: number | null;
@@ -86,7 +85,6 @@ interface POItem {
   net_total_days: number | null;
   total_target_days: number;
   target_stock: number;
-  max_allowed_qty: number;
   final_supply_qty: number;
   final_drr: number | null;
   final_drr_flag: string | null;
@@ -1431,16 +1429,6 @@ export default function VendorPOReport() {
   const invDateLabel = report?.inventory_date ?? 'Latest';
   const zohoDateLabel = report?.zoho_stock_date ?? 'Latest';
 
-  const salesLabel = useMemo(() => {
-    if (!report?.po_date) return 'Last 30D Sales';
-    const end = new Date(report.po_date + 'T00:00:00');
-    end.setDate(end.getDate() - 2);
-    const start = new Date(end);
-    start.setDate(start.getDate() - 29); // 30-day inclusive window: [end-29, end]
-    const f = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-    return `Last 30D Sales (${f(start)}–${f(end)})`;
-  }, [report?.po_date]);
-
   const drrLabel = useMemo(() => {
     if (!report?.po_date) return 'Final DRR';
     const end = new Date(report.po_date + 'T00:00:00');
@@ -1562,7 +1550,6 @@ export default function VendorPOReport() {
         <p className="font-semibold">Stock &amp; sales data freezes when status changes to <span className="underline">processing</span> (or any later status).</p>
         <ul className="list-disc list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
           <li><span className="font-medium">Zoho Stock</span> — taken on PO date. <span className="font-medium">Current Stock</span> — taken at T‑2 (2 days before PO date, Amazon lag).</li>
-          <li><span className="font-medium">Last 30 Days Sales</span> — strict 30-day window ending at T‑2 (PO date − 31 to PO date − 2, inclusive).</li>
           <li><span className="font-medium">Open PO</span> — sum of other POs for the same ASIN in statuses: <span className="font-medium">processing</span> (uses supply qty) and <span className="font-medium">packed / closed / intransit</span> (uses accepted qty). Delivered &amp; completed POs are excluded.</li>
         </ul>
         <p className="text-blue-600 dark:text-blue-500 pt-0.5">Pending POs always show live T‑2 data. Once set to processing or beyond, all figures are locked permanently.</p>
@@ -1627,7 +1614,7 @@ export default function VendorPOReport() {
                           title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
                         />
                       </th>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost', 'Total Cost w/ GST', 'Accepted Total Cost', 'Accepted Total Cost w/ GST', 'Status', 'Uploaded At', 'Estimate', 'Package', 'Transfer Order', 'Assembly', 'Order File', 'Actions'].map(h => (
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost (Supply Qty)', 'Total cost w/o GST (Supply Qty)', 'Total Cost (Accepted Qty)', 'Total cost w/o GST (Accepted Qty)', 'Status', 'Uploaded At', 'Estimate', 'Package', 'Transfer Order', 'Assembly', 'Order File', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -2364,10 +2351,10 @@ export default function VendorPOReport() {
                       { label: 'MRP w/o GST', yellow: true },
                       { label: 'Margin %', yellow: true },
                       { label: 'Cost Price w/o Tax', yellow: true },
-                      { label: 'Total Cost (Accepted)', yellow: true },
-                      { label: 'Total Cost w/ GST (Accepted)', yellow: true },
-                      { label: 'Total Cost (Dispatched)', yellow: true },
-                      { label: 'Total Cost w/ GST (Dispatched)', yellow: true },
+                      { label: 'Total Cost (Supply Qty)', yellow: true },
+                      { label: 'Total cost w/o GST (Supply Qty)', yellow: true },
+                      { label: 'Total Cost (Accepted Qty)', yellow: true },
+                      { label: 'Total cost w/o GST (Accepted Qty)', yellow: true },
                       { label: 'HSN', yellow: true },
                       { label: 'Etrade Unit Cost', yellow: true },
                       { label: 'Diff', yellow: true },
@@ -2376,14 +2363,12 @@ export default function VendorPOReport() {
                       { label: `Current Stock (${invDateLabel})`, yellow: true },
                       { label: 'Open PO', yellow: true },
                       { label: 'Total Qty', yellow: true },
-                      { label: salesLabel, yellow: true },
                       { label: drrLabel, yellow: true },
                       { label: 'Net Total Days', yellow: true },
                       { label: 'Lead Time', yellow: true },
                       { label: 'Coverage Days', yellow: true },
                       { label: 'Total Target Days', yellow: true },
                       { label: 'Target Stock', yellow: true },
-                      { label: 'Max Allowed Qty', yellow: true },
                       { label: 'Final Units (For Under-ordering)', yellow: true },
                       { label: 'Final Supply Qty (For Over-ordering)', yellow: true },
                       ...(report.items[0]?.month_labels ?? []).map(([,, lbl]: [number, number, string]) => ({ label: lbl, yellow: true })),
@@ -2470,7 +2455,6 @@ export default function VendorPOReport() {
                           />
                         </td>
                         <td className="px-3 py-2 text-center font-semibold text-zinc-900 dark:text-zinc-100">{fmtInt(item.total_qty)}</td>
-                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.last_30_sales)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">
                           {item.final_drr != null
                             ? item.final_drr.toFixed(3)
@@ -2489,7 +2473,6 @@ export default function VendorPOReport() {
                         </td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.total_target_days}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.target_stock)}</td>
-                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.max_allowed_qty)}</td>
                         <td className="px-3 py-2">
                           <FinalUnitsCell poNumber={report.po_number} asin={item.asin} value={item.final_units} isOverride={item.final_units_override != null} onSaved={handleFinalUnitsSaved} />
                         </td>
