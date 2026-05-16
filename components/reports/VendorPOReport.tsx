@@ -66,6 +66,8 @@ interface POItem {
   cost_price_wo_tax: number | null;
   total_cost: number | null;
   total_cost_gst: number | null;
+  total_cost_accepted: number | null;
+  total_cost_accepted_gst: number | null;
   total_cost_dispatched: number | null;
   total_cost_dispatched_gst: number | null;
   dispatched_qty: number | null;
@@ -2428,10 +2430,10 @@ export default function VendorPOReport() {
                           {item.total_cost_gst != null ? `₹${fmt(item.total_cost_gst)}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
-                          {item.total_cost_dispatched != null ? `₹${fmt(item.total_cost_dispatched)}` : '—'}
+                          {item.total_cost_accepted != null ? `₹${fmt(item.total_cost_accepted)}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
-                          {item.total_cost_dispatched_gst != null ? `₹${fmt(item.total_cost_dispatched_gst)}` : '—'}
+                          {item.total_cost_accepted_gst != null ? `₹${fmt(item.total_cost_accepted_gst)}` : '—'}
                         </td>
                         <td className="px-3 py-2 font-mono text-zinc-600 dark:text-zinc-400">{item.hsn || '—'}</td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{item.etrade_unit_cost.toFixed(2)}</td>
