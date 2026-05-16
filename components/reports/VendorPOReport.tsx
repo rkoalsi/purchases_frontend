@@ -41,6 +41,10 @@ interface POListItem {
   package_number?: string;
   accepted_total_cost?: number | null;
   accepted_total_cost_gst?: number | null;
+  transfer_order_number?: string;
+  transfer_order_id?: string;
+  bundle_ids?: string[];
+  assembly_numbers?: string[];
 }
 
 interface POItem {
@@ -62,6 +66,9 @@ interface POItem {
   cost_price_wo_tax: number | null;
   total_cost: number | null;
   total_cost_gst: number | null;
+  total_cost_dispatched: number | null;
+  total_cost_dispatched_gst: number | null;
+  dispatched_qty: number | null;
   hsn: string;
   diff: number | null;
   zoho_stock: number;
@@ -73,11 +80,22 @@ interface POItem {
   last_30_sales: number;
   ads: number;
   coverage_days: number;
+  coverage_days_override: number | null;
+  lead_time: number;
+  lead_time_override: number | null;
+  net_total_days: number | null;
+  total_target_days: number;
   target_stock: number;
   max_allowed_qty: number;
   final_supply_qty: number;
   final_drr: number | null;
   final_drr_flag: string | null;
+  final_units: number | null;
+  final_units_override: number | null;
+  final_supply_fo: number | null;
+  final_supply_fo_override: number | null;
+  monthly_sales: number[];
+  month_labels: [number, number, string][];
 }
 
 interface POReport {
@@ -90,6 +108,10 @@ interface POReport {
   po_update_date: string | null;
   estimate_number?: string;
   zoho_estimate_id?: string;
+  transfer_order_number?: string;
+  transfer_order_id?: string;
+  bundle_ids?: string[];
+  assembly_numbers?: string[];
   items: POItem[];
 }
 
@@ -541,6 +563,182 @@ const EtradeAspCell: React.FC<{
   );
 };
 
+// ─── LeadTimeCell ─────────────────────────────────────────────────────────────
+
+const LeadTimeCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number;
+  isOverride: boolean;
+  onSaved: () => void;
+}> = ({ poNumber, asin, value, isOverride, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(value));
+  const [saving, setSaving] = useState(false);
+
+  const save = async (clear = false) => {
+    const num = clear ? -1 : parseInt(val, 10);
+    if (!clear && (isNaN(num) || num < 0)) { toast.error('Lead time must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/items/${asin}/lead_time?lead_time=${num}`);
+      onSaved();
+      setEditing(false);
+      toast.success(clear ? 'Lead time reset to default (10)' : 'Lead time updated');
+    } catch { toast.error('Failed to save lead time'); } finally { setSaving(false); }
+  };
+
+  if (!editing) return (
+    <div className="flex items-center gap-1 group justify-center">
+      <span className={`text-sm ${isOverride ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}`}>{value}</span>
+      {isOverride && <span className="text-xs text-amber-500" title="Overridden">✎</span>}
+      <button onClick={() => { setVal(String(value)); setEditing(true); }} className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"><Edit2 size={12} /></button>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input autoFocus type="number" min={0} value={val} onChange={e => setVal(e.target.value)}
+        className="w-14 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }} />
+      <button onClick={() => save()} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      {isOverride && <button onClick={() => save(true)} disabled={saving} title="Reset to 10" className="p-0.5 text-amber-500 hover:text-amber-700 text-xs font-bold">↺</button>}
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
+// ─── CoverageDaysCell ─────────────────────────────────────────────────────────
+
+const CoverageDaysCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number;
+  isOverride: boolean;
+  onSaved: () => void;
+}> = ({ poNumber, asin, value, isOverride, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(value));
+  const [saving, setSaving] = useState(false);
+
+  const save = async (clear = false) => {
+    const num = clear ? -1 : parseInt(val, 10);
+    if (!clear && (isNaN(num) || num < 0)) { toast.error('Coverage days must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/items/${asin}/coverage_days?coverage_days=${num}`);
+      onSaved();
+      setEditing(false);
+      toast.success(clear ? 'Coverage days reset to default (35)' : 'Coverage days updated');
+    } catch { toast.error('Failed to save coverage days'); } finally { setSaving(false); }
+  };
+
+  if (!editing) return (
+    <div className="flex items-center gap-1 group justify-center">
+      <span className={`text-sm ${isOverride ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}`}>{value}</span>
+      {isOverride && <span className="text-xs text-amber-500" title="Overridden">✎</span>}
+      <button onClick={() => { setVal(String(value)); setEditing(true); }} className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"><Edit2 size={12} /></button>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input autoFocus type="number" min={0} value={val} onChange={e => setVal(e.target.value)}
+        className="w-14 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }} />
+      <button onClick={() => save()} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      {isOverride && <button onClick={() => save(true)} disabled={saving} title="Reset to 35" className="p-0.5 text-amber-500 hover:text-amber-700 text-xs font-bold">↺</button>}
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
+// ─── FinalUnitsCell ───────────────────────────────────────────────────────────
+
+const FinalUnitsCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number | null;
+  isOverride: boolean;
+  onSaved: () => void;
+}> = ({ poNumber, asin, value, isOverride, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(value ?? ''));
+  const [saving, setSaving] = useState(false);
+
+  const save = async (clear = false) => {
+    const num = clear ? -1 : parseInt(val, 10);
+    if (!clear && (isNaN(num) || num < 0)) { toast.error('Final units must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/items/${asin}/final_units?final_units=${num}`);
+      onSaved();
+      setEditing(false);
+      toast.success(clear ? 'Final units reset to formula' : 'Final units updated');
+    } catch { toast.error('Failed to save final units'); } finally { setSaving(false); }
+  };
+
+  if (!editing) return (
+    <div className="flex items-center gap-1 group justify-center">
+      <span className={`text-sm ${isOverride ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-zinc-700 dark:text-zinc-300'}`}>{value ?? '—'}</span>
+      {isOverride && <span className="text-xs text-amber-500" title="Overridden">✎</span>}
+      <button onClick={() => { setVal(String(value ?? '')); setEditing(true); }} className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"><Edit2 size={12} /></button>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input autoFocus type="number" min={0} value={val} onChange={e => setVal(e.target.value)}
+        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }} />
+      <button onClick={() => save()} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      {isOverride && <button onClick={() => save(true)} disabled={saving} title="Reset to formula" className="p-0.5 text-amber-500 hover:text-amber-700 text-xs font-bold">↺</button>}
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
+// ─── FinalSupplyFOCell ────────────────────────────────────────────────────────
+
+const FinalSupplyFOCell: React.FC<{
+  poNumber: string;
+  asin: string;
+  value: number | null;
+  isOverride: boolean;
+  onSaved: () => void;
+}> = ({ poNumber, asin, value, isOverride, onSaved }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(value ?? ''));
+  const [saving, setSaving] = useState(false);
+
+  const save = async (clear = false) => {
+    const num = clear ? -1 : parseInt(val, 10);
+    if (!clear && (isNaN(num) || num < 0)) { toast.error('Supply qty must be ≥ 0'); return; }
+    setSaving(true);
+    try {
+      await axios.patch(`${API_URL}/vendor_po/${poNumber}/items/${asin}/final_supply_fo?final_supply_fo=${num}`);
+      onSaved();
+      setEditing(false);
+      toast.success(clear ? 'Final supply qty reset to formula' : 'Final supply qty updated');
+    } catch { toast.error('Failed to save final supply qty'); } finally { setSaving(false); }
+  };
+
+  if (!editing) return (
+    <div className="flex items-center gap-1 group justify-center">
+      <span className={`text-sm font-bold ${isOverride ? 'text-amber-700 dark:text-amber-400' : 'text-blue-700 dark:text-blue-400'}`}>{value ?? '—'}</span>
+      {isOverride && <span className="text-xs text-amber-500" title="Overridden">✎</span>}
+      <button onClick={() => { setVal(String(value ?? '')); setEditing(true); }} className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"><Edit2 size={12} /></button>
+    </div>
+  );
+  return (
+    <div className="flex items-center gap-1 justify-center">
+      <input autoFocus type="number" min={0} value={val} onChange={e => setVal(e.target.value)}
+        className="w-16 px-1 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }} />
+      <button onClick={() => save()} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700"><Check size={12} /></button>
+      {isOverride && <button onClick={() => save(true)} disabled={saving} title="Reset to formula" className="p-0.5 text-amber-500 hover:text-amber-700 text-xs font-bold">↺</button>}
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600"><X size={12} /></button>
+    </div>
+  );
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function VendorPOReport() {
@@ -613,6 +811,22 @@ export default function VendorPOReport() {
   const [linkPackageNumber, setLinkPackageNumber] = useState('');
   const [linkingPackage, setLinkingPackage] = useState(false);
   const [unlinkingPackage, setUnlinkingPackage] = useState(false);
+
+  // transfer order modals
+  const [createTOOpen, setCreateTOOpen] = useState(false);
+  const [linkTOOpen, setLinkTOOpen] = useState(false);
+  const [linkTONumber, setLinkTONumber] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [creatingTO, setCreatingTO] = useState(false);
+  const [linkingTO, setLinkingTO] = useState(false);
+  const [unlinkingTO, setUnlinkingTO] = useState(false);
+
+  // assembly modals
+  const [linkAssemblyOpen, setLinkAssemblyOpen] = useState(false);
+  const [linkAssemblyNumber, setLinkAssemblyNumber] = useState('');
+  const [creatingAssemblies, setCreatingAssemblies] = useState(false);
+  const [linkingAssembly, setLinkingAssembly] = useState(false);
+  const [unlinkingAssemblies, setUnlinkingAssemblies] = useState(false);
 
   // search + jump-to-page
   const [poSearch, setPoSearch] = useState('');
@@ -970,6 +1184,22 @@ export default function VendorPOReport() {
     if (selectedPO) fetchReport(selectedPO);
   }, [selectedPO, fetchReport]);
 
+  const handleLeadTimeSaved = useCallback(() => {
+    if (selectedPO) fetchReport(selectedPO);
+  }, [selectedPO, fetchReport]);
+
+  const handleCoverageDaysSaved = useCallback(() => {
+    if (selectedPO) fetchReport(selectedPO);
+  }, [selectedPO, fetchReport]);
+
+  const handleFinalUnitsSaved = useCallback(() => {
+    if (selectedPO) fetchReport(selectedPO);
+  }, [selectedPO, fetchReport]);
+
+  const handleFinalSupplyFOSaved = useCallback(() => {
+    if (selectedPO) fetchReport(selectedPO);
+  }, [selectedPO, fetchReport]);
+
 
   // ─── estimate handlers ────────────────────────────────────────────────────────
 
@@ -1080,6 +1310,119 @@ export default function VendorPOReport() {
       toast.error('Failed to unlink package');
     } finally {
       setUnlinkingPackage(false);
+    }
+  };
+
+  // ─── transfer order handlers ─────────────────────────────────────────────────
+
+  const handleCreateTransferOrder = async () => {
+    if (!selectedPO) return;
+    setCreatingTO(true);
+    try {
+      const { data } = await axios.post<{ transfer_order_id: string; transfer_order_number: string; status: string }>(
+        `${API_URL}/vendor_po/${selectedPO}/transfer_order`,
+        { date: toDate || undefined },
+      );
+      toast.success(`Transfer order ${data.transfer_order_number} created`);
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, transfer_order_number: data.transfer_order_number, transfer_order_id: data.transfer_order_id } : p));
+      setReport(prev => prev ? { ...prev, transfer_order_number: data.transfer_order_number, transfer_order_id: data.transfer_order_id } : prev);
+      setCreateTOOpen(false);
+      setToDate('');
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to create transfer order';
+      toast.error(msg);
+    } finally {
+      setCreatingTO(false);
+    }
+  };
+
+  const handleLinkTransferOrder = async () => {
+    if (!selectedPO || !linkTONumber.trim()) return;
+    setLinkingTO(true);
+    try {
+      const { data } = await axios.patch<{ transfer_order_number: string; transfer_order_id: string }>(
+        `${API_URL}/vendor_po/${selectedPO}/transfer_order`,
+        { transfer_order_number: linkTONumber.trim() },
+      );
+      toast.success(`Transfer order ${data.transfer_order_number} linked`);
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, transfer_order_number: data.transfer_order_number, transfer_order_id: data.transfer_order_id } : p));
+      setReport(prev => prev ? { ...prev, transfer_order_number: data.transfer_order_number, transfer_order_id: data.transfer_order_id } : prev);
+      setLinkTOOpen(false);
+      setLinkTONumber('');
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to link transfer order';
+      toast.error(msg);
+    } finally {
+      setLinkingTO(false);
+    }
+  };
+
+  const handleUnlinkTransferOrder = async () => {
+    if (!selectedPO) return;
+    setUnlinkingTO(true);
+    try {
+      await axios.delete(`${API_URL}/vendor_po/${selectedPO}/transfer_order`);
+      toast.success('Transfer order unlinked');
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, transfer_order_number: undefined, transfer_order_id: undefined } : p));
+      setReport(prev => prev ? { ...prev, transfer_order_number: undefined, transfer_order_id: undefined } : prev);
+    } catch {
+      toast.error('Failed to unlink transfer order');
+    } finally {
+      setUnlinkingTO(false);
+    }
+  };
+
+  const handleCreateAssemblies = async () => {
+    if (!selectedPO) return;
+    setCreatingAssemblies(true);
+    try {
+      const { data } = await axios.post<{ po_number: string; bundle_ids: string[]; assembly_numbers: string[] }>(
+        `${API_URL}/vendor_po/${selectedPO}/assemblies`,
+      );
+      toast.success(`${data.assembly_numbers.length} assembly(s) created`);
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, bundle_ids: data.bundle_ids, assembly_numbers: data.assembly_numbers } : p));
+      setReport(prev => prev ? { ...prev, bundle_ids: data.bundle_ids, assembly_numbers: data.assembly_numbers } : prev);
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to create assemblies';
+      toast.error(msg);
+    } finally {
+      setCreatingAssemblies(false);
+    }
+  };
+
+  const handleLinkAssembly = async () => {
+    if (!selectedPO || !linkAssemblyNumber.trim()) return;
+    setLinkingAssembly(true);
+    try {
+      const { data } = await axios.patch<{ bundle_ids: string[]; assembly_numbers: string[] }>(
+        `${API_URL}/vendor_po/${selectedPO}/assemblies`,
+        { assembly_number: linkAssemblyNumber.trim() },
+      );
+      toast.success(`Assembly ${linkAssemblyNumber.trim()} linked`);
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, bundle_ids: data.bundle_ids, assembly_numbers: data.assembly_numbers } : p));
+      setReport(prev => prev ? { ...prev, bundle_ids: data.bundle_ids, assembly_numbers: data.assembly_numbers } : prev);
+      setLinkAssemblyOpen(false);
+      setLinkAssemblyNumber('');
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to link assembly';
+      toast.error(msg);
+    } finally {
+      setLinkingAssembly(false);
+    }
+  };
+
+  const handleUnlinkAssemblies = async () => {
+    if (!selectedPO) return;
+    setUnlinkingAssemblies(true);
+    try {
+      await axios.delete(`${API_URL}/vendor_po/${selectedPO}/assemblies`);
+      toast.success('Assemblies unlinked');
+      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, bundle_ids: undefined, assembly_numbers: undefined } : p));
+      setReport(prev => prev ? { ...prev, bundle_ids: undefined, assembly_numbers: undefined } : prev);
+    } catch {
+      toast.error('Failed to unlink assemblies');
+    } finally {
+      setUnlinkingAssemblies(false);
     }
   };
 
@@ -1284,7 +1627,7 @@ export default function VendorPOReport() {
                           title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
                         />
                       </th>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost', 'Total Cost w/ GST', 'Accepted Total Cost', 'Accepted Total Cost w/ GST', 'Status', 'Uploaded At', 'Estimate', 'Package', 'Order File', 'Actions'].map(h => (
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost', 'Total Cost w/ GST', 'Accepted Total Cost', 'Accepted Total Cost w/ GST', 'Status', 'Uploaded At', 'Estimate', 'Package', 'Transfer Order', 'Assembly', 'Order File', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -1349,6 +1692,28 @@ export default function VendorPOReport() {
                             <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono whitespace-nowrap">
                               {po.package_number}
                             </span>
+                          ) : (
+                            <span className="text-xs text-zinc-400">—</span>
+                          )}
+                        </td>
+                        <td className={TABLE_CLASSES.td}>
+                          {po.transfer_order_number ? (
+                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800 font-mono whitespace-nowrap">
+                              {po.transfer_order_number}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-zinc-400">—</span>
+                          )}
+                        </td>
+                        <td className={TABLE_CLASSES.td}>
+                          {(po.assembly_numbers ?? []).length > 0 ? (
+                            <div className="flex flex-col gap-0.5">
+                              {(po.assembly_numbers ?? []).map((an, i) => (
+                                <span key={i} className="px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-mono whitespace-nowrap">
+                                  {an}
+                                </span>
+                              ))}
+                            </div>
                           ) : (
                             <span className="text-xs text-zinc-400">—</span>
                           )}
@@ -1682,6 +2047,85 @@ export default function VendorPOReport() {
                   </button>
                 );
               })()}
+              {report && (() => {
+                const currentPO = poList.find(p => p.po_number === selectedPO);
+                if (!currentPO?.package_number) return null;
+                return currentPO?.transfer_order_number ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800 font-mono">
+                      <ExternalLink size={12} />
+                      {currentPO.transfer_order_number}
+                    </span>
+                    <button
+                      onClick={handleUnlinkTransferOrder}
+                      disabled={unlinkingTO}
+                      title="Unlink transfer order"
+                      className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors disabled:opacity-50"
+                    >
+                      {unlinkingTO ? <RefreshCw size={12} className="animate-spin" /> : <X size={12} />}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setCreateTOOpen(true); setToDate(''); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-violet-600 text-white rounded-md hover:bg-violet-700 transition-colors"
+                    >
+                      <ExternalLink size={13} />
+                      Create Transfer Order
+                    </button>
+                    <button
+                      onClick={() => { setLinkTOOpen(true); setLinkTONumber(''); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <Link2 size={13} />
+                      Link Transfer Order
+                    </button>
+                  </>
+                );
+              })()}
+              {report && (() => {
+                const currentPO = poList.find(p => p.po_number === selectedPO);
+                if (!currentPO?.transfer_order_number) return null;
+                const assemblyNumbers = currentPO.assembly_numbers ?? [];
+                return (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {assemblyNumbers.map((an, i) => (
+                      <span key={i} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-mono">
+                        <ExternalLink size={12} />
+                        {an}
+                      </span>
+                    ))}
+                    {assemblyNumbers.length === 0 && (
+                      <button
+                        onClick={handleCreateAssemblies}
+                        disabled={creatingAssemblies}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                      >
+                        {creatingAssemblies ? <RefreshCw size={13} className="animate-spin" /> : <ExternalLink size={13} />}
+                        Create Assembly
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setLinkAssemblyOpen(true); setLinkAssemblyNumber(''); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <Link2 size={13} />
+                      Link Assembly
+                    </button>
+                    {assemblyNumbers.length > 0 && (
+                      <button
+                        onClick={handleUnlinkAssemblies}
+                        disabled={unlinkingAssemblies}
+                        title="Unlink all assemblies"
+                        className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors disabled:opacity-50"
+                      >
+                        {unlinkingAssemblies ? <RefreshCw size={12} className="animate-spin" /> : <X size={12} />}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -1910,7 +2354,7 @@ export default function VendorPOReport() {
                       { label: 'Model No.', yellow: true },
                       { label: 'Title', yellow: true },
                       { label: 'Ship To', yellow: false },
-                      { label: 'Requested. Qty', yellow: true },
+                      { label: 'Requested Qty', yellow: true },
                       { label: 'Supply Qty', yellow: false },
                       { label: 'Accepted Qty', yellow: false },
                       { label: 'Received Qty', yellow: false },
@@ -1920,8 +2364,10 @@ export default function VendorPOReport() {
                       { label: 'MRP w/o GST', yellow: true },
                       { label: 'Margin %', yellow: true },
                       { label: 'Cost Price w/o Tax', yellow: true },
-                      { label: 'Total Cost', yellow: true },
-                      { label: 'Total Cost w/ GST', yellow: true },
+                      { label: 'Total Cost (Accepted)', yellow: true },
+                      { label: 'Total Cost w/ GST (Accepted)', yellow: true },
+                      { label: 'Total Cost (Dispatched)', yellow: true },
+                      { label: 'Total Cost w/ GST (Dispatched)', yellow: true },
                       { label: 'HSN', yellow: true },
                       { label: 'Etrade Unit Cost', yellow: true },
                       { label: 'Diff', yellow: true },
@@ -1932,10 +2378,15 @@ export default function VendorPOReport() {
                       { label: 'Total Qty', yellow: true },
                       { label: salesLabel, yellow: true },
                       { label: drrLabel, yellow: true },
-                      { label: 'Coverage Days', yellow: false },
+                      { label: 'Net Total Days', yellow: true },
+                      { label: 'Lead Time', yellow: true },
+                      { label: 'Coverage Days', yellow: true },
+                      { label: 'Total Target Days', yellow: true },
                       { label: 'Target Stock', yellow: true },
                       { label: 'Max Allowed Qty', yellow: true },
-                      { label: 'Final Supply Qty', yellow: true },
+                      { label: 'Final Units (For Under-ordering)', yellow: true },
+                      { label: 'Final Supply Qty (For Over-ordering)', yellow: true },
+                      ...(report.items[0]?.month_labels ?? []).map(([,, lbl]: [number, number, string]) => ({ label: lbl, yellow: true })),
                     ].map(({ label, yellow }) => (
                       <th
                         key={label}
@@ -1991,6 +2442,12 @@ export default function VendorPOReport() {
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
                           {item.total_cost_gst != null ? `₹${fmt(item.total_cost_gst)}` : '—'}
                         </td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
+                          {item.total_cost_dispatched != null ? `₹${fmt(item.total_cost_dispatched)}` : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
+                          {item.total_cost_dispatched_gst != null ? `₹${fmt(item.total_cost_dispatched_gst)}` : '—'}
+                        </td>
                         <td className="px-3 py-2 font-mono text-zinc-600 dark:text-zinc-400">{item.hsn || '—'}</td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{item.etrade_unit_cost.toFixed(2)}</td>
                         <td className={`px-3 py-2 text-right font-semibold ${diffColor}`}>
@@ -2021,10 +2478,27 @@ export default function VendorPOReport() {
                               ? <span className="text-amber-600 dark:text-amber-400 text-xs">{item.final_drr_flag}</span>
                               : '—'}
                         </td>
-                        <td className="px-3 py-2 text-center text-zinc-500">{item.coverage_days}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">
+                          {item.net_total_days != null ? item.net_total_days.toFixed(1) : '—'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <LeadTimeCell poNumber={report.po_number} asin={item.asin} value={item.lead_time} isOverride={item.lead_time_override != null} onSaved={handleLeadTimeSaved} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <CoverageDaysCell poNumber={report.po_number} asin={item.asin} value={item.coverage_days} isOverride={item.coverage_days_override != null} onSaved={handleCoverageDaysSaved} />
+                        </td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.total_target_days}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.target_stock)}</td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(item.max_allowed_qty)}</td>
-                        <td className="px-3 py-2 text-center font-bold text-blue-700 dark:text-blue-400 text-sm">{fmtInt(item.final_supply_qty)}</td>
+                        <td className="px-3 py-2">
+                          <FinalUnitsCell poNumber={report.po_number} asin={item.asin} value={item.final_units} isOverride={item.final_units_override != null} onSaved={handleFinalUnitsSaved} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <FinalSupplyFOCell poNumber={report.po_number} asin={item.asin} value={item.final_supply_fo} isOverride={item.final_supply_fo_override != null} onSaved={handleFinalSupplyFOSaved} />
+                        </td>
+                        {(item.monthly_sales ?? []).map((units, mi) => (
+                          <td key={mi} className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(units)}</td>
+                        ))}
                       </tr>
                     );
                   })}
@@ -2163,6 +2637,149 @@ export default function VendorPOReport() {
               >
                 {linkingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <Link2 size={13} />}
                 {linkingEstimate ? 'Linking…' : 'Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create Transfer Order Modal ── */}
+      {createTOOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-full">
+                <ExternalLink size={18} className="text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Create Transfer Order</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{selectedPO}</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Creates a Zoho Inventory transfer order from the linked package&apos;s line items.
+              From: <span className="font-medium">Pupscribe Warehouse</span> → To: <span className="font-medium">Mumbai (Amazon)</span>.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Date (optional — defaults to today)</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={e => setToDate(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => { setCreateTOOpen(false); setToDate(''); }}
+                disabled={creatingTO}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateTransferOrder}
+                disabled={creatingTO}
+                className="px-4 py-2 text-sm rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {creatingTO ? <RefreshCw size={13} className="animate-spin" /> : <ExternalLink size={13} />}
+                {creatingTO ? 'Creating…' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Transfer Order Modal ── */}
+      {linkTOOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-full">
+                <Link2 size={18} className="text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Link Transfer Order</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{selectedPO}</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Enter the transfer order number (e.g. <span className="font-mono">TO-1000</span>). It must exist in the transfer_orders collection.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Transfer Order Number</label>
+              <input
+                type="text"
+                value={linkTONumber}
+                onChange={e => setLinkTONumber(e.target.value)}
+                placeholder="TO-1000"
+                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-mono placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                onKeyDown={e => { if (e.key === 'Enter') handleLinkTransferOrder(); }}
+              />
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => { setLinkTOOpen(false); setLinkTONumber(''); }}
+                disabled={linkingTO}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLinkTransferOrder}
+                disabled={linkingTO || !linkTONumber.trim()}
+                className="px-4 py-2 text-sm rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {linkingTO ? <RefreshCw size={13} className="animate-spin" /> : <Link2 size={13} />}
+                {linkingTO ? 'Linking…' : 'Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Assembly Modal ── */}
+      {linkAssemblyOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-full">
+                <Link2 size={18} className="text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Link Assembly</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{selectedPO}</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Enter the assembly reference number (e.g. <span className="font-mono">Bundle - 16FBA-Jan31</span>). It must exist in the assemblies collection.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Assembly Reference Number</label>
+              <input
+                type="text"
+                value={linkAssemblyNumber}
+                onChange={e => setLinkAssemblyNumber(e.target.value)}
+                placeholder="Bundle - 16FBA-Jan31"
+                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-mono placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onKeyDown={e => { if (e.key === 'Enter') handleLinkAssembly(); }}
+              />
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => { setLinkAssemblyOpen(false); setLinkAssemblyNumber(''); }}
+                disabled={linkingAssembly}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLinkAssembly}
+                disabled={linkingAssembly || !linkAssemblyNumber.trim()}
+                className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {linkingAssembly ? <RefreshCw size={13} className="animate-spin" /> : <Link2 size={13} />}
+                {linkingAssembly ? 'Linking…' : 'Link'}
               </button>
             </div>
           </div>
