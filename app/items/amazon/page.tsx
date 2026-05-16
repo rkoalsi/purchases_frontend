@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { RefreshCw, Package, Search, ChevronLeft, ChevronRight, Edit2, Check, X, Upload } from 'lucide-react';
+import { RefreshCw, Package, Search, ChevronLeft, ChevronRight, Edit2, Check, X, Upload, Info, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/components/context/AuthContext';
 
@@ -124,7 +124,9 @@ export default function AmazonSkuMappingPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showEtradeFormat, setShowEtradeFormat] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const etradeFormatRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [allBrands, setAllBrands] = useState<{ value: string; label: string }[]>([]);
@@ -175,6 +177,17 @@ export default function AmazonSkuMappingPage() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => { fetchSkuData(); fetchAllMargins(); }, []);
+
+  useEffect(() => {
+    if (!showEtradeFormat) return;
+    const handler = (e: MouseEvent) => {
+      if (etradeFormatRef.current && !etradeFormatRef.current.contains(e.target as Node)) {
+        setShowEtradeFormat(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showEtradeFormat]);
 
   const fetchSkuData = async () => {
     try {
@@ -246,6 +259,22 @@ export default function AmazonSkuMappingPage() {
     toast.success('eTrade ASP saved');
   };
 
+  const handleTemplateDownload = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/download-etrade-margins-template`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'etrade_margins_template.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download template');
+    }
+  };
+
   const handleEtradeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -293,14 +322,56 @@ export default function AmazonSkuMappingPage() {
             className='hidden'
             onChange={handleEtradeUpload}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className='flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium text-sm transition-colors'
-          >
-            <Upload className={`w-4 h-4 ${uploading ? 'animate-pulse' : ''}`} />
-            {uploading ? 'Uploading…' : 'Upload eTrade Margins'}
-          </button>
+          <div className='relative' ref={etradeFormatRef}>
+            <div className='flex items-center gap-1'>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className='flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium text-sm transition-colors'
+              >
+                <Upload className={`w-4 h-4 ${uploading ? 'animate-pulse' : ''}`} />
+                {uploading ? 'Uploading…' : 'Upload eTrade Margins'}
+              </button>
+              <button
+                onClick={() => setShowEtradeFormat((v) => !v)}
+                className='p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300'
+                title='View expected file format'
+              >
+                <Info className='w-4 h-4' />
+              </button>
+            </div>
+            {showEtradeFormat && (
+              <div className='absolute right-0 top-full mt-1 z-10 w-80 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg p-3 text-xs text-gray-700 dark:text-zinc-300'>
+                <p className='font-semibold mb-2'>Expected Excel format</p>
+                <table className='w-full border-collapse'>
+                  <thead>
+                    <tr className='bg-gray-50 dark:bg-zinc-700'>
+                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>ASIN</th>
+                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>ASP</th>
+                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>New Margin</th>
+                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>Cost Price w/o Tax</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>B01ABC123</td>
+                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>499.00</td>
+                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>0.25</td>
+                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>320.00</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className='mt-2 text-gray-400 dark:text-zinc-500'>Upserts by ASIN. Blank cells are skipped.</p>
+                <button
+                  onClick={handleTemplateDownload}
+                  className='mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-md text-xs font-medium transition-colors'
+                >
+                  <Download className='w-3 h-3' />
+                  Download template with existing data
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={handleSync}
             disabled={syncing}
