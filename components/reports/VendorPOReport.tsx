@@ -2398,8 +2398,8 @@ export default function VendorPOReport() {
                           <SupplyQtyCell
                             poNumber={report.po_number}
                             asin={item.asin}
-                            value={item.final_supply_qty ?? item.supply_qty ?? 0}
-                            isOverride={item.supply_qty_override != null}
+                            value={item.final_supply_fo ?? item.final_supply_qty ?? item.supply_qty ?? 0}
+                            isOverride={item.supply_qty_override != null || item.final_supply_fo_override != null}
                             onSaved={handleSupplyQtySaved}
                           />
                         </td>
@@ -2465,7 +2465,7 @@ export default function VendorPOReport() {
                               : '—'}
                         </td>
                         <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">
-                          {item.net_total_days != null ? item.net_total_days.toFixed(1) : '—'}
+                          {item.net_total_days != null ? item.net_total_days.toFixed(2) : '—'}
                         </td>
                         <td className="px-3 py-2">
                           <LeadTimeCell poNumber={report.po_number} asin={item.asin} value={item.lead_time} isOverride={item.lead_time_override != null} onSaved={handleLeadTimeSaved} />
