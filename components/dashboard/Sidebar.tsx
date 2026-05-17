@@ -77,6 +77,8 @@ const PERMISSION_REQUIREMENTS = {
   ETRADE_SHIPMENT_SUMMARY: { name: 'reports_vendor_po' },
   SELLER_FLEX_RETURNS: { name: 'reports_amazon_seller_flex_returns' },
   FBA_RETURNS: { name: 'reports_amazon_fba_returns' },
+  FBA_SHIPMENT_PLANNING: { name: 'reports_amazon_fba_shipment_planning' },
+  FBA_SHIPMENT_PROCESSING: { name: 'reports_amazon_fba_shipment_processing' },
   VENDOR_CENTRAL_RETURNS: { name: 'reports_amazon_vendor_central_returns' },
   INVENTORY_AGING: { name: 'reports_inventory_aging' },
   BB_CODE_GENERATOR: { name: 'tools_bb_code_generator' },
@@ -175,6 +177,18 @@ const navigation = [
             href: '/reports/amazon_fba_returns',
             icon: AmazonIcon,
             requiredPermission: PERMISSION_REQUIREMENTS.FBA_RETURNS,
+          },
+          {
+            name: 'FBA Shipment Planning',
+            href: '/reports/amazon_fba_planning',
+            icon: Box,
+            requiredPermission: PERMISSION_REQUIREMENTS.FBA_SHIPMENT_PLANNING,
+          },
+          {
+            name: 'FBA Shipment Processing',
+            href: '/reports/amazon_fba_processing',
+            icon: Truck,
+            requiredPermission: PERMISSION_REQUIREMENTS.FBA_SHIPMENT_PROCESSING,
           },
 
         ],
@@ -634,7 +648,7 @@ export default function Sidebar({
                   className={`
                     transition-all duration-300 ease-in-out overflow-hidden
                     ${isExpanded
-                      ? 'max-h-[500px] opacity-100 mt-1'
+                      ? 'max-h-[800px] opacity-100 mt-1'
                       : 'max-h-0 opacity-0'
                     }
                   `}
@@ -667,7 +681,7 @@ export default function Sidebar({
                     }`}
                 />
               )}
-              {!isCollapsed && <span className='truncate text-sm'>{item.name}</span>}
+              {!isCollapsed && <span className='text-sm'>{item.name}</span>}
               {isItemActive && !isCollapsed && (
                 <div className='ml-auto w-1.5 h-1.5 bg-blue-500 dark:bg-blue-400 rounded-full'></div>
               )}
@@ -699,7 +713,7 @@ export default function Sidebar({
         className={`
           ${isMobile
             ? 'relative flex-1 flex flex-col max-w-xs w-full transform transition-transform duration-300'
-            : `flex-1 flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-64'
+            : `flex-1 flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'w-16' : 'w-72'
             }`
           }
           bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 h-full
