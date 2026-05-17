@@ -31,6 +31,7 @@ import {
   UsersIcon,
   Palette,
   Sparkles,
+  ClipboardList,
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -89,6 +90,7 @@ const PERMISSION_REQUIREMENTS = {
   PRODUCT_LOGISTICS: { name: 'settings_product_logistics' },
   DESIGN_NEW_ITEMS: { name: 'design_new_items' },
   DESIGNER_ORDERS: { anyOf: ['design_orders_view', 'design_orders_edit'] },
+  DESIGN_TASKS: { name: 'design_tasks' },
 };
 
 // Navigation items with required permissions
@@ -325,6 +327,12 @@ const navigation = [
         href: '/design/orders',
         icon: Package,
         requiredPermission: PERMISSION_REQUIREMENTS.DESIGNER_ORDERS,
+      },
+      {
+        name: 'Tasks',
+        href: '/design/tasks',
+        icon: ClipboardList,
+        requiredPermission: PERMISSION_REQUIREMENTS.DESIGN_TASKS,
       },
     ],
   },
