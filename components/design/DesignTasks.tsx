@@ -54,17 +54,17 @@ type ViewMode  = 'kanban' | 'list' | 'assignee';
 // ── Config ────────────────────────────────────────────────────────────────────
 
 const PRIORITIES = [
-  { value: 'urgent', label: 'Urgent', border: 'border-l-red-500',    dot: 'bg-red-500',    badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',       color: 'text-red-600 dark:text-red-400',    bg: 'bg-red-50 dark:bg-red-900/20' },
-  { value: 'high',   label: 'High',   border: 'border-l-orange-500', dot: 'bg-orange-500', badge: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-  { value: 'medium', label: 'Medium', border: 'border-l-yellow-500', dot: 'bg-yellow-500', badge: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20' },
-  { value: 'low',    label: 'Low',    border: 'border-l-green-500',  dot: 'bg-green-500',  badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',   color: 'text-green-600 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20' },
+  { value: 'urgent' as const, label: 'Urgent', border: 'border-l-red-500',    dot: 'bg-red-500',    badge: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',       color: 'text-red-600 dark:text-red-400',    bg: 'bg-red-50 dark:bg-red-900/20' },
+  { value: 'high'   as const, label: 'High',   border: 'border-l-orange-500', dot: 'bg-orange-500', badge: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' },
+  { value: 'medium' as const, label: 'Medium', border: 'border-l-yellow-500', dot: 'bg-yellow-500', badge: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20' },
+  { value: 'low'    as const, label: 'Low',    border: 'border-l-green-500',  dot: 'bg-green-500',  badge: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',   color: 'text-green-600 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20' },
 ];
 
 const STATUSES = [
-  { value: 'todo',        label: 'To Do',       icon: Circle,       color: 'text-zinc-500 dark:text-zinc-400',       bg: 'bg-zinc-100 dark:bg-zinc-800',         header: 'bg-zinc-50 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700' },
-  { value: 'in_progress', label: 'In Progress', icon: Clock,        color: 'text-blue-600 dark:text-blue-400',       bg: 'bg-blue-50 dark:bg-blue-900/20',       header: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' },
-  { value: 'review',      label: 'Review',      icon: ArrowRight,   color: 'text-purple-600 dark:text-purple-400',   bg: 'bg-purple-50 dark:bg-purple-900/20',   header: 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800' },
-  { value: 'done',        label: 'Done',        icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', header: 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800' },
+  { value: 'todo'        as const, label: 'To Do',       icon: Circle,       color: 'text-zinc-500 dark:text-zinc-400',       bg: 'bg-zinc-100 dark:bg-zinc-800',         header: 'bg-zinc-50 dark:bg-zinc-800/80 border-zinc-200 dark:border-zinc-700' },
+  { value: 'in_progress' as const, label: 'In Progress', icon: Clock,        color: 'text-blue-600 dark:text-blue-400',       bg: 'bg-blue-50 dark:bg-blue-900/20',       header: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' },
+  { value: 'review'      as const, label: 'Review',      icon: ArrowRight,   color: 'text-purple-600 dark:text-purple-400',   bg: 'bg-purple-50 dark:bg-purple-900/20',   header: 'bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800' },
+  { value: 'done'        as const, label: 'Done',        icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', header: 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800' },
 ];
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
