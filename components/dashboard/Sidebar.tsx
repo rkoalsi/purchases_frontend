@@ -80,6 +80,7 @@ const PERMISSION_REQUIREMENTS = {
   FBA_RETURNS: { name: 'reports_amazon_fba_returns' },
   FBA_SHIPMENT_PLANNING: { name: 'reports_amazon_fba_shipment_planning' },
   FBA_SHIPMENT_PROCESSING: { name: 'reports_amazon_fba_shipment_processing' },
+  VC_UNDER_ORDERING: { name: 'reports_vc_under_ordering' },
   VENDOR_CENTRAL_RETURNS: { name: 'reports_amazon_vendor_central_returns' },
   INVENTORY_AGING: { name: 'reports_inventory_aging' },
   BB_CODE_GENERATOR: { name: 'tools_bb_code_generator' },
@@ -191,6 +192,12 @@ const navigation = [
             href: '/reports/amazon_fba_processing',
             icon: Truck,
             requiredPermission: PERMISSION_REQUIREMENTS.FBA_SHIPMENT_PROCESSING,
+          },
+          {
+            name: 'VC Under/Over Ordering',
+            href: '/reports/vc_under_ordering',
+            icon: SquareKanban,
+            requiredPermission: PERMISSION_REQUIREMENTS.VC_UNDER_ORDERING,
           },
 
         ],
