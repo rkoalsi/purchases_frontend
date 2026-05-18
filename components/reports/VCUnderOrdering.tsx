@@ -412,7 +412,7 @@ export default function VCUnderOrdering() {
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.total_inv.toLocaleString()}</span></td>
 
                     <td className={TABLE_CLASSES.td}>
-                      {row.drr > 0
+                      {row.drr_flag?.startsWith('OK')
                         ? <span className={TABLE_CLASSES.tdText}>{row.drr}</span>
                         : <span className='text-xs text-zinc-400 italic'>{row.drr_flag || '—'}</span>
                       }
