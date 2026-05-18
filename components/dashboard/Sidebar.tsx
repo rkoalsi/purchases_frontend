@@ -194,7 +194,7 @@ const navigation = [
             requiredPermission: PERMISSION_REQUIREMENTS.FBA_SHIPMENT_PROCESSING,
           },
           {
-            name: 'VC Under/Over Ordering',
+            name: 'VC Under Ordering',
             href: '/reports/vc_under_ordering',
             icon: SquareKanban,
             requiredPermission: PERMISSION_REQUIREMENTS.VC_UNDER_ORDERING,
