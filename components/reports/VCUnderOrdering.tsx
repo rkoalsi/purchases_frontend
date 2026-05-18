@@ -298,7 +298,7 @@ export default function VCUnderOrdering() {
         <div className={TABLE_CLASSES.headerSection}>
           <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
             <div>
-              <h2 className='text-xl font-semibold text-zinc-900 dark:text-zinc-100'>VC Under / Over Ordering</h2>
+              <h2 className='text-xl font-semibold text-zinc-900 dark:text-zinc-100'>VC Under Ordering</h2>
               <p className='text-sm text-zinc-500 dark:text-zinc-400 mt-1'>
                 Under-ordering analysis for all VC ASINs with eTrade ASP.
                 <span className='ml-2 text-blue-600 dark:text-blue-400'>Click any value with ✎ to edit inline.</span>
