@@ -17,6 +17,7 @@ const InvoiceReportGenerator = () => {
     brand: "",
     exclude_customers: false,
     min_quantity: "",
+    report_type: "customer",
   });
   const [brands, setBrands] = useState([]);
   const [excludedCustomers, setExcludedCustomers] = useState<string[]>([]);
@@ -45,13 +46,13 @@ const InvoiceReportGenerator = () => {
     getBrands();
     getExcludedCustomers();
   }, []);
+
   const handleInputChange = (e: any) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
-    // Clear messages when user starts typing
     if (message.text) {
       setMessage({ type: "", text: "" });
     }
@@ -64,10 +65,6 @@ const InvoiceReportGenerator = () => {
     }
     if (!formData.endDate) {
       setMessage({ type: "error", text: "Please select an end date" });
-      return false;
-    }
-    if (!formData.brand) {
-      setMessage({ type: "error", text: "Please select a brand" });
       return false;
     }
     if (new Date(formData.startDate) > new Date(formData.endDate)) {
@@ -99,6 +96,7 @@ const InvoiceReportGenerator = () => {
             end_date: formData.endDate,
             brand: formData.brand,
             exclude_customers: formData.exclude_customers,
+            report_type: formData.report_type,
             ...(formData.min_quantity ? { min_quantity: parseFloat(formData.min_quantity) } : {}),
           }),
         }
@@ -118,37 +116,33 @@ const InvoiceReportGenerator = () => {
               errorMessage = errorData.detail;
             }
           } catch (e) {
-            // If we can't parse error response, use default message
+            // use default message
           }
         }
 
         throw new Error(errorMessage);
       }
 
-      // Get the blob data
       const blob = await response.blob();
-
-      // Create blob link to download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
 
-      // Generate filename with current timestamp
       const timestamp = new Date()
         .toISOString()
         .slice(0, 19)
         .replace(/:/g, "-");
+      const brandLabel = formData.brand || "all_brands";
+      const reportLabel =
+        formData.report_type === "transfer_order" ? "transfer_order" : "invoice";
       link.setAttribute(
         "download",
-        `invoice_report_${formData.brand}_${timestamp}.xlsx`
+        `${reportLabel}_report_${brandLabel}_${formData.startDate}_to_${formData.endDate}_${timestamp}.xlsx`
       );
 
-      // Append to body, click, and remove
       document.body.appendChild(link);
       link.click();
       link.remove();
-
-      // Cleanup blob URL
       window.URL.revokeObjectURL(url);
 
       setMessage({
@@ -169,6 +163,7 @@ const InvoiceReportGenerator = () => {
   };
 
   const today = new Date().toISOString().split("T")[0];
+  const isTransferOrder = formData.report_type === "transfer_order";
 
   return (
     <div>
@@ -189,6 +184,39 @@ const InvoiceReportGenerator = () => {
 
           {/* Form */}
           <div className="space-y-6">
+            {/* Report Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2">
+                Report Type
+              </label>
+              <div className="flex gap-3">
+                {[
+                  { value: "customer", label: "Customer Report" },
+                  { value: "transfer_order", label: "Transfer Order Report" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, report_type: opt.value, exclude_customers: false }))
+                    }
+                    className={`flex-1 py-2.5 px-4 rounded-lg border text-sm font-medium transition-all duration-200 ${
+                      formData.report_type === opt.value
+                        ? "bg-blue-600 border-blue-600 text-white"
+                        : "bg-white dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:border-blue-400"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {isTransferOrder && (
+                <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                  Shows invoices for internal / non-trade customers only
+                </p>
+              )}
+            </div>
+
             {/* Date Range */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -246,41 +274,63 @@ const InvoiceReportGenerator = () => {
                 onChange={handleInputChange}
                 className="w-full text-black dark:text-zinc-100 px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white dark:bg-zinc-800"
               >
-                <option value="">Select a brand...</option>
+                <option value="">All Brands</option>
                 {brands.map((brand: any) => (
                   <option key={brand.value} value={brand.value}>
                     {brand.label}
                   </option>
                 ))}
               </select>
-            </div>
-            {/* Exclude Customers */}
-            <div className="flex items-start gap-3 p-4 border border-gray-200 dark:border-zinc-700 rounded-lg bg-gray-50 dark:bg-zinc-800/50">
-              <input
-                type="checkbox"
-                id="exclude_customers"
-                name="exclude_customers"
-                checked={formData.exclude_customers}
-                onChange={handleInputChange}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-              />
-              <div>
-                <label
-                  htmlFor="exclude_customers"
-                  className="block text-sm font-medium text-gray-700 dark:text-zinc-300 cursor-pointer"
-                >
-                  Exclude Internal / Non-Trade Customers
-                </label>
+              {!formData.brand && (
                 <p className="mt-1 text-xs text-gray-500 dark:text-zinc-500">
-                  Removes the following customers from the report:
+                  A Brand column will be included in the report
                 </p>
-                <ul className="mt-1 text-xs text-gray-500 dark:text-zinc-500 list-disc list-inside space-y-0.5">
+              )}
+            </div>
+
+            {/* Exclude Customers — only shown for Customer Report */}
+            {!isTransferOrder && (
+              <div className="flex items-start gap-3 p-4 border border-gray-200 dark:border-zinc-700 rounded-lg bg-gray-50 dark:bg-zinc-800/50">
+                <input
+                  type="checkbox"
+                  id="exclude_customers"
+                  name="exclude_customers"
+                  checked={formData.exclude_customers}
+                  onChange={handleInputChange}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <div>
+                  <label
+                    htmlFor="exclude_customers"
+                    className="block text-sm font-medium text-gray-700 dark:text-zinc-300 cursor-pointer"
+                  >
+                    Exclude Internal / Non-Trade Customers
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-zinc-500">
+                    Removes the following customers from the report:
+                  </p>
+                  <ul className="mt-1 text-xs text-gray-500 dark:text-zinc-500 list-disc list-inside space-y-0.5">
+                    {excludedCustomers.map((customer, index) => (
+                      <li key={index}>{customer}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Transfer Order info box */}
+            {isTransferOrder && (
+              <div className="p-4 border border-amber-200 dark:border-amber-800 rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                  Internal / Non-Trade Customers
+                </p>
+                <ul className="text-xs text-amber-700 dark:text-amber-300 list-disc list-inside space-y-0.5">
                   {excludedCustomers.map((customer, index) => (
                     <li key={index}>{customer}</li>
                   ))}
                 </ul>
               </div>
-            </div>
+            )}
 
             {/* Min Quantity Filter */}
             <div>
@@ -296,12 +346,12 @@ const InvoiceReportGenerator = () => {
                 name="min_quantity"
                 value={formData.min_quantity}
                 onChange={handleInputChange}
-                placeholder="Leave blank for all customers"
+                placeholder="Leave blank for all"
                 min="0"
                 className="w-full text-black dark:text-zinc-100 px-4 py-3 border border-gray-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white dark:bg-zinc-800"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-zinc-500">
-                Only include customers with individual item quantity greater than or equal to this value
+                Only include line items with quantity &ge; this value
               </p>
             </div>
 
@@ -353,15 +403,12 @@ const InvoiceReportGenerator = () => {
               Report Information
             </h3>
             <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-              <li>
-                • Reports include invoices with status other than 'draft' or
-                'void'
-              </li>
+              <li>• Reports include invoices with status other than draft or void</li>
               <li>• Data is filtered by the selected date range and brand</li>
               <li>• The Excel file will download automatically when ready</li>
               <li>
-                • File includes Invoice ID, Customer, Item, Quantity, and Date
-                information
+                • Columns: SKU Code, Item, Customer, {!formData.brand && "Brand, "}Quantity,
+                Total Amount, Status, Purchase Status, Invoice ID, Created Date
               </li>
             </ul>
           </div>
