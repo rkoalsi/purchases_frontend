@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, RefreshCw, Edit2, Check, X, Search } from 'lucide-react';
+import { Upload, RefreshCw, Edit2, Check, X, Download } from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState, SearchBar } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -39,6 +39,16 @@ interface PlanningRow {
   open_shipment_overridden: boolean;
   final_units_overridden: boolean;
 }
+
+interface PlanningMeta {
+  fba_inv_date: string;
+  zoho_date: string;
+  etrade_date: string;
+  drr_period: string;
+}
+
+const EMPTY_META: PlanningMeta = { fba_inv_date: '', zoho_date: '', etrade_date: '', drr_period: '' };
+const PAGE_SIZE = 50;
 
 type EditState = {
   asin: string;
@@ -95,11 +105,14 @@ const EditableCell: React.FC<{
 
 export default function AmazonFBAPlanning() {
   const [rows, setRows] = useState<PlanningRow[]>([]);
+  const [meta, setMeta] = useState<PlanningMeta>(EMPTY_META);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [editState, setEditState] = useState<EditState | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const monthLabels: string[] = rows[0]?.month_labels ?? [];
@@ -112,6 +125,13 @@ export default function AmazonFBAPlanning() {
     try {
       const res = await axios.get(`${API_URL}/amazon_fba_shipment/planning`);
       setRows(res.data.rows ?? []);
+      setMeta({
+        fba_inv_date: res.data.fba_inv_date ?? '',
+        zoho_date: res.data.zoho_date ?? '',
+        etrade_date: res.data.etrade_date ?? '',
+        drr_period: res.data.drr_period ?? '',
+      });
+      setPage(1);
     } catch (e: unknown) {
       const msg = axios.isAxiosError(e) ? e.response?.data?.detail ?? e.message : 'Failed to load';
       setError(msg);
@@ -171,6 +191,25 @@ export default function AmazonFBAPlanning() {
     setEditState(null);
   }, [editState]);
 
+  // ─── Download Excel ───────────────────────────────────────────────────────
+
+  const handleDownload = useCallback(async () => {
+    setDownloading(true);
+    try {
+      const res = await axios.get(`${API_URL}/amazon_fba_shipment/planning/download`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fba_shipment_planning_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Download failed');
+    } finally {
+      setDownloading(false);
+    }
+  }, []);
+
   // ─── File upload ──────────────────────────────────────────────────────────
 
   const handleUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,7 +231,7 @@ export default function AmazonFBAPlanning() {
     }
   }, [loadData]);
 
-  // ─── Filtered rows ────────────────────────────────────────────────────────
+  // ─── Filtered + paginated rows ────────────────────────────────────────────
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -203,6 +242,18 @@ export default function AmazonFBAPlanning() {
       r.asin?.toLowerCase().includes(q)
     );
   }, [rows, search]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+
+  const paginated = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
+
+  const handleSearch = useCallback((v: string) => {
+    setSearch(v);
+    setPage(1);
+  }, []);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -228,6 +279,14 @@ export default function AmazonFBAPlanning() {
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                 Refresh
               </button>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50'
+              >
+                <Download size={14} />
+                {downloading ? 'Downloading…' : 'Download Excel'}
+              </button>
               <input ref={fileRef} type='file' accept='.xlsx,.xls' className='hidden' onChange={handleUpload} />
               <button
                 onClick={() => fileRef.current?.click()}
@@ -240,11 +299,11 @@ export default function AmazonFBAPlanning() {
             </div>
           </div>
           <div className='mt-4'>
-            <SearchBar value={search} onChange={setSearch} placeholder='Search by item name, SKU or ASIN…' />
+            <SearchBar value={search} onChange={handleSearch} placeholder='Search by item name, SKU or ASIN…' />
           </div>
           {rows.length > 0 && (
             <p className='mt-2 text-xs text-zinc-400'>
-              Showing {filtered.length} of {rows.length} rows
+              Showing {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length} rows (page {page} of {totalPages})
             </p>
           )}
         </div>
@@ -269,11 +328,16 @@ export default function AmazonFBAPlanning() {
               <thead className={TABLE_CLASSES.thead}>
                 <tr>
                   {[
-                    'ASIN', 'SKU Code', 'FNSKU', 'Item Name', 'MRP', 'SP',
-                    'FBA Inv', 'Open Shipment', 'Total Inv', 'DRR', 'Net Days',
-                    'Lead Time ✎', 'Cover Days ✎', 'Target Days', 'Target Stock',
-                    'Final Units ✎', 'Zoho Stock', 'Status', 'Platform',
-                    'Etrade Inv', 'Open PO', 'Total Qty',
+                    'ASIN', 'SKU Code', 'Item Name', 'MRP', 'SP',
+                    meta.fba_inv_date ? `FBA Inv (${meta.fba_inv_date})` : 'FBA Inv',
+                    'Open Shipment ✎', 'Total Inv',
+                    meta.drr_period ? `DRR (${meta.drr_period})` : 'DRR',
+                    'Net Days', 'Lead Time ✎', 'Cover Days ✎', 'Target Days', 'Target Stock',
+                    'Final Units ✎',
+                    meta.zoho_date ? `Zoho Stock (${meta.zoho_date})` : 'Zoho Stock',
+                    'Status', 'Platform',
+                    meta.etrade_date ? `Etrade Inv (${meta.etrade_date})` : 'Etrade Inv',
+                    'Open PO', 'Total Qty',
                     ...monthLabels,
                   ].map(h => (
                     <th key={h} className={TABLE_CLASSES.th} style={{ whiteSpace: 'nowrap' }}>
@@ -283,13 +347,12 @@ export default function AmazonFBAPlanning() {
                 </tr>
               </thead>
               <tbody className={TABLE_CLASSES.tbody}>
-                {filtered.map(row => (
+                {paginated.map(row => (
                   <tr key={row.asin} className={TABLE_CLASSES.tr}>
                     <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-600 dark:text-zinc-400'>{row.asin}</span></td>
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.sku_code}</span></td>
-                    <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-600 dark:text-zinc-400'>{row.fnsku || '—'}</span></td>
-                    <td className={TABLE_CLASSES.td} style={{ minWidth: 180, maxWidth: 240 }}>
-                      <span className='text-sm text-zinc-900 dark:text-zinc-100 line-clamp-2' title={row.item_name}>{row.item_name || '—'}</span>
+                    <td className={TABLE_CLASSES.td} style={{ minWidth: 180, maxWidth: 260 }}>
+                      <span className='text-sm text-zinc-900 dark:text-zinc-100' style={{ whiteSpace: 'normal', lineHeight: '1.3' }} title={row.item_name}>{row.item_name || '—'}</span>
                     </td>
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>₹{row.mrp?.toLocaleString() ?? '—'}</span></td>
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>₹{row.sp?.toLocaleString() ?? '—'}</span></td>
@@ -386,6 +449,27 @@ export default function AmazonFBAPlanning() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className='flex items-center justify-center gap-2'>
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className='px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-40'
+          >
+            ← Prev
+          </button>
+          <span className='text-sm text-zinc-500 dark:text-zinc-400'>Page {page} of {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className='px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-40'
+          >
+            Next →
+          </button>
         </div>
       )}
 

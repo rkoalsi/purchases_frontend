@@ -164,6 +164,12 @@ const navigation = [
             requiredPermission: PERMISSION_REQUIREMENTS.ETRADE_SHIPMENT_SUMMARY,
           },
           {
+            name: 'VC Under Ordering',
+            href: '/reports/vc_under_ordering',
+            icon: SquareKanban,
+            requiredPermission: PERMISSION_REQUIREMENTS.VC_UNDER_ORDERING,
+          },
+          {
             name: 'B2B VC Returns',
             href: '/reports/amazon_vendor_central_returns',
             icon: AmazonIcon,
@@ -193,12 +199,7 @@ const navigation = [
             icon: Truck,
             requiredPermission: PERMISSION_REQUIREMENTS.FBA_SHIPMENT_PROCESSING,
           },
-          {
-            name: 'VC Under Ordering',
-            href: '/reports/vc_under_ordering',
-            icon: SquareKanban,
-            requiredPermission: PERMISSION_REQUIREMENTS.VC_UNDER_ORDERING,
-          },
+
 
         ],
       },
