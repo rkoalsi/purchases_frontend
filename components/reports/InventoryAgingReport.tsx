@@ -12,17 +12,22 @@ export default function InventoryAgingReport() {
   const { accessToken } = useAuth();
   const today = new Date().toISOString().split('T')[0];
   const [toDate, setToDate] = useState(today);
+  const [prevDate, setPrevDate] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleDownload = async () => {
-    if (!toDate) {
-      toast.error('Please select a date.');
+    if (!toDate || !prevDate) {
+      toast.error('Please select both dates.');
+      return;
+    }
+    if (prevDate >= toDate) {
+      toast.error('Previous period date must be earlier than the current date.');
       return;
     }
     setLoading(true);
     try {
       const resp = await axios.get(`${API_URL}/inventory_aging/download`, {
-        params: { to_date: toDate },
+        params: { to_date: toDate, prev_date: prevDate },
         headers: { Authorization: `Bearer ${accessToken}` },
         responseType: 'blob',
       });
@@ -30,7 +35,7 @@ export default function InventoryAgingReport() {
       const url = window.URL.createObjectURL(new Blob([resp.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Inventory_Aging_${toDate}.xlsx`;
+      link.download = `Inventory_Aging_${toDate}_vs_${prevDate}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -51,15 +56,14 @@ export default function InventoryAgingReport() {
     <div className="p-6 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-1 dark:text-white">Inventory Aging Report</h1>
       <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-        Generates an Excel file with Slow Movers (181–270 days), Deadstock (&gt;270 days),
-        and Brand-wise Collection Value sheets.
+        Generates an Excel file comparing slow movers and deadstock across two periods, plus brand-wise collection value.
       </p>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-5 shadow-sm space-y-5">
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             <Calendar className="inline w-4 h-4 mr-1.5 -mt-0.5" />
-            Report Date
+            Current Period Date
           </label>
           <input
             type="date"
@@ -68,14 +72,28 @@ export default function InventoryAgingReport() {
             onChange={(e) => setToDate(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <Calendar className="inline w-4 h-4 mr-1.5 -mt-0.5" />
+            Previous Period Date
+          </label>
+          <input
+            type="date"
+            value={prevDate}
+            max={toDate || today}
+            onChange={(e) => setPrevDate(e.target.value)}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
           <p className="text-xs text-zinc-400 dark:text-zinc-500">
-            Inventory aging will be calculated as of this date.
+            Must be earlier than the current period date.
           </p>
         </div>
 
         <button
           onClick={handleDownload}
-          disabled={loading || !toDate}
+          disabled={loading || !toDate || !prevDate}
           className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm px-4 py-2.5 transition-colors"
         >
           {loading ? (
@@ -96,12 +114,20 @@ export default function InventoryAgingReport() {
         <p className="font-medium text-zinc-700 dark:text-zinc-300">Report sheets:</p>
         <ul className="list-disc list-inside space-y-1">
           <li>
-            <span className="font-medium text-red-600 dark:text-red-400">Slow Movers</span>
-            {' '}— items with stock aged 181–270 days
+            <span className="font-medium text-red-600 dark:text-red-400">Summary – Slow Movers</span>
+            {' '}— period-over-period comparison with qty change and % change
           </li>
           <li>
-            <span className="font-medium text-purple-600 dark:text-purple-400">Deadstock</span>
-            {' '}— items with stock aged &gt;270 days
+            <span className="font-medium text-red-500 dark:text-red-300">Slow Movers (current & previous)</span>
+            {' '}— items with stock aged 181–270 days per period
+          </li>
+          <li>
+            <span className="font-medium text-purple-600 dark:text-purple-400">Summary – Deadstock</span>
+            {' '}— period-over-period comparison with qty change and % change
+          </li>
+          <li>
+            <span className="font-medium text-purple-500 dark:text-purple-300">Deadstock (current & previous)</span>
+            {' '}— items with stock aged &gt;270 days per period
           </li>
           <li>
             <span className="font-medium text-blue-600 dark:text-blue-400">Brand wise collection value</span>
