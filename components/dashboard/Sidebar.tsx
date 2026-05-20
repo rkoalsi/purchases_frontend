@@ -103,6 +103,12 @@ const navigation = [
     requiredPermission: PERMISSION_REQUIREMENTS.DASHBOARD,
   },
   {
+    name: 'Tasks',
+    href: '/tasks',
+    icon: ClipboardList,
+    requiredPermission: null,
+  },
+  {
     name: 'Items',
     href: '/inventory',
     icon: Package,
@@ -335,12 +341,6 @@ const navigation = [
         href: '/design/orders',
         icon: Package,
         requiredPermission: PERMISSION_REQUIREMENTS.DESIGNER_ORDERS,
-      },
-      {
-        name: 'Tasks',
-        href: '/design/tasks',
-        icon: ClipboardList,
-        requiredPermission: PERMISSION_REQUIREMENTS.DESIGN_TASKS,
       },
     ],
   },
