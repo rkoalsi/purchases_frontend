@@ -48,6 +48,7 @@ export default function UserManagementPage() {
     password: '',
     role: 'user',
     status: 'active',
+    department: '',
   });
   const [creatingUser, setCreatingUser] = useState(false);
   const [showNewUserPassword, setShowNewUserPassword] = useState(false);
@@ -135,10 +136,10 @@ export default function UserManagementPage() {
   const handleSaveUser = async () => {
     setSavingUser(editingUser);
     try {
-      const { name, email, role, status } = editForm;
+      const { name, email, role, status, department } = editForm;
       await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/users/${editingUser}`,
-        { name, email, role, status },
+        { name, email, role, status, department },
         authHeaders
       );
       setUsers(
@@ -294,6 +295,7 @@ export default function UserManagementPage() {
         password: '',
         role: 'user',
         status: 'active',
+        department: '',
       });
       setShowCreateUser(false);
       toast.success('User created successfully');
@@ -590,6 +592,20 @@ export default function UserManagementPage() {
                       <option value='pending'>Pending</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5'>
+                    Department
+                  </label>
+                  <input
+                    type='text'
+                    value={newUser.department}
+                    onChange={(e) =>
+                      setNewUser((prev) => ({ ...prev, department: e.target.value }))
+                    }
+                    placeholder='e.g. Design, Operations, Finance'
+                    className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none'
+                  />
                 </div>
               </div>
               <div className='flex justify-end gap-2 mt-6'>
@@ -902,6 +918,18 @@ export default function UserManagementPage() {
                             </select>
                           </div>
                         </div>
+                        <div>
+                          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5'>
+                            Department
+                          </label>
+                          <input
+                            type='text'
+                            value={editForm.department || ''}
+                            onChange={(e) => handleInputChange('department', e.target.value)}
+                            placeholder='e.g. Design, Operations, Finance'
+                            className='w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none'
+                          />
+                        </div>
                       </div>
                     ) : (
                       /* View Mode */
@@ -934,6 +962,11 @@ export default function UserManagementPage() {
                             >
                               {user.status}
                             </span>
+                            {user.department && (
+                              <span className='inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300'>
+                                {user.department}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className='flex items-center gap-2 shrink-0'>
