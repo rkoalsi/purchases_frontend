@@ -36,10 +36,18 @@ interface VendorBrand {
   vendors: Array<{ contact_id: string; contact_name: string; currency_code?: string }>;
 }
 
+interface InactiveItem {
+  manufacturer_code: string;
+  bb_code: string;
+  item_name: string;
+  status: string;
+}
+
 interface ValidationResult {
   valid: boolean;
   items?: OrderItem[];
   missing_items?: MissingItem[];
+  inactive_items?: InactiveItem[];
   found_count?: number;
   missing_count?: number;
   total_items?: number;
@@ -139,8 +147,28 @@ export default function DraftOrderUpload() {
   const fetchDrafts = useCallback(async () => {
     setDraftsLoading(true);
     try {
-      const { data } = await axios.get<DraftOrder[]>(`${API_URL}/vendors/draft_orders`);
-      setDraftOrders(data);
+      const [draftsRes, brandOrdersRes] = await Promise.all([
+        axios.get<DraftOrder[]>(`${API_URL}/vendors/draft_orders`),
+        axios.get<{ purchaseorder_number: string | null }[]>(`${API_URL}/brand_orders/`).catch(() => ({ data: [] })),
+      ]);
+      setDraftOrders(draftsRes.data);
+
+      // Pre-populate brandOrderCreated for any draft whose PO already has a brand order
+      const linkedPOs = new Set(
+        brandOrdersRes.data
+          .map((o) => o.purchaseorder_number)
+          .filter(Boolean)
+      );
+      setBrandOrderCreated(prev => {
+        const next = { ...prev };
+        for (const draft of draftsRes.data) {
+          const key = `draft_${draft._id}`;
+          if (draft.po_number && linkedPOs.has(draft.po_number)) {
+            next[key] = true;
+          }
+        }
+        return next;
+      });
     } catch {
       toast.error('Failed to load draft orders');
     } finally {
@@ -836,10 +864,47 @@ export default function DraftOrderUpload() {
           <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
             <CheckCircle className="w-5 h-5" />
             <span className="font-medium">
-              All {validation.total_items} items found in database
+              {validation.total_items} item{validation.total_items !== 1 ? 's' : ''} found in database
+              {(validation.inactive_items?.length ?? 0) > 0 && ` — ${validation.inactive_items!.length} inactive/deleted excluded`}
               {isMultiCurrency && ` — split into ${currencies.length} currency orders`}
             </span>
           </div>
+
+          {(validation.inactive_items?.length ?? 0) > 0 && (
+            <div className="rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 bg-amber-100 dark:bg-amber-900/40 border-b border-amber-200 dark:border-amber-700">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  {validation.inactive_items!.length} item{validation.inactive_items!.length !== 1 ? 's' : ''} excluded — inactive or deleted in Zoho
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-amber-100/60 dark:bg-amber-900/30">
+                    <tr>
+                      {['Mfr Code', 'BB Code', 'Item Name', 'Status'].map(h => (
+                        <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-amber-700 dark:text-amber-400">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {validation.inactive_items!.map((m, i) => (
+                      <tr key={i} className="border-t border-amber-100 dark:border-amber-800">
+                        <td className="px-3 py-2 text-amber-900 dark:text-amber-200">{m.manufacturer_code || '—'}</td>
+                        <td className="px-3 py-2 text-amber-900 dark:text-amber-200">{m.bb_code || '—'}</td>
+                        <td className="px-3 py-2 text-amber-900 dark:text-amber-200">{m.item_name}</td>
+                        <td className="px-3 py-2">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200 capitalize">
+                            {m.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {isMultiCurrency && (
             <div className="px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
