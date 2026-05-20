@@ -5,6 +5,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle, ShoppingCart, Loader2, Trash2, RefreshCw, Package } from 'lucide-react';
 import { TABLE_CLASSES } from './TableStyles';
+import capitalize from '@/util/capitalize';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -73,7 +74,6 @@ interface DraftOrder {
 // ── per-currency group form state ──────────────────────────────────────────
 interface CurrencyGroupState {
   selectedVendor: DetectedVendor | null;
-  description: string;
   poDate: string;
   notes: string;
   referenceNumber: string;
@@ -88,7 +88,6 @@ interface CurrencyGroupState {
 function defaultGroupState(): CurrencyGroupState {
   return {
     selectedVendor: null,
-    description: '',
     poDate: new Date().toISOString().slice(0, 10),
     notes: '',
     referenceNumber: '',
@@ -228,6 +227,7 @@ export default function DraftOrderUpload() {
         // Initialise one group state per currency found in items
         const currencyGroups = groupItemsByCurrency(data.items as any ?? {});
         const initialGroups: Record<string, CurrencyGroupState> = {};
+        const vendorFetches: Promise<void>[] = [];
         for (const currency of Object.keys(currencyGroups)) {
           const gs = defaultGroupState();
           // Auto-select vendor whose currency_code matches
@@ -238,7 +238,20 @@ export default function DraftOrderUpload() {
             gs.selectedVendor = matchedVendor;
           }
           initialGroups[currency] = gs;
+          if (gs.selectedVendor) {
+            vendorFetches.push(
+              axios.get<{ last_po_number: string | null; next_po_number: string | null }>(
+                `${API_URL}/vendors/draft_orders/last_po_number`,
+                { params: { vendor_id: gs.selectedVendor.contact_id } }
+              ).then(({ data: poData }) => {
+                if (poData.next_po_number) {
+                  initialGroups[currency].purchaseorderNumber = poData.next_po_number;
+                }
+              }).catch(() => {})
+            );
+          }
         }
+        await Promise.all(vendorFetches);
         setGroups(initialGroups);
       }
     } catch (err: any) {
@@ -253,6 +266,20 @@ export default function DraftOrderUpload() {
     setGroups(prev => ({ ...prev, [currency]: { ...prev[currency], ...patch } }));
   };
 
+  const fetchAndSetNextPoNumber = async (currency: string, vendorId: string) => {
+    try {
+      const { data } = await axios.get<{ last_po_number: string | null; next_po_number: string | null }>(
+        `${API_URL}/vendors/draft_orders/last_po_number`,
+        { params: { vendor_id: vendorId } }
+      );
+      if (data.next_po_number) {
+        updateGroup(currency, { purchaseorderNumber: data.next_po_number });
+      }
+    } catch {
+      // silently ignore — user can enter manually
+    }
+  };
+
   // ── save draft (per currency) ──────────────────────────────────────────
   const handleSaveDraft = async (currency: string, items: OrderItem[]) => {
     const gs = groups[currency];
@@ -260,7 +287,6 @@ export default function DraftOrderUpload() {
     updateGroup(currency, { saving: true });
     try {
       const { data } = await axios.post<DraftOrder>(`${API_URL}/vendors/draft_orders/save`, {
-        description: gs.description,
         items,
         detected_vendor: gs.selectedVendor,
         date: gs.poDate,
@@ -287,7 +313,6 @@ export default function DraftOrderUpload() {
       let draftId = gs.savedDraftId;
       if (!draftId) {
         const { data: draft } = await axios.post<DraftOrder>(`${API_URL}/vendors/draft_orders/save`, {
-          description: gs.description,
           items,
           detected_vendor: gs.selectedVendor,
           date: gs.poDate,
@@ -306,7 +331,6 @@ export default function DraftOrderUpload() {
         notes: gs.notes,
         reference_number: gs.referenceNumber,
         purchaseorder_number: gs.purchaseorderNumber,
-        description: gs.description,
         draft_id: draftId,
       });
       updateGroup(currency, { createdPO: data });
@@ -331,7 +355,6 @@ export default function DraftOrderUpload() {
     for (const currency of currencies) {
       initialGroups[currency] = {
         selectedVendor: draft.detected_vendor,
-        description: draft.description || '',
         poDate: draft.date || new Date().toISOString().slice(0, 10),
         notes: draft.notes || '',
         referenceNumber: draft.reference_number || '',
@@ -457,19 +480,6 @@ export default function DraftOrderUpload() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Description */}
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={gs.description}
-                  onChange={(e) => updateGroup(currency, { description: e.target.value })}
-                  placeholder="e.g. Q2 restock — Brand X…"
-                  disabled={gs.poAlreadyCreated}
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </div>
-
               {/* Vendor */}
               <div>
                 <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
@@ -499,7 +509,10 @@ export default function DraftOrderUpload() {
                       {vendorsForGroup.map(v => (
                         <button
                           key={v.contact_id}
-                          onClick={() => updateGroup(currency, { selectedVendor: v })}
+                          onClick={() => {
+                            updateGroup(currency, { selectedVendor: v });
+                            fetchAndSetNextPoNumber(currency, v.contact_id);
+                          }}
                           className="flex items-center gap-2 px-3 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-lg text-sm hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                         >
                           <span className="font-medium text-zinc-900 dark:text-zinc-100">{v.contact_name}</span>
@@ -533,12 +546,15 @@ export default function DraftOrderUpload() {
 
               {/* PO Number */}
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">PO Number</label>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  PO Number
+                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(auto-incremented from last PO)</span>
+                </label>
                 <input
                   type="text"
                   value={gs.purchaseorderNumber}
                   onChange={(e) => updateGroup(currency, { purchaseorderNumber: e.target.value })}
-                  placeholder="Required PO number…"
+                  placeholder="e.g. PO-00123"
                   disabled={gs.poAlreadyCreated}
                   className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                 />
@@ -695,7 +711,7 @@ export default function DraftOrderUpload() {
             <table className={TABLE_CLASSES.table}>
               <thead className={TABLE_CLASSES.thead}>
                 <tr>
-                  {['Description', 'Vendor', 'Brand', 'Date', 'Items', 'Status', 'PO Status', 'Created', 'Actions'].map(h => (
+                  {['Vendor', 'Brand', 'Date', 'Items', 'Status', 'PO Status', 'PO Number', 'Created', 'Actions'].map(h => (
                     <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                   ))}
                 </tr>
@@ -708,11 +724,6 @@ export default function DraftOrderUpload() {
                   const canCreateBrandOrder = draft.po_created && !!draft.po_number && draftBrands.length > 0;
                   return (
                     <tr key={draft._id} className={TABLE_CLASSES.tr}>
-                      <td className={TABLE_CLASSES.td}>
-                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                          {draft.description || <span className="text-zinc-400 italic">—</span>}
-                        </span>
-                      </td>
                       <td className={TABLE_CLASSES.td}>
                         <span className="text-sm text-zinc-700 dark:text-zinc-300">
                           {draft.detected_vendor?.contact_name || <span className="text-zinc-400">—</span>}
@@ -730,7 +741,7 @@ export default function DraftOrderUpload() {
                       <td className={TABLE_CLASSES.td}>
                         {draft.po_created ? (
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-                            PO Created{draft.po_number ? ` — ${draft.po_number}` : ''}
+                            PO Created
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
@@ -741,11 +752,16 @@ export default function DraftOrderUpload() {
                       <td className={TABLE_CLASSES.td}>
                         {draft.po_status ? (
                           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                            {draft.po_status}
+                            {capitalize(draft.po_status)}
                           </span>
                         ) : (
                           <span className="text-zinc-400 text-xs">—</span>
                         )}
+                      </td>
+                      <td className={TABLE_CLASSES.td}>
+                        <span className="text-sm text-zinc-600 dark:text-zinc-400 font-mono">
+                          {draft.po_number || <span className="text-zinc-400 text-xs">—</span>}
+                        </span>
                       </td>
                       <td className={TABLE_CLASSES.td}>
                         <span className="text-xs text-zinc-500">
@@ -785,8 +801,9 @@ export default function DraftOrderUpload() {
                           )}
                           <button
                             onClick={() => handleDeleteDraft(draft._id)}
-                            className="p-1 text-zinc-400 hover:text-red-500 transition-colors"
-                            title="Delete draft"
+                            disabled={brandOrderCreated[draftKey]}
+                            className="p-1 text-zinc-400 hover:text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-zinc-400"
+                            title={brandOrderCreated[draftKey] ? 'Cannot delete — brand order exists' : 'Delete draft'}
                           >
                             <Trash2 size={14} />
                           </button>
