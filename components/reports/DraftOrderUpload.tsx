@@ -147,8 +147,28 @@ export default function DraftOrderUpload() {
   const fetchDrafts = useCallback(async () => {
     setDraftsLoading(true);
     try {
-      const { data } = await axios.get<DraftOrder[]>(`${API_URL}/vendors/draft_orders`);
-      setDraftOrders(data);
+      const [draftsRes, brandOrdersRes] = await Promise.all([
+        axios.get<DraftOrder[]>(`${API_URL}/vendors/draft_orders`),
+        axios.get<{ purchaseorder_number: string | null }[]>(`${API_URL}/brand_orders/`).catch(() => ({ data: [] })),
+      ]);
+      setDraftOrders(draftsRes.data);
+
+      // Pre-populate brandOrderCreated for any draft whose PO already has a brand order
+      const linkedPOs = new Set(
+        brandOrdersRes.data
+          .map((o) => o.purchaseorder_number)
+          .filter(Boolean)
+      );
+      setBrandOrderCreated(prev => {
+        const next = { ...prev };
+        for (const draft of draftsRes.data) {
+          const key = `draft_${draft._id}`;
+          if (draft.po_number && linkedPOs.has(draft.po_number)) {
+            next[key] = true;
+          }
+        }
+        return next;
+      });
     } catch {
       toast.error('Failed to load draft orders');
     } finally {
