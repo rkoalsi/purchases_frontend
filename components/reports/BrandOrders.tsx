@@ -310,8 +310,7 @@ export default function BrandOrders() {
   }, [vendorList, searchQuery, ordersByVendor]);
 
   const newOrdersCount = useMemo(() => {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return orders.filter(o => new Date(o.created_at).getTime() > cutoff).length;
+    return orders.filter(o => !o.inward_date && o.po_status?.toLowerCase() !== 'closed').length;
   }, [orders]);
 
   const getVisibleOrders = useCallback((vendorId: string) => {
@@ -1137,7 +1136,7 @@ export default function BrandOrders() {
             const isOpen = expandedBrands.has(vendor.contact_id);
             const visibleOrders = getVisibleOrders(vendor.contact_id);
             const allOrders = ordersByVendor[vendor.contact_id] || [];
-            const newVendorOrdersCount = allOrders.filter(o => new Date(o.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length;
+            const newVendorOrdersCount = allOrders.filter(o => !o.inward_date && o.po_status?.toLowerCase() !== 'closed').length;
 
             return (
               <div key={vendor.contact_id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
@@ -1193,7 +1192,7 @@ export default function BrandOrders() {
                           const isEditing = editingOrder === order._id;
                           const isPoEditing = poEditingOrder === order._id;
                           const etaPast = isEtaOverdue(order.shipment_eta, order.po_status);
-                          const isNewOrder = new Date(order.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
+                          const isNewOrder = !order.inward_date && order.po_status?.toLowerCase() !== 'closed';
                           const docs = orderDocs[order._id] || [];
                           const progress = uploadProgress[order._id];
                           const dsq = (docSearch[order._id] || '').toLowerCase();
