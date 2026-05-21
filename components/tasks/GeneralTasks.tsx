@@ -896,6 +896,7 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
   const [deletingAtt, setDeletingAtt]       = useState<string | null>(null);
   const [confirmDel, setConfirmDel]         = useState(false);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
+  const assigneesAtPickerOpen = useRef<string[]>([]);
   const [editingDeadline, setEditingDeadline]       = useState(false);
   const headers                             = { Authorization: `Bearer ${accessToken}` };
 
@@ -1027,7 +1028,28 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
               <div className='px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
                 <div className='flex items-center justify-between mb-2'>
                   <p className='text-[10px] font-bold text-zinc-400 uppercase tracking-wide'>Assignees</p>
-                  <button onClick={() => setShowAssigneePicker((v) => !v)}
+                  <button onClick={async () => {
+                    if (!showAssigneePicker) {
+                      // Opening picker — snapshot current assignees
+                      assigneesAtPickerOpen.current = [...task.assigned_to];
+                      setShowAssigneePicker(true);
+                    } else {
+                      // Closing picker — notify only if new assignees were added
+                      setShowAssigneePicker(false);
+                      const prevIds = new Set(assigneesAtPickerOpen.current);
+                      const hasNew = task.assigned_to.some((id) => !prevIds.has(id));
+                      if (hasNew) {
+                        try {
+                          await patch({
+                            assigned_to: task.assigned_to,
+                            assigned_to_names: task.assigned_to_names,
+                            assigned_to_departments: task.assigned_to_departments,
+                            notify_assignees: true,
+                          });
+                        } catch { toast.error('Failed to send assignment notification'); }
+                      }
+                    }
+                  }}
                     className='flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'>
                     <Plus className='w-3 h-3' />{showAssigneePicker ? 'Done' : 'Edit'}
                   </button>
