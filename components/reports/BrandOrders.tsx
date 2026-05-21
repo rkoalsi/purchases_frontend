@@ -1164,7 +1164,7 @@ export default function BrandOrders() {
                   <span className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium text-black dark:text-white ${allOrders.length > 0 ? 'bg-green-300' : 'bg-zinc-100'} ${allOrders.length > 0 ? 'dark:bg-green-600' : 'dark:bg-zinc-800'} rounded-full mr-1`}>
                     {allOrders.length} order{allOrders.length !== 1 ? 's' : ''}
                     {newVendorOrdersCount > 0 && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 leading-none">{newVendorOrdersCount} new</span>
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-violet-600 text-white leading-none">{newVendorOrdersCount} new</span>
                     )}
                   </span>
                   {canEdit && (
