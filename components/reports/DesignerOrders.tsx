@@ -178,6 +178,8 @@ export default function DesignerOrders() {
   const [lineItemsLoading, setLineItemsLoading] = useState<Record<string, boolean>>({});
   const [expandedLineItems, setExpandedLineItems] = useState<Record<string, Set<string>>>({});
   const [expandedLineItemSections, setExpandedLineItemSections] = useState<Set<string>>(new Set());
+  const [collapsedNewSections, setCollapsedNewSections] = useState<Set<string>>(new Set());
+  const [collapsedExistingSections, setCollapsedExistingSections] = useState<Set<string>>(new Set());
 
   const globalFileRef = useRef<HTMLDivElement>(null);
   const globalFileDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -966,26 +968,16 @@ export default function DesignerOrders() {
                                         {(() => {
                                           const newItems = lineItems.filter(i => i.is_new);
                                           const existingItems = lineItems.filter(i => !i.is_new);
-                                          const ordered = [...newItems, ...existingItems];
-                                          return ordered.map((item, idx) => {
+                                          const newCollapsed = collapsedNewSections.has(order._id);
+                                          const existingCollapsed = collapsedExistingSections.has(order._id);
+                                          const toggleNew = () => setCollapsedNewSections(prev => { const s = new Set(prev); if (s.has(order._id)) s.delete(order._id); else s.add(order._id); return s; });
+                                          const toggleExisting = () => setCollapsedExistingSections(prev => { const s = new Set(prev); if (s.has(order._id)) s.delete(order._id); else s.add(order._id); return s; });
+                                          const renderItem = (item: LineItem) => {
                                           const itemDocs = docs.filter(d => d.item_id === item.item_id);
                                           const itemFileCount = itemDocs.length;
                                           const isItemOpen = expandedItems.has(item.item_id);
-                                          const showNewDivider = idx === 0 && newItems.length > 0;
-                                          const showExistingDivider = idx === newItems.length && existingItems.length > 0 && newItems.length > 0;
-
                                           return (
                                             <div key={item.item_id}>
-                                              {showNewDivider && (
-                                                <div className="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/40">
-                                                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">New Products ({newItems.length})</span>
-                                                </div>
-                                              )}
-                                              {showExistingDivider && (
-                                                <div className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-100 dark:border-zinc-800">
-                                                  <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Existing Products ({existingItems.length})</span>
-                                                </div>
-                                              )}
                                               {/* Item header row */}
                                               <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                                                 <button
@@ -1110,7 +1102,29 @@ export default function DesignerOrders() {
                                               )}
                                             </div>
                                           );
-                                        });
+                                          };
+                                          return (
+                                            <>
+                                              {newItems.length > 0 && (
+                                                <>
+                                                  <button onClick={toggleNew} className="w-full flex items-center gap-2 px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors">
+                                                    {newCollapsed ? <ChevronRight size={12} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" /> : <ChevronDown size={12} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />}
+                                                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">New Products ({newItems.length})</span>
+                                                  </button>
+                                                  {!newCollapsed && newItems.map(renderItem)}
+                                                </>
+                                              )}
+                                              {existingItems.length > 0 && (
+                                                <>
+                                                  <button onClick={toggleExisting} className="w-full flex items-center gap-2 px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                                                    {existingCollapsed ? <ChevronRight size={12} className="text-zinc-500 dark:text-zinc-400 flex-shrink-0" /> : <ChevronDown size={12} className="text-zinc-500 dark:text-zinc-400 flex-shrink-0" />}
+                                                    <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Existing Products ({existingItems.length})</span>
+                                                  </button>
+                                                  {!existingCollapsed && existingItems.map(renderItem)}
+                                                </>
+                                              )}
+                                            </>
+                                          );
                                         })()}
                                       </div>
                                     ))}
