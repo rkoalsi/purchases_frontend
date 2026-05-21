@@ -231,7 +231,11 @@ export default function DesignerOrders() {
     for (const orders of Object.values(map)) {
       orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
+    return Object.entries(map).sort(([, aOrders], [, bOrders]) => {
+      const aLatest = Math.max(...aOrders.map(o => new Date(o.created_at).getTime()));
+      const bLatest = Math.max(...bOrders.map(o => new Date(o.created_at).getTime()));
+      return bLatest - aLatest;
+    });
   }, [orders, vendorBrandNames]);
 
 

@@ -366,16 +366,16 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
     setSaving(true);
     try {
       const [mainImg, ...restImgs] = allImages;
-      await axios.patch(
-        `${API}/products/${product._id}/images`,
-        { image_url: mainImg || null, images: restImgs, videos },
-        { headers: { Authorization: `Bearer ${accessToken}` } },
-      );
-      if (bb_code) {
-        const wp = serializeDimRow(dims.with_packaging);
-        const np = serializeDimRow(dims.without_packaging);
-        await axios.patch(
-          `${API}/catalogue-items/${bb_code}`,
+      const wp = serializeDimRow(dims.with_packaging);
+      const np = serializeDimRow(dims.without_packaging);
+      await Promise.all([
+        axios.patch(
+          `${API}/products/${product._id}/images`,
+          { image_url: mainImg || null, images: restImgs, videos },
+          { headers: { Authorization: `Bearer ${accessToken}` } },
+        ),
+        axios.patch(
+          `${API}/products/${product._id}/catalogue-details`,
           {
             image_links: driveLinks,
             features: features.map(f => f.trim() || null),
@@ -383,15 +383,15 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
             ...catFields,
           },
           { headers: { Authorization: `Bearer ${accessToken}` } },
-        );
-      }
+        ),
+      ]);
       const [newMain, ...newRest] = allImages;
       onSaved({
         ...product,
         image_url: newMain || undefined,
         images: newRest,
         videos,
-        catalogue: bb_code ? { ...cat, image_links: driveLinks, features, ...catFields } : cat,
+        catalogue: { ...cat, image_links: driveLinks, features, ...catFields },
       });
       onClose();
     } finally { setSaving(false); }
@@ -419,8 +419,8 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
         <div className='flex items-start justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800 shrink-0'>
           <div>
             <div className='flex items-center gap-2 mb-0.5 flex-wrap'>
-              {bb_code && (
-                <span className='font-mono text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded'>{bb_code}</span>
+              {(bb_code || product.cf_sku_code) && (
+                <span className='font-mono text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded'>{bb_code || product.cf_sku_code}</span>
               )}
               {product.rate != null && (
                 <span className='text-sm font-semibold text-gray-800 dark:text-zinc-200'>{fmt(product.rate)}</span>
@@ -584,8 +584,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
               {mediaTab === 'drive' && (
                 <div className='space-y-3 pt-1'>
                   <p className='text-xs text-gray-500 dark:text-zinc-400'>Google Drive image links — stored in the catalogue entry. Shown as links only.</p>
-                  {!bb_code && <p className='text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg'>No catalogue entry linked to this product.</p>}
-                  {driveLinks.length === 0 && bb_code && <p className='text-sm text-gray-400 text-center py-4'>No drive links yet</p>}
+                  {driveLinks.length === 0 && <p className='text-sm text-gray-400 text-center py-4'>No drive links yet</p>}
                   {driveLinks.map((url, i) => (
                     <div key={i} className='flex items-center gap-2 bg-gray-50 dark:bg-zinc-800 rounded-lg px-3 py-2'>
                       <Image className='w-3.5 h-3.5 text-blue-400 shrink-0' />
@@ -599,17 +598,15 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                       </button>
                     </div>
                   ))}
-                  {bb_code && (
-                    <div className='flex gap-2 pt-1 border-t border-gray-100 dark:border-zinc-800'>
-                      <input value={newDriveLink} onChange={e => setNewDriveLink(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && addToList(driveLinks, setDriveLinks, newDriveLink, setNewDriveLink)}
-                        placeholder='Paste Google Drive link and press Enter…' className={inputCls} />
-                      <button onClick={() => addToList(driveLinks, setDriveLinks, newDriveLink, setNewDriveLink)}
-                        className='p-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors shrink-0'>
-                        <Plus className='w-4 h-4' />
-                      </button>
-                    </div>
-                  )}
+                  <div className='flex gap-2 pt-1 border-t border-gray-100 dark:border-zinc-800'>
+                    <input value={newDriveLink} onChange={e => setNewDriveLink(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && addToList(driveLinks, setDriveLinks, newDriveLink, setNewDriveLink)}
+                      placeholder='Paste Google Drive link and press Enter…' className={inputCls} />
+                    <button onClick={() => addToList(driveLinks, setDriveLinks, newDriveLink, setNewDriveLink)}
+                      className='p-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors shrink-0'>
+                      <Plus className='w-4 h-4' />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -618,9 +615,38 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
           {/* ── Details section ── */}
           {activeSection === 'details' && (
             <div className='space-y-4'>
-              {!bb_code && (
-                <p className='text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg'>No catalogue entry linked — details cannot be edited.</p>
-              )}
+              {/* Read-only product info */}
+              <div className='bg-gray-50 dark:bg-zinc-800 rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2'>
+                {product.rate != null && (
+                  <div>
+                    <p className={labelCls}>Price (MRP)</p>
+                    <p className='text-sm font-semibold text-gray-800 dark:text-zinc-200'>{fmt(product.rate)}</p>
+                  </div>
+                )}
+                {(product.series) && (
+                  <div>
+                    <p className={labelCls}>Series</p>
+                    <p className='text-sm text-gray-700 dark:text-zinc-300'>{product.series}</p>
+                  </div>
+                )}
+                {(cat.product_category || product.category) && (
+                  <div>
+                    <p className={labelCls}>Category</p>
+                    <p className='text-sm text-gray-700 dark:text-zinc-300'>{cat.product_category || product.category}</p>
+                  </div>
+                )}
+                {(cat.sub_category || product.sub_category) && (
+                  <div>
+                    <p className={labelCls}>Sub-category</p>
+                    <p className='text-sm text-gray-700 dark:text-zinc-300'>{cat.sub_category || product.sub_category}</p>
+                  </div>
+                )}
+              </div>
+              {/* Catalogue details */}
+              <div className='flex items-center gap-2'>
+                <span className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider'>Catalogue Details</span>
+                <div className='flex-1 h-px bg-gray-100 dark:bg-zinc-800' />
+              </div>
               {/* Editable dimensions */}
               <div className='space-y-3'>
                 <label className={labelCls}>Dimensions</label>
@@ -633,11 +659,11 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                           <label className='block text-[9px] text-gray-400 dark:text-zinc-500 text-center mb-1'>
                             {field === 'net_weight_g' ? 'Weight (g)' : field.replace('_cm', '').charAt(0).toUpperCase() + field.replace('_cm', '').slice(1) + ' (cm)'}
                           </label>
-                          <input type='number' disabled={!bb_code}
+                          <input type='number'
                             value={dims[variant][field]}
                             onChange={e => setDims(d => ({ ...d, [variant]: { ...d[variant], [field]: e.target.value } }))}
                             placeholder='—'
-                            className={`${dimInputCls} disabled:opacity-50 disabled:cursor-not-allowed`} />
+                            className={dimInputCls} />
                         </div>
                       ))}
                     </div>
@@ -648,15 +674,15 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                 {(['age_group', 'pet_size', 'chewing_style', 'material', 'size_chart'] as const).map(k => (
                   <div key={k}>
                     <label className={labelCls}>{k.replace(/_/g, ' ')}</label>
-                    <input disabled={!bb_code} value={catFields[k] as string}
+                    <input value={catFields[k] as string}
                       onChange={e => setCatFields(f => ({ ...f, [k]: e.target.value }))}
-                      className={`${inputCls} disabled:opacity-50 disabled:cursor-not-allowed`} />
+                      className={inputCls} />
                   </div>
                 ))}
                 <div className='flex gap-4 items-center pt-5'>
                   {(['squeaker', 'catnip'] as const).map(k => (
-                    <label key={k} className={`flex items-center gap-2 cursor-pointer ${!bb_code ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                      <input type='checkbox' disabled={!bb_code} checked={!!catFields[k]}
+                    <label key={k} className='flex items-center gap-2 cursor-pointer'>
+                      <input type='checkbox' checked={!!catFields[k]}
                         onChange={e => setCatFields(f => ({ ...f, [k]: e.target.checked }))}
                         className='w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500' />
                       <span className='text-sm text-gray-700 dark:text-zinc-300 capitalize'>{k}</span>
@@ -670,10 +696,10 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                   {Array.from({ length: 8 }, (_, i) => (
                     <div key={i} className='flex items-center gap-2'>
                       <span className='shrink-0 w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] font-bold flex items-center justify-center'>{i + 1}</span>
-                      <input disabled={!bb_code} value={features[i] ?? ''}
+                      <input value={features[i] ?? ''}
                         onChange={e => setFeatures(f => { const n = [...f]; n[i] = e.target.value; return n; })}
                         placeholder={`Feature ${i + 1}…`}
-                        className={`${inputCls} disabled:opacity-50 disabled:cursor-not-allowed`} />
+                        className={inputCls} />
                     </div>
                   ))}
                 </div>
@@ -684,20 +710,17 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
           {/* ── Nutrition section ── */}
           {activeSection === 'nutrition' && (
             <div className='space-y-4'>
-              {!bb_code && (
-                <p className='text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg'>No catalogue entry linked — nutrition cannot be edited.</p>
-              )}
               <div>
                 <label className={labelCls}>Ingredient List</label>
-                <textarea rows={5} disabled={!bb_code} value={catFields.ingredient_list}
+                <textarea rows={5} value={catFields.ingredient_list}
                   onChange={e => setCatFields(f => ({ ...f, ingredient_list: e.target.value }))}
-                  className={`${inputCls} resize-none disabled:opacity-50 disabled:cursor-not-allowed`} />
+                  className={`${inputCls} resize-none`} />
               </div>
               <div>
                 <label className={labelCls}>Nutritional Analysis</label>
-                <textarea rows={5} disabled={!bb_code} value={catFields.nutritional_analysis}
+                <textarea rows={5} value={catFields.nutritional_analysis}
                   onChange={e => setCatFields(f => ({ ...f, nutritional_analysis: e.target.value }))}
-                  className={`${inputCls} resize-none disabled:opacity-50 disabled:cursor-not-allowed`} />
+                  className={`${inputCls} resize-none`} />
               </div>
             </div>
           )}
@@ -950,18 +973,16 @@ export default function DesignNewItemsPage() {
                         <p className='font-medium text-gray-800 dark:text-zinc-200 text-sm leading-snug'>{p.name || 'Unnamed'}</p>
                       </td>
                       <td className='px-4 py-3'>
-                        <div className='flex flex-col gap-0.5'>
-                          {cat.bb_code ? (
-                            <span className='font-mono text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded w-fit'>{cat.bb_code}</span>
-                          ) : (
-                            <span className='text-gray-400'>—</span>
-                          )}
-                        </div>
+                        {(cat.bb_code || p.cf_sku_code) ? (
+                          <span className='font-mono text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded'>{cat.bb_code || p.cf_sku_code}</span>
+                        ) : (
+                          <span className='text-gray-400'>—</span>
+                        )}
                       </td>
                       <td className='px-4 py-3 text-gray-600 dark:text-zinc-300 text-sm'>{p.brand || '—'}</td>
                       <td className='px-4 py-3'>
-                        <p className='text-xs text-gray-600 dark:text-zinc-400 whitespace-nowrap'>{cat.product_category || '—'}</p>
-                        {cat.sub_category && <p className='text-[10px] text-gray-400 dark:text-zinc-500'>{cat.sub_category}</p>}
+                        <p className='text-xs text-gray-600 dark:text-zinc-400 whitespace-nowrap'>{cat.product_category || p.category || '—'}</p>
+                        {(cat.sub_category || p.sub_category) && <p className='text-[10px] text-gray-400 dark:text-zinc-500'>{cat.sub_category || p.sub_category}</p>}
                       </td>
                       <td className='px-4 py-3 font-medium text-gray-800 dark:text-zinc-200 whitespace-nowrap text-sm'>
                         {p.rate != null ? fmt(p.rate) : '—'}
