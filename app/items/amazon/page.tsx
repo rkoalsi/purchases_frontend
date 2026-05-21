@@ -30,6 +30,8 @@ type MarginData = {
   margin?: number | null;
   cost_price_wo_tax?: number | null;
   etrade_asp?: number | null;
+  etrade_po?: boolean | null;
+  etrade_df?: boolean | null;
 };
 
 type SyncResult = {
@@ -113,6 +115,38 @@ const EditableCell: React.FC<{
         <X size={12} />
       </button>
     </div>
+  );
+};
+
+// ─── Boolean toggle cell ──────────────────────────────────────────────────────
+
+const ToggleCell: React.FC<{
+  value: boolean | null | undefined;
+  onSave: (val: boolean) => Promise<void>;
+}> = ({ value, onSave }) => {
+  const [saving, setSaving] = useState(false);
+
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      await onSave(!value);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={saving}
+      className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+        value
+          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50'
+          : 'bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700'
+      } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      {saving ? '…' : value ? 'Yes' : 'No'}
+    </button>
   );
 };
 
@@ -259,6 +293,28 @@ export default function AmazonSkuMappingPage() {
     toast.success('eTrade ASP saved');
   };
 
+  const saveEtradePo = async (asin: string, val: boolean) => {
+    await axios.put(`${MARGINS_API}/${asin}?etrade_po=${val}`);
+    setMarginsByAsin((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(asin) ?? { asin };
+      next.set(asin, { ...existing, etrade_po: val });
+      return next;
+    });
+    toast.success('Etrade PO updated');
+  };
+
+  const saveEtradeDf = async (asin: string, val: boolean) => {
+    await axios.put(`${MARGINS_API}/${asin}?etrade_df=${val}`);
+    setMarginsByAsin((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(asin) ?? { asin };
+      next.set(asin, { ...existing, etrade_df: val });
+      return next;
+    });
+    toast.success('Etrade DF updated');
+  };
+
   const handleTemplateDownload = async () => {
     try {
       const res = await axios.get(`${API_BASE}/download-etrade-margins-template`, {
@@ -350,6 +406,8 @@ export default function AmazonSkuMappingPage() {
                       <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>ASP</th>
                       <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>New Margin</th>
                       <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>Cost Price w/o Tax</th>
+                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>Etrade PO</th>
+                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>Etrade DF</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -358,6 +416,8 @@ export default function AmazonSkuMappingPage() {
                       <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>499.00</td>
                       <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>0.25</td>
                       <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>320.00</td>
+                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>Yes/No</td>
+                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>Yes/No</td>
                     </tr>
                   </tbody>
                 </table>
@@ -439,12 +499,14 @@ export default function AmazonSkuMappingPage() {
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Margin %</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Cost Price w/o Tax (₹)</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>eTrade ASP (₹)</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Etrade PO</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Etrade DF</th>
                 </tr>
               </thead>
               <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
+                    <td colSpan={9} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
                       {search ? `No results for "${search}"` : 'No items yet'}
                     </td>
                   </tr>
@@ -500,6 +562,18 @@ export default function AmazonSkuMappingPage() {
                           validate={(v) => v < 0 ? 'Must be ≥ 0' : null}
                           inputMin={0}
                           inputStep={0.01}
+                        />
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <ToggleCell
+                          value={md?.etrade_po ?? null}
+                          onSave={(v) => saveEtradePo(asin, v)}
+                        />
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <ToggleCell
+                          value={md?.etrade_df ?? null}
+                          onSave={(v) => saveEtradeDf(asin, v)}
                         />
                       </td>
                     </tr>
