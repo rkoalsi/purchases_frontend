@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/context/AuthContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { ChevronLeft, ChevronRight, BookOpen, Search, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, Search, RefreshCw, ArrowDownUp } from 'lucide-react';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/zoho`;
 const PAGE_SIZE = 10;
@@ -99,8 +99,9 @@ export default function ZohoItemsPage() {
   const [prodTotal, setProdTotal] = useState(0);
   const [prodTotalPages, setProdTotalPages] = useState(1);
   const [prodLoading, setProdLoading] = useState(false);
-  const [prodZohoStatus, setProdZohoStatus] = useState('active');
+  const [prodZohoStatus, setProdZohoStatus] = useState('');
   const [prodPurchaseStatus, setProdPurchaseStatus] = useState('');
+  const [prodLatestFirst, setProdLatestFirst] = useState(false);
 
   // Purchase status updating
   const [updatingStatus, setUpdatingStatus] = useState<Record<string, boolean>>({});
@@ -153,6 +154,8 @@ export default function ZohoItemsPage() {
           status: prodZohoStatus || undefined,
           purchase_status: prodPurchaseStatus || undefined,
           brand: prodBrand || undefined,
+          sort_by: prodLatestFirst ? 'created_date' : 'name',
+          sort_order: prodLatestFirst ? 'desc' : 'asc',
         },
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -162,7 +165,7 @@ export default function ZohoItemsPage() {
     } finally {
       setProdLoading(false);
     }
-  }, [prodPage, prodSearch, prodZohoStatus, prodPurchaseStatus, prodBrand, accessToken]);
+  }, [prodPage, prodSearch, prodZohoStatus, prodPurchaseStatus, prodBrand, prodLatestFirst, accessToken]);
 
   const fetchComposites = useCallback(async () => {
     setCompLoading(true);
@@ -183,7 +186,7 @@ export default function ZohoItemsPage() {
   useEffect(() => { if (accessToken) fetchComposites(); }, [fetchComposites, accessToken]);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setProdPage(1); }, [prodSearch, prodZohoStatus, prodPurchaseStatus, prodBrand]);
+  useEffect(() => { setProdPage(1); }, [prodSearch, prodZohoStatus, prodPurchaseStatus, prodBrand, prodLatestFirst]);
   useEffect(() => { setCompPage(1); }, [compSearch]);
 
   const fmt = (n: number) =>
@@ -302,6 +305,19 @@ export default function ZohoItemsPage() {
               <option value='inactive'>Purchase: Inactive</option>
               <option value='discontinued until stock lasts'>Disc. until stock lasts</option>
             </select>
+
+            {/* Latest First toggle */}
+            <button
+              onClick={() => setProdLatestFirst((v) => !v)}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                prodLatestFirst
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                  : 'border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:border-blue-400 hover:text-blue-600'
+              }`}
+            >
+              <ArrowDownUp className='w-3.5 h-3.5' />
+              Latest First
+            </button>
           </div>
 
           {prodLoading ? (
@@ -343,7 +359,7 @@ export default function ZohoItemsPage() {
                         </td>
                         <td className='px-6 py-3.5'>
                           <span className='inline-block font-mono text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded'>
-                            {p.sku || p.item_id || '—'}
+                            {p.cf_sku_code || '—'}
                           </span>
                         </td>
                         <td className='px-6 py-3.5 font-medium text-gray-800 dark:text-zinc-200'>{fmt(p.rate || p.price)}</td>
