@@ -245,6 +245,8 @@ export default function BrandOrders() {
   const [lineItemsLoading, setLineItemsLoading] = useState<Record<string, boolean>>({});
   const [expandedLineItems, setExpandedLineItems] = useState<Record<string, Set<string>>>({});
   const [expandedLineItemSections, setExpandedLineItemSections] = useState<Set<string>>(new Set());
+  const [collapsedNewSections, setCollapsedNewSections] = useState<Set<string>>(new Set());
+  const [collapsedExistingSections, setCollapsedExistingSections] = useState<Set<string>>(new Set());
 
   // per-order doc filters
   const [docCatFilter, setDocCatFilter] = useState<Record<string, string>>({});
@@ -276,7 +278,20 @@ export default function BrandOrders() {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const folderInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Unique vendors derived from brands list, sorted by name
+  const ordersByVendor = useMemo(() => {
+    const map: Record<string, BrandOrder[]> = {};
+    for (const order of orders) {
+      const key = order.vendor_id ?? '__unassigned__';
+      if (!map[key]) map[key] = [];
+      map[key].push(order);
+    }
+    for (const vendorOrders of Object.values(map)) {
+      vendorOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+    return map;
+  }, [orders]);
+
+  // Unique vendors derived from brands list, sorted by most recent order first
   const vendorList = useMemo(() => {
     const map: Record<string, { contact_id: string; contact_name: string; currency_code?: string; brands: Brand[] }> = {};
     for (const brand of brands) {
@@ -285,18 +300,15 @@ export default function BrandOrders() {
         map[v.contact_id].brands.push(brand);
       }
     }
-    return Object.values(map).sort((a, b) => a.contact_name.localeCompare(b.contact_name));
-  }, [brands]);
-
-  const ordersByVendor = useMemo(() => {
-    const map: Record<string, BrandOrder[]> = {};
-    for (const order of orders) {
-      const key = order.vendor_id ?? '__unassigned__';
-      if (!map[key]) map[key] = [];
-      map[key].push(order);
-    }
-    return map;
-  }, [orders]);
+    return Object.values(map).sort((a, b) => {
+      const aOrders = ordersByVendor[a.contact_id] || [];
+      const bOrders = ordersByVendor[b.contact_id] || [];
+      const aLatest = aOrders.length > 0 ? Math.max(...aOrders.map(o => new Date(o.created_at).getTime())) : 0;
+      const bLatest = bOrders.length > 0 ? Math.max(...bOrders.map(o => new Date(o.created_at).getTime())) : 0;
+      if (bLatest !== aLatest) return bLatest - aLatest;
+      return a.contact_name.localeCompare(b.contact_name);
+    });
+  }, [brands, ordersByVendor]);
 
   const filteredVendors = useMemo(() => {
     if (!searchQuery.trim()) return vendorList;
@@ -1637,24 +1649,16 @@ export default function BrandOrders() {
                                           {(() => {
                                             const newItems = lineItems.filter(i => i.is_new);
                                             const existingItems = lineItems.filter(i => !i.is_new);
-                                            return [...newItems, ...existingItems].map((item, idx) => {
+                                            const newCollapsed = collapsedNewSections.has(order._id);
+                                            const existingCollapsed = collapsedExistingSections.has(order._id);
+                                            const toggleNew = () => setCollapsedNewSections(prev => { const s = new Set(prev); if (s.has(order._id)) s.delete(order._id); else s.add(order._id); return s; });
+                                            const toggleExisting = () => setCollapsedExistingSections(prev => { const s = new Set(prev); if (s.has(order._id)) s.delete(order._id); else s.add(order._id); return s; });
+                                            const renderItem = (item: LineItem) => {
                                             const itemDocs = docs.filter(d => d.item_id === item.item_id);
                                             const itemFileCount = itemDocs.length;
                                             const isItemOpen = expandedItems.has(item.item_id);
-                                            const showNewDivider = idx === 0 && newItems.length > 0;
-                                            const showExistingDivider = idx === newItems.length && existingItems.length > 0 && newItems.length > 0;
                                             return (
                                               <div key={item.item_id}>
-                                                {showNewDivider && (
-                                                  <div className="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/40">
-                                                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">New Products ({newItems.length})</span>
-                                                  </div>
-                                                )}
-                                                {showExistingDivider && (
-                                                  <div className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-100 dark:border-zinc-800">
-                                                    <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Existing Products ({existingItems.length})</span>
-                                                  </div>
-                                                )}
                                                 <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                                                   <button
                                                     onClick={() => itemFileCount > 0 && toggleLineItem(order._id, item.item_id)}
@@ -1727,7 +1731,29 @@ export default function BrandOrders() {
                                                 )}
                                               </div>
                                             );
-                                          });
+                                            };
+                                            return (
+                                              <>
+                                                {newItems.length > 0 && (
+                                                  <>
+                                                    <button onClick={toggleNew} className="w-full flex items-center gap-2 px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors">
+                                                      {newCollapsed ? <ChevronRight size={12} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" /> : <ChevronDown size={12} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />}
+                                                      <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">New Products ({newItems.length})</span>
+                                                    </button>
+                                                    {!newCollapsed && newItems.map(renderItem)}
+                                                  </>
+                                                )}
+                                                {existingItems.length > 0 && (
+                                                  <>
+                                                    <button onClick={toggleExisting} className="w-full flex items-center gap-2 px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                                                      {existingCollapsed ? <ChevronRight size={12} className="text-zinc-500 dark:text-zinc-400 flex-shrink-0" /> : <ChevronDown size={12} className="text-zinc-500 dark:text-zinc-400 flex-shrink-0" />}
+                                                      <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Existing Products ({existingItems.length})</span>
+                                                    </button>
+                                                    {!existingCollapsed && existingItems.map(renderItem)}
+                                                  </>
+                                                )}
+                                              </>
+                                            );
                                           })()}
                                         </div>
                                       ))}
