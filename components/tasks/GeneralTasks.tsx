@@ -530,6 +530,8 @@ function ActivityFeed({ entries }: { entries: ActivityEntry[] }) {
 // ── Stats Panel ───────────────────────────────────────────────────────────────
 
 function StatsPanel({ stats }: { stats: Stats }) {
+  const [open, setOpen] = useState(false);
+
   const kpis = [
     { label: 'Total',       value: stats.total,                         color: 'text-zinc-800 dark:text-zinc-100' },
     { label: 'To Do',       value: stats.by_status['todo'] ?? 0,        color: 'text-zinc-500' },
@@ -542,83 +544,109 @@ function StatsPanel({ stats }: { stats: Stats }) {
   const deptEntries = Object.entries(stats.by_department ?? {}).filter(([k]) => k !== 'None').sort((a, b) => b[1] - a[1]);
 
   return (
-    <div className='bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 mb-6'>
-      <div className='flex items-center gap-2 mb-4'>
-        <BarChart2 className='w-4 h-4 text-blue-500' />
-        <h2 className='text-sm font-bold text-zinc-900 dark:text-zinc-100'>Overview</h2>
-      </div>
-      <div className='grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6'>
-        {kpis.map((k) => (
-          <div key={k.label} className='bg-zinc-50 dark:bg-zinc-800/60 rounded-xl p-3 text-center'>
-            <p className={`text-2xl font-black ${k.color}`}>{k.value}</p>
-            <p className='text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 font-medium'>{k.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {deptEntries.length > 0 && (
-        <div className='mb-6'>
-          <h3 className='text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3'>Tasks by Department</h3>
-          <div className='flex flex-wrap gap-2'>
-            {deptEntries.map(([dept, count]) => (
-              <span key={dept} className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-xs font-semibold'>
-                <Building2 className='w-3 h-3' />{dept}: {count}
-              </span>
-            ))}
-          </div>
+    <div className='bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 mb-6 overflow-hidden'>
+      {/* Accordion header — always visible */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className='w-full flex items-center justify-between px-5 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors'
+      >
+        <div className='flex items-center gap-2'>
+          <BarChart2 className='w-4 h-4 text-blue-500 flex-shrink-0' />
+          <span className='text-sm font-bold text-zinc-900 dark:text-zinc-100'>Overview</span>
         </div>
-      )}
+        <div className='flex items-center gap-3'>
+          {/* KPI pill summary when collapsed */}
+          {!open && (
+            <div className='flex items-center gap-2'>
+              {kpis.filter((k) => k.value > 0).map((k) => (
+                <span key={k.label} className={`text-xs font-bold ${k.color}`}>
+                  {k.value} <span className='font-normal text-zinc-400'>{k.label}</span>
+                </span>
+              ))}
+            </div>
+          )}
+          <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
 
-      {stats.by_assignee.length > 0 && (
-        <>
-          <h3 className='text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3'>Workload by Person</h3>
-          <div className='overflow-x-auto'>
-            <table className='w-full text-xs'>
-              <thead>
-                <tr className='border-b border-zinc-200 dark:border-zinc-700 text-zinc-500'>
-                  <th className='text-left py-2 pr-4 font-semibold'>Person</th>
-                  <th className='text-center px-3 font-semibold'>Total</th>
-                  {STATUSES.map((s) => <th key={s.value} className={`text-center px-3 font-semibold ${s.color}`}>{s.label}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {stats.by_assignee.sort((a, b) => b.total - a.total).map((a) => (
-                  <tr key={a.user_id} className='border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/40'>
-                    <td className='py-2.5 pr-4'>
-                      <div className='flex items-center gap-2'>
-                        <Avatar name={a.name} size='xs' />
-                        <span className='font-semibold text-zinc-800 dark:text-zinc-200'>{a.name}</span>
-                      </div>
-                    </td>
-                    <td className='text-center px-3 font-bold text-zinc-700 dark:text-zinc-200'>{a.total}</td>
-                    {STATUSES.map((s) => (
-                      <td key={s.value} className={`text-center px-3 font-semibold ${a.by_status[s.value] ? s.color : 'text-zinc-300 dark:text-zinc-700'}`}>
-                        {a.by_status[s.value] ?? 0}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-      {stats.recent_activity?.length > 0 && (
-        <div className='mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800'>
-          <h3 className='text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3'>Recent Activity</h3>
-          <div className='space-y-2'>
-            {stats.recent_activity.slice(0, 8).map((item, i) => (
-              <div key={i} className='flex items-start gap-2 text-xs'>
-                <span className='text-zinc-300 dark:text-zinc-600 mt-0.5'>{ACTIVITY_ICONS[item.activity?.type] ?? '·'}</span>
-                <div>
-                  <span className='font-semibold text-zinc-700 dark:text-zinc-300'>{item.activity?.actor_name}</span>
-                  {' · '}
-                  <span className='text-zinc-500 dark:text-zinc-400 truncate'>{item.task_title}</span>
-                  <span className='ml-2 text-zinc-300 dark:text-zinc-600'>{fmtRelative(item.activity?.timestamp)}</span>
-                </div>
+      {/* Accordion body */}
+      {open && (
+        <div className='px-5 pb-5 border-t border-zinc-100 dark:border-zinc-800 pt-4'>
+          <div className='grid grid-cols-3 sm:grid-cols-6 gap-3 mb-6'>
+            {kpis.map((k) => (
+              <div key={k.label} className='bg-zinc-50 dark:bg-zinc-800/60 rounded-xl p-3 text-center'>
+                <p className={`text-2xl font-black ${k.color}`}>{k.value}</p>
+                <p className='text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 font-medium'>{k.label}</p>
               </div>
             ))}
           </div>
+
+          {deptEntries.length > 0 && (
+            <div className='mb-6'>
+              <h3 className='text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3'>Tasks by Department</h3>
+              <div className='flex flex-wrap gap-2'>
+                {deptEntries.map(([dept, count]) => (
+                  <span key={dept} className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-xs font-semibold'>
+                    <Building2 className='w-3 h-3' />{dept}: {count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {stats.by_assignee.length > 0 && (
+            <>
+              <h3 className='text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3'>Workload by Person</h3>
+              <div className='overflow-x-auto'>
+                <table className='w-full text-xs'>
+                  <thead>
+                    <tr className='border-b border-zinc-200 dark:border-zinc-700 text-zinc-500'>
+                      <th className='text-left py-2 pr-4 font-semibold'>Person</th>
+                      <th className='text-center px-3 font-semibold'>Total</th>
+                      {STATUSES.map((s) => <th key={s.value} className={`text-center px-3 font-semibold ${s.color}`}>{s.label}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.by_assignee.sort((a, b) => b.total - a.total).map((a) => (
+                      <tr key={a.user_id} className='border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/40'>
+                        <td className='py-2.5 pr-4'>
+                          <div className='flex items-center gap-2'>
+                            <Avatar name={a.name} size='xs' />
+                            <span className='font-semibold text-zinc-800 dark:text-zinc-200'>{a.name}</span>
+                          </div>
+                        </td>
+                        <td className='text-center px-3 font-bold text-zinc-700 dark:text-zinc-200'>{a.total}</td>
+                        {STATUSES.map((s) => (
+                          <td key={s.value} className={`text-center px-3 font-semibold ${a.by_status[s.value] ? s.color : 'text-zinc-300 dark:text-zinc-700'}`}>
+                            {a.by_status[s.value] ?? 0}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {stats.recent_activity?.length > 0 && (
+            <div className='mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800'>
+              <h3 className='text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3'>Recent Activity</h3>
+              <div className='space-y-2'>
+                {stats.recent_activity.slice(0, 8).map((item, i) => (
+                  <div key={i} className='flex items-start gap-2 text-xs'>
+                    <span className='text-zinc-300 dark:text-zinc-600 mt-0.5'>{ACTIVITY_ICONS[item.activity?.type] ?? '·'}</span>
+                    <div>
+                      <span className='font-semibold text-zinc-700 dark:text-zinc-300'>{item.activity?.actor_name}</span>
+                      {' · '}
+                      <span className='text-zinc-500 dark:text-zinc-400 truncate'>{item.task_title}</span>
+                      <span className='ml-2 text-zinc-300 dark:text-zinc-600'>{fmtRelative(item.activity?.timestamp)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
