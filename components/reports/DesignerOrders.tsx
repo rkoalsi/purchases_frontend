@@ -42,6 +42,7 @@ interface DesignerOrder {
   order_date?: string;
   shipment_eta?: string;
   purchaseorder_number?: string | null;
+  po_status?: string | null;
   designer_documents?: Document[];
   doc_count?: number;
   created_at: string;
@@ -83,6 +84,17 @@ function lineItemLabel(item: LineItem): string {
   const label = item.name?.trim() || item.description?.trim() || 'Unnamed item';
   const isSample = item.account_name?.trim().toLowerCase() === 'sample';
   return isSample ? `${label} (Sample)` : label;
+}
+
+const PO_STATUS_COLORS: Record<string, string> = {
+  issued: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  billed: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  closed: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
+};
+function poStatusClass(s: string | null | undefined) {
+  if (!s) return 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400';
+  return PO_STATUS_COLORS[s.toLowerCase()] ?? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400';
 }
 
 function fmtSize(bytes: number) {
@@ -571,8 +583,7 @@ export default function DesignerOrders() {
   const totalOrders = orders.length;
   const totalDocs = orders.reduce((sum, o) => sum + (o.doc_count || 0), 0);
   const newOrdersCount = useMemo(() => {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return orders.filter(o => new Date(o.created_at).getTime() > cutoff).length;
+    return orders.filter(o => !o.inward_date && o.po_status?.toLowerCase() !== 'closed').length;
   }, [orders]);
 
   // Reusable file action buttons
@@ -746,7 +757,7 @@ export default function DesignerOrders() {
             {filteredBrandGroups.map(([brand, brandOrders]) => {
               const isExpanded = expandedBrands.has(brand);
               const brandDocCount = brandOrders.reduce((s: number, o: DesignerOrder) => s + (o.doc_count || 0), 0);
-              const newBrandOrdersCount = brandOrders.filter(o => new Date(o.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length;
+              const newBrandOrdersCount = brandOrders.filter(o => !o.inward_date && o.po_status?.toLowerCase() !== 'closed').length;
               // other brands sharing the same vendor
               const vendorId = brandOrders.find(o => o.vendor_id)?.vendor_id;
               const siblingBrands = vendorId
@@ -790,7 +801,7 @@ export default function DesignerOrders() {
                     <div className="border-t border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800/60">
                       {brandOrders.map((order: DesignerOrder) => {
                         const isOrderExpanded = expandedOrders.has(order._id);
-                        const isNewOrder = new Date(order.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
+                        const isNewOrder = !order.inward_date && order.po_status?.toLowerCase() !== 'closed';
                         const docs = docsMap[order._id] ?? (order.designer_documents || []);
                         const dsq = (docSearch[order._id] || '').toLowerCase();
                         const catFilter = docCatFilter[order._id] || '';
@@ -865,8 +876,13 @@ export default function DesignerOrders() {
                                       <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 leading-none">NEW</span>
                                     )}
                                     {order.purchaseorder_number && (
-                                      <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full font-medium">
+                                      <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full font-medium flex items-center gap-1.5">
                                         {order.purchaseorder_number}
+                                        {order.po_status && (
+                                          <span className={`text-[10px] px-1.5 py-0 rounded font-medium ${poStatusClass(order.po_status)}`}>
+                                            {order.po_status}
+                                          </span>
+                                        )}
                                       </span>
                                     )}
                                     {(order.doc_count || 0) > 0 && (
