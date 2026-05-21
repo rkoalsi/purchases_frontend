@@ -24,7 +24,18 @@ interface MissingItem {
   manufacturer_code: string;
   bb_code: string;
   item_name: string;
+  hsn_or_sac?: string;
+  sku_code?: string;
+  category?: string;
+  sub_category?: string;
+  series?: string;
+  mrp?: number | null;
+  tax_rate?: number;
+  upc_code?: string;
+  ean_code?: string;
 }
+
+type ItemEdits = Record<string, { tax_rate: number; upc_code: string; ean_code: string }>;
 
 interface DetectedVendor {
   contact_id: string;
@@ -126,6 +137,10 @@ export default function DraftOrderUpload() {
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [showMissingModal, setShowMissingModal] = useState(false);
   const [availableVendors, setAvailableVendors] = useState<DetectedVendor[]>([]);
+  const [creatingZohoItems, setCreatingZohoItems] = useState(false);
+  const [zohoItemResults, setZohoItemResults] = useState<{ created: any[]; failed: any[] } | null>(null);
+  const [itemEdits, setItemEdits] = useState<ItemEdits>({});
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Per-currency group states keyed by currency code
   const [groups, setGroups] = useState<Record<string, CurrencyGroupState>>({});
@@ -207,18 +222,99 @@ export default function DraftOrderUpload() {
     handleFileChange(e.dataTransfer.files[0] ?? null);
   };
 
+  // ── create missing items on Zoho ──────────────────────────────────────
+  const handleCreateZohoItems = async (items: MissingItem[]) => {
+    setCreatingZohoItems(true);
+    setZohoItemResults(null);
+    try {
+      const { data } = await axios.post<{ created: any[]; failed: any[] }>(
+        `${API_URL}/vendors/draft_orders/create_zoho_items`,
+        { items: items.map(m => {
+            const key = m.bb_code || m.manufacturer_code;
+            const edits = itemEdits[key] ?? {};
+            return {
+              item_name: m.item_name,
+              manufacturer_code: m.manufacturer_code,
+              bb_code: m.bb_code,
+              sku_code: m.sku_code || '',
+              hsn_or_sac: m.hsn_or_sac || '',
+              category: m.category || '',
+              sub_category: m.sub_category || '',
+              series: m.series || '',
+              mrp: m.mrp ?? null,
+              tax_rate: edits.tax_rate ?? m.tax_rate ?? 18,
+              upc_code: edits.upc_code ?? m.upc_code ?? m.sku_code ?? '',
+              ean_code: edits.ean_code ?? m.ean_code ?? m.sku_code ?? '',
+            };
+          }),
+        },
+      );
+      setZohoItemResults(data);
+      if (data.failed.length === 0) {
+        toast.success(`${data.created.length} item${data.created.length !== 1 ? 's' : ''} created on Zoho`);
+      } else {
+        toast.warn(`${data.created.length} created, ${data.failed.length} failed`);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to create items on Zoho');
+    } finally {
+      setCreatingZohoItems(false);
+    }
+  };
+
+  // ── item field editing with debounced DB save ──────────────────────────
+  const updateItemEdit = useCallback((
+    item: MissingItem,
+    field: 'tax_rate' | 'upc_code' | 'ean_code',
+    value: number | string,
+  ) => {
+    const key = item.bb_code || item.manufacturer_code;
+    setItemEdits(prev => {
+      const existing = prev[key] ?? {
+        tax_rate: item.tax_rate ?? 18,
+        upc_code: item.upc_code ?? item.sku_code ?? '',
+        ean_code: item.ean_code ?? item.sku_code ?? '',
+      };
+      const updated = { ...existing, [field]: value };
+      // Debounce save to DB
+      if (saveTimers.current[key]) clearTimeout(saveTimers.current[key]);
+      saveTimers.current[key] = setTimeout(() => {
+        axios.put(`${API_URL}/vendors/draft_orders/pending_item`, {
+          bb_code: item.bb_code || '',
+          manufacturer_code: item.manufacturer_code || '',
+          tax_rate: updated.tax_rate,
+          upc_code: updated.upc_code,
+          ean_code: updated.ean_code,
+        }).catch(() => {});
+      }, 600);
+      return { ...prev, [key]: updated };
+    });
+  }, []);
+
   // ── validate ───────────────────────────────────────────────────────────
   const handleValidate = async () => {
     if (!file) return;
     setValidating(true);
     setValidation(null);
     setGroups({});
+    setZohoItemResults(null);
     try {
       const form = new FormData();
       form.append('file', file);
       const { data } = await axios.post<ValidationResult>(`${API_URL}/vendors/draft_orders/validate`, form);
       setValidation(data);
       if (!data.valid) {
+        // Seed itemEdits from server-merged saved values (tax_rate, upc_code, ean_code)
+        const edits: ItemEdits = {};
+        for (const m of data.missing_items ?? []) {
+          const key = m.bb_code || m.manufacturer_code;
+          edits[key] = {
+            tax_rate: m.tax_rate ?? 18,
+            upc_code: m.upc_code ?? m.sku_code ?? '',
+            ean_code: m.ean_code ?? m.sku_code ?? '',
+          };
+        }
+        setItemEdits(edits);
         setShowMissingModal(true);
       } else {
         const vendors = data.detected_vendors ?? [];
@@ -989,8 +1085,8 @@ export default function DraftOrderUpload() {
       {/* Missing items modal */}
       {showMissingModal && validation && !validation.valid && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 space-y-4">
-            <div className="flex items-start justify-between">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-2xl mx-4 p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between flex-shrink-0">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <h2 className="text-lg font-semibold">Missing Items</h2>
@@ -1000,45 +1096,128 @@ export default function DraftOrderUpload() {
               </button>
             </div>
 
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 flex-shrink-0">
               {validation.missing_count} item{validation.missing_count !== 1 ? 's' : ''} were not found in the database.
-              Please add {validation.missing_count !== 1 ? 'them' : 'it'} via the Items page and re-upload.
+              You can create {validation.missing_count !== 1 ? 'them' : 'it'} directly on Zoho Books, then re-validate.
             </p>
 
-            <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden max-h-60 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-zinc-100 dark:bg-zinc-800">
+            <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden overflow-y-auto flex-1 min-h-0">
+              <table className="w-full text-sm min-w-[900px]">
+                <thead className="bg-zinc-100 dark:bg-zinc-800 sticky top-0">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400">Mfr Code</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400">BB Code</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400">Item Name</th>
+                    {['Mfr Code', 'BB Code', 'Item Name', 'HSN', 'Category', 'Series', 'MRP', 'SKU / UPC / EAN', 'Tax Rate'].map(h => (
+                      <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {validation.missing_items!.map((m, i) => (
-                    <tr key={i} className="border-t border-zinc-100 dark:border-zinc-800">
-                      <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200">{m.manufacturer_code || '—'}</td>
-                      <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200">{m.bb_code || '—'}</td>
-                      <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200">{m.item_name}</td>
-                    </tr>
-                  ))}
+                  {validation.missing_items!.map((m, i) => {
+                    const key = m.bb_code || m.manufacturer_code;
+                    const edits = itemEdits[key] ?? { tax_rate: m.tax_rate ?? 18, upc_code: m.upc_code ?? m.sku_code ?? '', ean_code: m.ean_code ?? m.sku_code ?? '' };
+                    const isCreated = zohoItemResults?.created.some(c => c.bb_code === m.bb_code && c.manufacturer_code === m.manufacturer_code);
+                    const isFailed  = zohoItemResults?.failed.find(f => f.bb_code === m.bb_code && f.manufacturer_code === m.manufacturer_code);
+                    return (
+                      <tr key={i} className={`border-t border-zinc-100 dark:border-zinc-800 ${isCreated ? 'bg-green-50 dark:bg-green-900/20' : isFailed ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
+                        <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 font-mono text-xs">{m.manufacturer_code || '—'}</td>
+                        <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 font-mono text-xs">{m.bb_code || '—'}</td>
+                        <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200">
+                          <div className="flex items-center gap-2">
+                            {m.item_name}
+                            {isCreated && <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Created</span>}
+                            {isFailed  && <span className="text-xs text-red-600 dark:text-red-400 font-medium" title={isFailed.error}>✗ Failed</span>}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400 text-xs">{m.hsn_or_sac || '—'}</td>
+                        <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400 text-xs">{[m.category, m.sub_category].filter(Boolean).join(' › ') || '—'}</td>
+                        <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400 text-xs">{m.series || '—'}</td>
+                        <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400 text-xs">{m.mrp != null ? `₹${m.mrp}` : '—'}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-col gap-1 min-w-[140px]">
+                            <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">{m.sku_code || '—'}</span>
+                            <input
+                              type="text"
+                              value={edits.upc_code}
+                              onChange={e => updateItemEdit(m, 'upc_code', e.target.value)}
+                              disabled={!!isCreated}
+                              placeholder="UPC"
+                              className="w-full px-1.5 py-0.5 text-xs border border-zinc-200 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
+                            />
+                            <input
+                              type="text"
+                              value={edits.ean_code}
+                              onChange={e => updateItemEdit(m, 'ean_code', e.target.value)}
+                              disabled={!!isCreated}
+                              placeholder="EAN"
+                              className="w-full px-1.5 py-0.5 text-xs border border-zinc-200 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <select
+                            value={edits.tax_rate}
+                            onChange={e => updateItemEdit(m, 'tax_rate', parseInt(e.target.value))}
+                            disabled={!!isCreated}
+                            className="text-xs border border-zinc-200 dark:border-zinc-600 rounded px-1.5 py-1 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
+                          >
+                            <option value={5}>GST 5%</option>
+                            <option value={12}>GST 12%</option>
+                            <option value={18}>GST 18%</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            <div className="flex justify-end gap-3 pt-1">
+            <div className="flex justify-between gap-3 pt-1 flex-shrink-0">
               <button
                 onClick={() => setShowMissingModal(false)}
                 className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
               >
                 Close
               </button>
-              <button
-                onClick={() => { setShowMissingModal(false); handleValidate(); }}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-              >
-                Re-validate
-              </button>
+              <div className="flex gap-3">
+                {zohoItemResults && zohoItemResults.created.length > 0 && (
+                  <button
+                    onClick={() => { setShowMissingModal(false); handleValidate(); }}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Re-validate
+                  </button>
+                )}
+                {!zohoItemResults && (
+                  <button
+                    onClick={() => handleCreateZohoItems(validation.missing_items!)}
+                    disabled={creatingZohoItems}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                  >
+                    {creatingZohoItems ? <Loader2 className="w-4 h-4 animate-spin" /> : <Package className="w-4 h-4" />}
+                    {creatingZohoItems ? 'Creating…' : `Create ${validation.missing_count} Item${validation.missing_count !== 1 ? 's' : ''} on Zoho`}
+                  </button>
+                )}
+                {zohoItemResults?.failed.length === 0 && (
+                  <span className="flex items-center gap-1.5 text-sm text-green-700 dark:text-green-400 font-medium px-4 py-2">
+                    <CheckCircle className="w-4 h-4" /> All items created
+                  </span>
+                )}
+                {zohoItemResults && zohoItemResults.failed.length > 0 && (
+                  <button
+                    onClick={() => handleCreateZohoItems(
+                      validation.missing_items!.filter(m =>
+                        zohoItemResults.failed.some(f => f.bb_code === m.bb_code && f.manufacturer_code === m.manufacturer_code)
+                      )
+                    )}
+                    disabled={creatingZohoItems}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg transition-colors"
+                  >
+                    {creatingZohoItems ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                    Retry {zohoItemResults.failed.length} Failed
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

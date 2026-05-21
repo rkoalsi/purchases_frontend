@@ -32,6 +32,7 @@ interface LineItem {
   account_name?: string;
   quantity: number;
   item_total?: number;
+  is_new?: boolean;
 }
 
 interface DesignerOrder {
@@ -214,16 +215,24 @@ export default function DesignerOrders() {
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  // group by brand name (original behaviour)
+  // group by brand name — remap "Unknown" to the vendor's first named brand if available
   const brandGroups = useMemo(() => {
     const map: Record<string, DesignerOrder[]> = {};
     for (const order of orders) {
-      const key = order.brand || 'Unknown';
+      let key = order.brand || 'Unknown';
+      if (key === 'Unknown' && order.vendor_id) {
+        const vBrands = vendorBrandNames[order.vendor_id] || [];
+        const realBrand = vBrands.find(b => b !== 'Unknown');
+        if (realBrand) key = realBrand;
+      }
       if (!map[key]) map[key] = [];
       map[key].push(order);
     }
+    for (const orders of Object.values(map)) {
+      orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
-  }, [orders]);
+  }, [orders, vendorBrandNames]);
 
 
   const filteredBrandGroups = useMemo(() => {
@@ -557,6 +566,10 @@ export default function DesignerOrders() {
 
   const totalOrders = orders.length;
   const totalDocs = orders.reduce((sum, o) => sum + (o.doc_count || 0), 0);
+  const newOrdersCount = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return orders.filter(o => new Date(o.created_at).getTime() > cutoff).length;
+  }, [orders]);
 
   // Reusable file action buttons
   const FileActions = useCallback(({ orderId, doc }: { orderId: string; doc: Document }) => (
@@ -607,9 +620,12 @@ export default function DesignerOrders() {
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="inline-flex items-center gap-1">
+              <span className="inline-flex items-center gap-1.5">
                 <Package size={12} className="text-violet-400" />
                 {totalOrders} orders
+                {newOrdersCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">{newOrdersCount} new</span>
+                )}
               </span>
               <span className="inline-flex items-center gap-1">
                 <FileText size={12} className="text-blue-400" />
@@ -726,6 +742,7 @@ export default function DesignerOrders() {
             {filteredBrandGroups.map(([brand, brandOrders]) => {
               const isExpanded = expandedBrands.has(brand);
               const brandDocCount = brandOrders.reduce((s: number, o: DesignerOrder) => s + (o.doc_count || 0), 0);
+              const newBrandOrdersCount = brandOrders.filter(o => new Date(o.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length;
               // other brands sharing the same vendor
               const vendorId = brandOrders.find(o => o.vendor_id)?.vendor_id;
               const siblingBrands = vendorId
@@ -749,8 +766,11 @@ export default function DesignerOrders() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full font-medium">
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full font-medium">
                         {brandOrders.length} order{brandOrders.length !== 1 ? 's' : ''}
+                        {newBrandOrdersCount > 0 && (
+                          <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 leading-none">{newBrandOrdersCount} new</span>
+                        )}
                       </span>
                       {brandDocCount > 0 && (
                         <span className="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 px-2 py-0.5 rounded-full font-medium">
@@ -766,6 +786,7 @@ export default function DesignerOrders() {
                     <div className="border-t border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800/60">
                       {brandOrders.map((order: DesignerOrder) => {
                         const isOrderExpanded = expandedOrders.has(order._id);
+                        const isNewOrder = new Date(order.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
                         const docs = docsMap[order._id] ?? (order.designer_documents || []);
                         const dsq = (docSearch[order._id] || '').toLowerCase();
                         const catFilter = docCatFilter[order._id] || '';
@@ -836,6 +857,9 @@ export default function DesignerOrders() {
                                     <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                                       {order.name}
                                     </span>
+                                    {isNewOrder && (
+                                      <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 leading-none">NEW</span>
+                                    )}
                                     {order.purchaseorder_number && (
                                       <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full font-medium">
                                         {order.purchaseorder_number}
@@ -919,13 +943,29 @@ export default function DesignerOrders() {
                                       </div>
                                     ) : (
                                       <div className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                                        {lineItems.map(item => {
+                                        {(() => {
+                                          const newItems = lineItems.filter(i => i.is_new);
+                                          const existingItems = lineItems.filter(i => !i.is_new);
+                                          const ordered = [...newItems, ...existingItems];
+                                          return ordered.map((item, idx) => {
                                           const itemDocs = docs.filter(d => d.item_id === item.item_id);
                                           const itemFileCount = itemDocs.length;
                                           const isItemOpen = expandedItems.has(item.item_id);
+                                          const showNewDivider = idx === 0 && newItems.length > 0;
+                                          const showExistingDivider = idx === newItems.length && existingItems.length > 0 && newItems.length > 0;
 
                                           return (
                                             <div key={item.item_id}>
+                                              {showNewDivider && (
+                                                <div className="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/40">
+                                                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">New Products ({newItems.length})</span>
+                                                </div>
+                                              )}
+                                              {showExistingDivider && (
+                                                <div className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-100 dark:border-zinc-800">
+                                                  <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Existing Products ({existingItems.length})</span>
+                                                </div>
+                                              )}
                                               {/* Item header row */}
                                               <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                                                 <button
@@ -939,9 +979,14 @@ export default function DesignerOrders() {
                                                   {isItemOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                                                 </button>
                                                 <div className="flex-1 min-w-0">
-                                                  <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block truncate">
-                                                    {lineItemLabel(item)}
-                                                  </span>
+                                                  <div className="flex items-center gap-1.5">
+                                                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                                                      {lineItemLabel(item)}
+                                                    </span>
+                                                    {item.is_new && (
+                                                      <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 leading-none">NEW</span>
+                                                    )}
+                                                  </div>
                                                   <span className="text-xs text-zinc-400">Qty: {item.quantity}</span>
                                                 </div>
                                                 {/* File count badge */}
@@ -1045,7 +1090,8 @@ export default function DesignerOrders() {
                                               )}
                                             </div>
                                           );
-                                        })}
+                                        });
+                                        })()}
                                       </div>
                                     ))}
                                   </div>
