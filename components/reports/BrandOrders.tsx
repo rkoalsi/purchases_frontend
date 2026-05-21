@@ -229,6 +229,7 @@ export default function BrandOrders() {
   const [zippingOrder, setZippingOrder] = useState<string | null>(null);
   const [downloadingItemZip, setDownloadingItemZip] = useState<string | null>(null);
   const [downloadingReport, setDownloadingReport] = useState(false);
+  const [downloadingLineItems, setDownloadingLineItems] = useState<string | null>(null);
 
   // categories
   const [categories, setCategories] = useState<string[]>([]);
@@ -765,6 +766,26 @@ export default function BrandOrders() {
       toast.error(detail);
     } finally { setDownloadingReport(false); }
   };
+
+  const handleDownloadLineItems = useCallback(async (orderId: string, poNumber: string) => {
+    setDownloadingLineItems(orderId);
+    try {
+      const { data } = await axios.get(
+        `${API_URL}/brand_orders/${orderId}/line-items/download`,
+        { responseType: 'blob' },
+      );
+      const url = URL.createObjectURL(data as unknown as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${poNumber}_line_items.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download line items');
+    } finally {
+      setDownloadingLineItems(null);
+    }
+  }, []);
 
   const handleDeleteDoc = async (orderId: string, docId: string) => {
     if (!confirm('Delete this document?')) return;
@@ -1568,28 +1589,40 @@ export default function BrandOrders() {
                                   {/* ── Line Items Accordion ── */}
                                   {order.purchaseorder_number && (
                                     <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 overflow-hidden">
-                                      <button
-                                        onClick={() => setExpandedLineItemSections(prev => {
-                                          const next = new Set(prev);
-                                          if (next.has(order._id)) next.delete(order._id); else next.add(order._id);
-                                          return next;
-                                        })}
-                                        className="w-full flex items-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors text-left"
-                                      >
-                                        <Layers size={12} className="text-blue-500 flex-shrink-0" />
-                                        <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex-1">
-                                          Line Items — {order.purchaseorder_number}
-                                        </span>
-                                        {lineItemsAreLoading && <Loader2 size={11} className="animate-spin text-blue-400" />}
-                                        {!lineItemsAreLoading && lineItems.length > 0 && (
-                                          <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium">
-                                            {lineItems.length}
+                                      <div className="flex items-center bg-blue-50 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/40">
+                                        <button
+                                          onClick={() => setExpandedLineItemSections(prev => {
+                                            const next = new Set(prev);
+                                            if (next.has(order._id)) next.delete(order._id); else next.add(order._id);
+                                            return next;
+                                          })}
+                                          className="flex-1 flex items-center gap-2 px-4 py-2.5 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors text-left"
+                                        >
+                                          <Layers size={12} className="text-blue-500 flex-shrink-0" />
+                                          <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex-1">
+                                            Line Items — {order.purchaseorder_number}
                                           </span>
-                                        )}
-                                        {expandedLineItemSections.has(order._id)
-                                          ? <ChevronDown size={13} className="text-blue-400 flex-shrink-0" />
-                                          : <ChevronRight size={13} className="text-blue-400 flex-shrink-0" />}
-                                      </button>
+                                          {lineItemsAreLoading && <Loader2 size={11} className="animate-spin text-blue-400" />}
+                                          {!lineItemsAreLoading && lineItems.length > 0 && (
+                                            <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium">
+                                              {lineItems.length}
+                                            </span>
+                                          )}
+                                          {expandedLineItemSections.has(order._id)
+                                            ? <ChevronDown size={13} className="text-blue-400 flex-shrink-0" />
+                                            : <ChevronRight size={13} className="text-blue-400 flex-shrink-0" />}
+                                        </button>
+                                        <button
+                                          onClick={() => handleDownloadLineItems(order._id, order.purchaseorder_number!)}
+                                          disabled={downloadingLineItems === order._id}
+                                          className="flex-shrink-0 p-2.5 mr-1 text-blue-400 hover:text-blue-700 dark:hover:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-colors disabled:opacity-50"
+                                          title="Download line items as Excel"
+                                        >
+                                          {downloadingLineItems === order._id
+                                            ? <Loader2 size={12} className="animate-spin" />
+                                            : <Download size={12} />}
+                                        </button>
+                                      </div>
 
                                       {expandedLineItemSections.has(order._id) && (lineItemsAreLoading ? (
                                         <div className="flex items-center justify-center gap-2 text-zinc-400 text-sm py-6 bg-white dark:bg-zinc-900">
