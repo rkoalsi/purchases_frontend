@@ -35,6 +35,7 @@ interface LineItem {
   account_name?: string;
   quantity: number;
   item_total?: number;
+  is_new?: boolean;
 }
 
 function lineItemLabel(item: LineItem): string {
@@ -307,6 +308,11 @@ export default function BrandOrders() {
       )
     );
   }, [vendorList, searchQuery, ordersByVendor]);
+
+  const newOrdersCount = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return orders.filter(o => new Date(o.created_at).getTime() > cutoff).length;
+  }, [orders]);
 
   const getVisibleOrders = useCallback((vendorId: string) => {
     const vOrders = ordersByVendor[vendorId] || [];
@@ -781,8 +787,11 @@ export default function BrandOrders() {
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Brand Orders</h1>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-2">
             {brands.length} brand{brands.length !== 1 ? 's' : ''} · {orders.length} order{orders.length !== 1 ? 's' : ''}
+            {newOrdersCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">{newOrdersCount} new</span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1128,6 +1137,7 @@ export default function BrandOrders() {
             const isOpen = expandedBrands.has(vendor.contact_id);
             const visibleOrders = getVisibleOrders(vendor.contact_id);
             const allOrders = ordersByVendor[vendor.contact_id] || [];
+            const newVendorOrdersCount = allOrders.filter(o => new Date(o.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000).length;
 
             return (
               <div key={vendor.contact_id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
@@ -1152,8 +1162,11 @@ export default function BrandOrders() {
                     </div>
                     <span className="text-xs text-zinc-400">{vendor.brands.map(b => b.name).join(', ')}</span>
                   </div>
-                  <span className={`hidden sm:inline-flex items-center px-2 py-0.5 text-xs font-medium text-black dark:text-white ${allOrders.length > 0 ? 'bg-green-300' : 'bg-zinc-100'} ${allOrders.length > 0 ? 'dark:bg-green-600' : 'dark:bg-zinc-800'} rounded-full mr-1`}>
+                  <span className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium text-black dark:text-white ${allOrders.length > 0 ? 'bg-green-300' : 'bg-zinc-100'} ${allOrders.length > 0 ? 'dark:bg-green-600' : 'dark:bg-zinc-800'} rounded-full mr-1`}>
                     {allOrders.length} order{allOrders.length !== 1 ? 's' : ''}
+                    {newVendorOrdersCount > 0 && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 leading-none">{newVendorOrdersCount} new</span>
+                    )}
                   </span>
                   {canEdit && (
                     <button
@@ -1180,6 +1193,7 @@ export default function BrandOrders() {
                           const isEditing = editingOrder === order._id;
                           const isPoEditing = poEditingOrder === order._id;
                           const etaPast = isEtaOverdue(order.shipment_eta, order.po_status);
+                          const isNewOrder = new Date(order.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000;
                           const docs = orderDocs[order._id] || [];
                           const progress = uploadProgress[order._id];
                           const dsq = (docSearch[order._id] || '').toLowerCase();
@@ -1334,6 +1348,9 @@ export default function BrandOrders() {
                                       <>
                                         <div className="flex items-center gap-2 mb-1.5">
                                           <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 leading-snug">{order.name}</span>
+                                          {isNewOrder && (
+                                            <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 leading-none">NEW</span>
+                                          )}
                                           {etaPast && (
                                             <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded-full flex-shrink-0">
                                               <AlertTriangle size={9} /> Overdue
@@ -1585,12 +1602,27 @@ export default function BrandOrders() {
                                         </div>
                                       ) : (
                                         <div className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                                          {lineItems.map(item => {
+                                          {(() => {
+                                            const newItems = lineItems.filter(i => i.is_new);
+                                            const existingItems = lineItems.filter(i => !i.is_new);
+                                            return [...newItems, ...existingItems].map((item, idx) => {
                                             const itemDocs = docs.filter(d => d.item_id === item.item_id);
                                             const itemFileCount = itemDocs.length;
                                             const isItemOpen = expandedItems.has(item.item_id);
+                                            const showNewDivider = idx === 0 && newItems.length > 0;
+                                            const showExistingDivider = idx === newItems.length && existingItems.length > 0 && newItems.length > 0;
                                             return (
                                               <div key={item.item_id}>
+                                                {showNewDivider && (
+                                                  <div className="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/40">
+                                                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">New Products ({newItems.length})</span>
+                                                  </div>
+                                                )}
+                                                {showExistingDivider && (
+                                                  <div className="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-100 dark:border-zinc-800">
+                                                    <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Existing Products ({existingItems.length})</span>
+                                                  </div>
+                                                )}
                                                 <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
                                                   <button
                                                     onClick={() => itemFileCount > 0 && toggleLineItem(order._id, item.item_id)}
@@ -1599,9 +1631,14 @@ export default function BrandOrders() {
                                                     {isItemOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                                                   </button>
                                                   <div className="flex-1 min-w-0">
-                                                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 block truncate">
-                                                      {lineItemLabel(item)}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5">
+                                                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                                                        {lineItemLabel(item)}
+                                                      </span>
+                                                      {item.is_new && (
+                                                        <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 leading-none">NEW</span>
+                                                      )}
+                                                    </div>
                                                     <span className="text-xs text-zinc-400">Qty: {item.quantity}</span>
                                                   </div>
                                                   <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${itemFileCount > 0 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600'}`}>
@@ -1658,7 +1695,8 @@ export default function BrandOrders() {
                                                 )}
                                               </div>
                                             );
-                                          })}
+                                          });
+                                          })()}
                                         </div>
                                       ))}
                                     </div>
