@@ -19,6 +19,7 @@ interface PlanningRow {
   open_shipment_qty_auto: number;
   total_inventory: number;
   drr: number;
+  state_drr: Record<string, number>;
   net_total_days: number;
   lead_time: number;
   coverage_days: number;
@@ -322,9 +323,18 @@ export default function BlinkitShipmentPlanning() {
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.total_inventory.toLocaleString()}</span></td>
 
                     <td className={TABLE_CLASSES.td}>
-                      <span className='text-sm text-zinc-900 dark:text-zinc-100'>
-                        {row.drr > 0 ? row.drr : <span className='text-zinc-400 text-xs'>—</span>}
-                      </span>
+                      <div className='flex flex-col gap-0.5'>
+                        <span className='text-sm text-zinc-900 dark:text-zinc-100'>
+                          {row.drr > 0 ? row.drr : <span className='text-zinc-400 text-xs'>—</span>}
+                        </span>
+                        {Object.entries(row.state_drr ?? {})
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([state, val]) => (
+                            <span key={state} className='text-xs text-zinc-400 dark:text-zinc-500 whitespace-nowrap'>
+                              {state}: {val}
+                            </span>
+                          ))}
+                      </div>
                     </td>
 
                     <td className={TABLE_CLASSES.td}>
