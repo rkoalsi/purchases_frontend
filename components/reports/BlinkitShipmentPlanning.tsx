@@ -19,8 +19,6 @@ interface PlanningRow {
   open_shipment_qty_auto: number;
   total_inventory: number;
   drr: number;
-  drr_flag: string;
-  drr_lookback: string;
   net_total_days: number;
   lead_time: number;
   coverage_days: number;
@@ -322,7 +320,7 @@ export default function BlinkitShipmentPlanning() {
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.total_inventory.toLocaleString()}</span></td>
 
                     <td className={TABLE_CLASSES.td}>
-                      <span className='text-sm text-zinc-900 dark:text-zinc-100' title={row.drr_flag}>
+                      <span className='text-sm text-zinc-900 dark:text-zinc-100'>
                         {row.drr > 0 ? row.drr : <span className='text-zinc-400 text-xs'>—</span>}
                       </span>
                     </td>
