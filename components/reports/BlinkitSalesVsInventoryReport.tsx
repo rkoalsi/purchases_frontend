@@ -44,10 +44,15 @@ interface ReportItem {
   generated_at: string;
   sku_code: string;
   city: string;
+  state?: string;
   item_name: string;
   item_id: number;
   warehouse?: string;
   last_90_days_dates?: string;
+  drr?: number | string;
+  drr_flag?: string;
+  drr_lookback?: string;
+  drr_lookback_sales?: number;
   metrics: {
     avg_daily_on_stock_days: number;
     avg_weekly_on_stock_days: number;
@@ -939,6 +944,27 @@ const handleUpload = async () => {
                       <SortIcon column='city' />
                     </button>
                   </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[100px]'>
+                    State
+                  </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[80px]'>
+                    <button
+                      onClick={() => handleSort('drr')}
+                      className='flex items-center gap-1 hover:text-gray-700 dark:hover:text-zinc-300 transition-colors'
+                    >
+                      DRR
+                      <SortIcon column='drr' />
+                    </button>
+                  </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[200px]'>
+                    DRR Flag
+                  </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[200px]'>
+                    DRR Lookback
+                  </th>
+                  <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[140px]'>
+                    DRR Lookback Sales
+                  </th>
                   <th className='px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400 min-w-[120px]'>
                     <button
                       onClick={() =>
@@ -1053,7 +1079,7 @@ const handleUpload = async () => {
                 {filteredAndSortedData.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={21}
+                      colSpan={26}
                       className='px-4 py-8 text-center text-sm text-gray-500 dark:text-zinc-400'
                     >
                       No items match your search criteria
@@ -1095,6 +1121,29 @@ const handleUpload = async () => {
                         </td>
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
                           {item.city}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400'>
+                          {item.state || ''}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm font-medium dark:text-zinc-100'>
+                          {typeof item.drr === 'number'
+                            ? item.drr.toFixed(2)
+                            : <span className='text-orange-600 text-xs dark:text-orange-400'>{item.drr || '—'}</span>}
+                        </td>
+                        <td className='px-4 py-3 text-xs dark:text-zinc-400 max-w-[220px]'>
+                          <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                            (item.drr_flag || '').startsWith('OK')
+                              ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300'
+                          }`}>
+                            {item.drr_flag || '—'}
+                          </span>
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-xs text-gray-500 dark:text-zinc-400'>
+                          {item.drr_lookback || '—'}
+                        </td>
+                        <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-zinc-100'>
+                          {item.drr_lookback_sales ?? '—'}
                         </td>
                         <td className='px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium dark:text-zinc-100'>
                           {item.metrics.avg_daily_on_stock_days.toFixed(2)}
