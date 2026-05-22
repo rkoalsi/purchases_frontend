@@ -39,6 +39,8 @@ interface POListItem {
   estimate_number?: string;
   zoho_estimate_id?: string;
   packages?: string[];
+  so_packages?: string[] | null;
+  so_number?: string;
   accepted_total_cost?: number | null;
   accepted_total_cost_gst?: number | null;
   transfer_order_number?: string;
@@ -115,6 +117,8 @@ interface POReport {
   bundle_ids?: string[];
   assembly_numbers?: string[];
   packages?: string[];
+  so_packages?: string[] | null;
+  so_number?: string;
   sales_order_no?: string;
   sales_order_id?: string;
   items: POItem[];
@@ -811,11 +815,7 @@ export default function VendorPOReport() {
   const [linkingEstimate, setLinkingEstimate] = useState(false);
   const [unlinkingEstimate, setUnlinkingEstimate] = useState(false);
 
-  // package modals
-  const [linkPackageOpen, setLinkPackageOpen] = useState(false);
-  const [linkPackageNumber, setLinkPackageNumber] = useState('');
-  const [linkingPackage, setLinkingPackage] = useState(false);
-  const [unlinkingPackage, setUnlinkingPackage] = useState(false);
+  // package modals (manual linking removed — packages derived from sales order)
 
   // transfer order modals
   const [createTOOpen, setCreateTOOpen] = useState(false);
@@ -1289,44 +1289,6 @@ export default function VendorPOReport() {
     }
   };
 
-  // ─── package handlers ────────────────────────────────────────────────────────
-
-  const handleLinkPackage = async () => {
-    if (!selectedPO || !linkPackageNumber.trim()) return;
-    setLinkingPackage(true);
-    try {
-      const { data } = await axios.patch<{ packages: string[]; accepted_total_cost: number | null; accepted_total_cost_gst: number | null }>(
-        `${API_URL}/vendor_po/${selectedPO}/package`,
-        { package_number: linkPackageNumber.trim() },
-      );
-      toast.success(`Package ${linkPackageNumber.trim()} linked`);
-      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, packages: data.packages, accepted_total_cost: data.accepted_total_cost, accepted_total_cost_gst: data.accepted_total_cost_gst } : p));
-      setLinkPackageOpen(false);
-      setLinkPackageNumber('');
-    } catch (err) {
-      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to link package';
-      toast.error(msg);
-    } finally {
-      setLinkingPackage(false);
-    }
-  };
-
-  const handleUnlinkPackage = async (pkgNumber: string) => {
-    if (!selectedPO) return;
-    setUnlinkingPackage(true);
-    try {
-      const { data } = await axios.delete<{ packages: string[]; accepted_total_cost: number | null; accepted_total_cost_gst: number | null }>(
-        `${API_URL}/vendor_po/${selectedPO}/package/${encodeURIComponent(pkgNumber)}`,
-      );
-      toast.success(`Package ${pkgNumber} unlinked`);
-      setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, packages: data.packages, accepted_total_cost: data.accepted_total_cost ?? undefined, accepted_total_cost_gst: data.accepted_total_cost_gst ?? undefined } : p));
-    } catch {
-      toast.error('Failed to unlink package');
-    } finally {
-      setUnlinkingPackage(false);
-    }
-  };
-
   // ─── transfer order handlers ─────────────────────────────────────────────────
 
   const handleCreateTransferOrder = async () => {
@@ -1736,16 +1698,18 @@ export default function VendorPOReport() {
                           )}
                         </td>
                         <td className={TABLE_CLASSES.td}>
-                          {(po.packages ?? []).length > 0 ? (
+                          {po.so_packages === undefined || po.so_packages === null ? (
+                            <span className="text-xs text-zinc-400">—</span>
+                          ) : po.so_packages.length === 0 ? (
+                            <span className="text-xs text-zinc-400">—</span>
+                          ) : (
                             <div className="flex flex-col gap-0.5">
-                              {(po.packages ?? []).map((pkg, i) => (
+                              {po.so_packages.map((pkg, i) => (
                                 <span key={i} className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono whitespace-nowrap">
                                   {pkg}
                                 </span>
                               ))}
                             </div>
-                          ) : (
-                            <span className="text-xs text-zinc-400">—</span>
                           )}
                         </td>
                         <td className={TABLE_CLASSES.td}>
@@ -2099,38 +2063,24 @@ export default function VendorPOReport() {
               })()}
               {report && (() => {
                 const currentPO = poList.find(p => p.po_number === selectedPO);
-                const pkgs = currentPO?.packages ?? [];
+                const pkgs = currentPO?.so_packages;
+                if (pkgs === undefined || pkgs === null || pkgs.length === 0) {
+                  return <span className="text-xs text-zinc-400 py-1.5">—</span>;
+                }
                 return (
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {pkgs.map((pkg) => (
-                      <div key={pkg} className="flex items-center gap-0.5">
-                        <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono">
-                          <Package size={12} />
-                          {pkg}
-                        </span>
-                        <button
-                          onClick={() => handleUnlinkPackage(pkg)}
-                          disabled={unlinkingPackage}
-                          title={`Remove ${pkg}`}
-                          className="p-1 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors disabled:opacity-50"
-                        >
-                          {unlinkingPackage ? <RefreshCw size={11} className="animate-spin" /> : <X size={11} />}
-                        </button>
-                      </div>
+                      <span key={pkg} className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono">
+                        <Package size={12} />
+                        {pkg}
+                      </span>
                     ))}
-                    <button
-                      onClick={() => { setLinkPackageOpen(true); setLinkPackageNumber(''); }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                    >
-                      <Package size={13} />
-                      {pkgs.length > 0 ? 'Add Package' : 'Link Package'}
-                    </button>
                   </div>
                 );
               })()}
               {report && (() => {
                 const currentPO = poList.find(p => p.po_number === selectedPO);
-                if (!(currentPO?.packages ?? []).length) return null;
+                if (!(currentPO?.so_packages ?? []).length) return null;
                 return currentPO?.transfer_order_number ? (
                   <div className="flex items-center gap-1.5">
                     <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-800 font-mono">
@@ -2227,7 +2177,7 @@ export default function VendorPOReport() {
                   Estimate Comparison
                 </button>
               )}
-              {(poList.find(p => p.po_number === selectedPO)?.packages ?? []).length > 0 && (
+              {(poList.find(p => p.po_number === selectedPO)?.so_packages ?? []).length > 0 && (
                 <button
                   onClick={() => { setReportTab('package_breakdown'); if (!packageBreakdown && !pkgBreakdownLoading) fetchPackageBreakdown(report.po_number); }}
                   className={`px-4 py-2 text-xs font-medium rounded-t transition-colors ${reportTab === 'package_breakdown' ? 'bg-white dark:bg-zinc-900 border border-b-white dark:border-zinc-700 dark:border-b-zinc-900 text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}
@@ -2925,53 +2875,6 @@ export default function VendorPOReport() {
         </div>
       )}
 
-      {/* ── Link Package Modal ── */}
-      {linkPackageOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                <Package size={18} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{(poList.find(p => p.po_number === selectedPO)?.packages ?? []).length > 0 ? 'Add Package' : 'Link Package'}</h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{selectedPO}</p>
-              </div>
-            </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-              Enter the package number (e.g. <span className="font-mono">PKG-00237</span>). It must exist in the packages collection.
-            </p>
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Package Number</label>
-              <input
-                type="text"
-                value={linkPackageNumber}
-                onChange={e => setLinkPackageNumber(e.target.value)}
-                placeholder="PKG-00237"
-                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-mono placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyDown={e => { if (e.key === 'Enter') handleLinkPackage(); }}
-              />
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <button
-                onClick={() => { setLinkPackageOpen(false); setLinkPackageNumber(''); }}
-                disabled={linkingPackage}
-                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLinkPackage}
-                disabled={linkingPackage || !linkPackageNumber.trim()}
-                className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {linkingPackage ? <RefreshCw size={13} className="animate-spin" /> : <Package size={13} />}
-                {linkingPackage ? 'Linking…' : 'Link'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
