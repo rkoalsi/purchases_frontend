@@ -36,9 +36,10 @@ interface PlanningRow {
 interface PlanningMeta {
   inv_date: string;
   drr_period: string;
+  zoho_stock_date: string;
 }
 
-const EMPTY_META: PlanningMeta = { inv_date: '', drr_period: '' };
+const EMPTY_META: PlanningMeta = { inv_date: '', drr_period: '', zoho_stock_date: '' };
 const PAGE_SIZE = 50;
 
 type EditState = { sku: string; field: string; value: string };
@@ -113,6 +114,7 @@ export default function BlinkitShipmentPlanning() {
       setMeta({
         inv_date: res.data.inv_date ?? '',
         drr_period: res.data.drr_period ?? '',
+        zoho_stock_date: res.data.zoho_stock_date ?? '',
       });
       setPage(1);
     } catch (e: unknown) {
@@ -283,7 +285,7 @@ export default function BlinkitShipmentPlanning() {
                     meta.drr_period ? `DRR (${meta.drr_period})` : 'DRR',
                     'Net Days', 'Lead Time ✎', 'Cover Days ✎', 'Target Days', 'Target Stock',
                     'Final Units ✎',
-                    'Zoho Stock', 'Status',
+                    meta.zoho_stock_date ? `Zoho Stock (${meta.zoho_stock_date})` : 'Zoho Stock', 'Status',
                     ...monthLabels,
                   ].map(h => (
                     <th key={h} className={TABLE_CLASSES.th} style={{ whiteSpace: 'nowrap' }}>{h}</th>
