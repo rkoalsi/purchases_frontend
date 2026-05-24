@@ -151,6 +151,7 @@ export default function AmazonFBAShipmentQueue() {
   const [page, setPage]                 = useState(1);
   const [totalPages, setTotalPages]     = useState(1);
   const [total, setTotal]               = useState(0);
+  const [jumpInput, setJumpInput]       = useState('');
   const PAGE_SIZE = 50;
 
   // ── Fetch from DB ───────────────────────────────────────────────────────────
@@ -428,9 +429,9 @@ export default function AmazonFBAShipmentQueue() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="px-6 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-sm text-zinc-500">
+            <div className="px-6 py-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between flex-wrap gap-3 text-sm text-zinc-500">
               <span>{total} shipments total</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   disabled={page <= 1}
                   onClick={() => fetchShipments(page - 1, statusFilter)}
@@ -438,7 +439,7 @@ export default function AmazonFBAShipmentQueue() {
                 >
                   Prev
                 </button>
-                <span>Page {page} / {totalPages}</span>
+                <span className="whitespace-nowrap">Page {page} / {totalPages}</span>
                 <button
                   disabled={page >= totalPages}
                   onClick={() => fetchShipments(page + 1, statusFilter)}
@@ -446,6 +447,40 @@ export default function AmazonFBAShipmentQueue() {
                 >
                   Next
                 </button>
+                {/* Jump to page */}
+                <div className="flex items-center gap-1 ml-2">
+                  <span className="text-xs text-zinc-400">Go to</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    value={jumpInput}
+                    onChange={e => setJumpInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const pg = Math.min(totalPages, Math.max(1, parseInt(jumpInput, 10)));
+                        if (!isNaN(pg)) {
+                          fetchShipments(pg, statusFilter);
+                          setJumpInput('');
+                        }
+                      }
+                    }}
+                    placeholder={String(page)}
+                    className="w-14 px-2 py-1 text-xs text-center rounded border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => {
+                      const pg = Math.min(totalPages, Math.max(1, parseInt(jumpInput, 10)));
+                      if (!isNaN(pg)) {
+                        fetchShipments(pg, statusFilter);
+                        setJumpInput('');
+                      }
+                    }}
+                    className="px-2 py-1 text-xs rounded border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                  >
+                    Go
+                  </button>
+                </div>
               </div>
             </div>
           )}
