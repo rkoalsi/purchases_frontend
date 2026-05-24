@@ -80,6 +80,7 @@ const PERMISSION_REQUIREMENTS = {
   FBA_RETURNS: { name: 'reports_amazon_fba_returns' },
   FBA_SHIPMENT_PLANNING: { name: 'reports_amazon_fba_shipment_planning' },
   FBA_SHIPMENT_PROCESSING: { name: 'reports_amazon_fba_shipment_processing' },
+  FBA_SHIPMENT_QUEUE: { name: 'reports_amazon_fba_shipment_queue' },
   BLINKIT_SHIPMENT_PLANNING: { name: 'blinkit_shipment_planning' },
   BLINKIT_SHIPMENT_PROCESSING: { name: 'blinkit_shipment_processing' },
   VC_UNDER_ORDERING: { name: 'reports_vc_under_ordering' },

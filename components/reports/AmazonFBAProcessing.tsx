@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, RefreshCw, Trash2, Edit2, Check, X, Search } from 'lucide-react';
+import { Upload, RefreshCw, Trash2, Edit2, Check, X, Search, Download } from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState, SearchBar } from './TableStyles';
+import AmazonFBAShipmentQueue from './AmazonFBAShipmentQueue';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -197,7 +198,7 @@ const SummaryEditRow: React.FC<{
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AmazonFBAProcessing() {
-  const [activeTab, setActiveTab] = useState<'processing' | 'summary'>('processing');
+  const [activeTab, setActiveTab] = useState<'queue' | 'processing' | 'summary'>('queue');
 
   // Processing tab state
   const [processing, setProcessing] = useState<ProcessingRow[]>([]);
@@ -241,7 +242,7 @@ export default function AmazonFBAProcessing() {
     }
   }, []);
 
-  const handleTabChange = useCallback((tab: 'processing' | 'summary') => {
+  const handleTabChange = useCallback((tab: 'queue' | 'processing' | 'summary') => {
     setActiveTab(tab);
     if (tab === 'processing' && processing.length === 0) loadProcessing();
     if (tab === 'summary' && summary.length === 0) loadSummary();
@@ -331,31 +332,38 @@ export default function AmazonFBAProcessing() {
       {/* Header */}
       <div className={TABLE_CLASSES.container}>
         <div className={TABLE_CLASSES.headerSection}>
-          <h2 className='text-xl font-semibold text-zinc-900 dark:text-zinc-100'>FBA Shipment Processing</h2>
+          <h2 className='text-xl font-semibold text-zinc-900 dark:text-zinc-100'>FBA Shipments</h2>
           <p className='text-sm text-zinc-500 dark:text-zinc-400 mt-1'>
-            Upload your FBA shipment plan and track shipment progress.
+            View all SP-API synced shipments, upload processing sheets, and track shipment progress.
           </p>
         </div>
 
         {/* Tabs */}
         <div className='border-b border-zinc-200 dark:border-zinc-800 px-6'>
           <nav className='flex gap-6 -mb-px'>
-            {(['processing', 'summary'] as const).map(tab => (
+            {([
+              { key: 'queue',      label: 'Shipment Queue' },
+              { key: 'processing', label: 'Shipment Processing' },
+              { key: 'summary',    label: 'Shipment Summary' },
+            ] as const).map(({ key, label }) => (
               <button
-                key={tab}
-                onClick={() => handleTabChange(tab)}
+                key={key}
+                onClick={() => handleTabChange(key)}
                 className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab
+                  activeTab === key
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
                 }`}
               >
-                {tab === 'processing' ? 'Shipment Processing' : 'Shipment Summary'}
+                {label}
               </button>
             ))}
           </nav>
         </div>
       </div>
+
+      {/* ── Shipment Queue Tab ────────────────────────────────────────────── */}
+      {activeTab === 'queue' && <AmazonFBAShipmentQueue />}
 
       {/* ── Processing Tab ─────────────────────────────────────────────────── */}
       {activeTab === 'processing' && (
@@ -381,6 +389,14 @@ export default function AmazonFBAProcessing() {
                     <RefreshCw size={14} className={loadingProc ? 'animate-spin' : ''} />
                     Refresh
                   </button>
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_API_URL}/amazon_fba_shipment/processing/template`}
+                    download='fba_processing_template.xlsx'
+                    className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50'
+                  >
+                    <Download size={14} />
+                    Download Template
+                  </a>
                   <input ref={procFileRef} type='file' accept='.xlsx,.xls' className='hidden' onChange={handleUploadProc} />
                   <button
                     onClick={() => procFileRef.current?.click()}

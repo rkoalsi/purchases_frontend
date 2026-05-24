@@ -43,6 +43,7 @@ const ALL_PAGES = [
   { name: 'B2B VC Returns', href: '/reports/amazon_vendor_central_returns', permission: 'reports_amazon_vendor_central_returns', icon: AmazonIcon, group: 'Reports' },
   { name: 'Seller Flex Returns', href: '/reports/amazon_seller_flex_returns', permission: 'reports_amazon_seller_flex_returns', icon: AmazonIcon, group: 'Reports' },
   { name: 'FBA Returns', href: '/reports/amazon_fba_returns', permission: 'reports_amazon_fba_returns', icon: AmazonIcon, group: 'Reports' },
+  { name: 'FBA Shipment Queue', href: '/reports/amazon_fba_shipment_queue', permission: 'reports_amazon_fba_shipment_queue', icon: AmazonIcon, group: 'Reports' },
   { name: 'Blinkit PSR', href: '/reports/blinkit', permission: 'reports_blinkit', icon: Zap, group: 'Reports' },
   { name: 'Blinkit Ads', href: '/reports/blinkit_ads', permission: 'reports_blinkit_ads', icon: Zap, group: 'Reports' },
   { name: 'Retail PSR', href: '/reports/zoho', permission: 'reports_zoho', icon: Building2, group: 'Reports' },
