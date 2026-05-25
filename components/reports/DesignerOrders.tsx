@@ -585,7 +585,7 @@ export default function DesignerOrders() {
   const totalOrders = orders.length;
   const totalDocs = orders.reduce((sum, o) => sum + (o.doc_count || 0), 0);
   const newOrdersCount = useMemo(() => {
-    return orders.filter(o => !o.inward_date && o.po_status?.toLowerCase() !== 'closed').length;
+    return orders.filter(o => !o.inward_date && !['closed', 'cancelled'].includes(o.po_status?.toLowerCase() ?? '')).length;
   }, [orders]);
 
   // Reusable file action buttons
@@ -759,7 +759,7 @@ export default function DesignerOrders() {
             {filteredBrandGroups.map(([brand, brandOrders]) => {
               const isExpanded = expandedBrands.has(brand);
               const brandDocCount = brandOrders.reduce((s: number, o: DesignerOrder) => s + (o.doc_count || 0), 0);
-              const newBrandOrdersCount = brandOrders.filter(o => !o.inward_date && o.po_status?.toLowerCase() !== 'closed').length;
+              const newBrandOrdersCount = brandOrders.filter(o => !o.inward_date && !['closed', 'cancelled'].includes(o.po_status?.toLowerCase() ?? '')).length;
               // other brands sharing the same vendor
               const vendorId = brandOrders.find(o => o.vendor_id)?.vendor_id;
               const siblingBrands = vendorId
@@ -803,7 +803,7 @@ export default function DesignerOrders() {
                     <div className="border-t border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800/60">
                       {brandOrders.map((order: DesignerOrder) => {
                         const isOrderExpanded = expandedOrders.has(order._id);
-                        const isNewOrder = !order.inward_date && order.po_status?.toLowerCase() !== 'closed';
+                        const isNewOrder = !order.inward_date && !['closed', 'cancelled'].includes(order.po_status?.toLowerCase() ?? '');
                         const docs = docsMap[order._id] ?? (order.designer_documents || []);
                         const dsq = (docSearch[order._id] || '').toLowerCase();
                         const catFilter = docCatFilter[order._id] || '';
