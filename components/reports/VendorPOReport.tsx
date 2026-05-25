@@ -2245,7 +2245,7 @@ export default function VendorPOReport() {
                     <table className="w-full text-xs">
                       <thead className="bg-zinc-50 dark:bg-zinc-800/50 sticky top-0 z-10">
                         <tr>
-                          {['Model No.', 'Title', 'PO Supply Qty', 'PO Rate', 'PO Item Total', 'In Estimate', 'Est Qty', 'Est Rate', 'Est Item Total', 'Qty Diff', 'Rate Diff', 'Total Diff'].map(h => (
+                          {['Model No.', 'Title', 'PO Final Supply Qty', 'PO Rate', 'PO Item Total', 'In Estimate', 'Est Qty', 'Est Rate', 'Est Item Total', 'Qty Diff', 'Rate Diff', 'Total Diff'].map(h => (
                             <th key={h} className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap border-b border-zinc-200 dark:border-zinc-700">{h}</th>
                           ))}
                         </tr>
