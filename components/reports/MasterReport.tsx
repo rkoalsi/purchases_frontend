@@ -326,6 +326,43 @@ export default function MasterReport() {
                         )}
                     </div>
 
+                    {/* Row colour legend */}
+                    <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 text-sm space-y-2">
+                        <p className="font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                            Master Sheet — Row Highlight Legend
+                        </p>
+                        <div className="space-y-2.5">
+                            {/* Green */}
+                            <div className="flex items-start gap-3">
+                                <span className="mt-0.5 shrink-0 w-4 h-4 rounded border border-gray-300 dark:border-gray-600" style={{ backgroundColor: '#90EE90' }} />
+                                <span className="text-gray-700 dark:text-gray-300">
+                                    <span className="font-medium">Green</span> — Lookback DRR was used but current-period sales are <span className="font-medium">higher</span>. Order qty is overridden to current-period net sales × confidence multiplier instead of the normal target-days formula.
+                                </span>
+                            </div>
+                            {/* Yellow */}
+                            <div className="flex items-start gap-3">
+                                <span className="mt-0.5 shrink-0 w-4 h-4 rounded border border-gray-300 dark:border-gray-600" style={{ backgroundColor: '#FFFF00' }} />
+                                <span className="text-gray-700 dark:text-gray-300">
+                                    <span className="font-medium">Yellow</span> — DRR is sourced from a <span className="font-medium">lookback period (≤ 180 days ago)</span> because the SKU had insufficient sales in the selected window. Order calculations use historical velocity.
+                                </span>
+                            </div>
+                            {/* Orange */}
+                            <div className="flex items-start gap-3">
+                                <span className="mt-0.5 shrink-0 w-4 h-4 rounded border border-gray-300 dark:border-gray-600" style={{ backgroundColor: '#FFA500' }} />
+                                <span className="text-gray-700 dark:text-gray-300">
+                                    <span className="font-medium">Orange</span> — DRR is sourced from a <span className="font-medium">lookback period &gt; 180 days ago</span>. The reference data is stale — treat order quantities with caution.
+                                </span>
+                            </div>
+                            {/* Red */}
+                            <div className="flex items-start gap-3">
+                                <span className="mt-0.5 shrink-0 w-4 h-4 rounded border border-gray-300 dark:border-gray-600" style={{ backgroundColor: '#FF6B6B' }} />
+                                <span className="text-gray-700 dark:text-gray-300">
+                                    <span className="font-medium">Red</span> — SKU had <span className="font-medium">no days in stock</span> during the selected period. DRR is computed by dividing sales over the full period length rather than actual days in stock, making it unreliable.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Download button */}
                     <button
                         onClick={handleDownload}
