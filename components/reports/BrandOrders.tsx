@@ -8,7 +8,7 @@ import {
   Plus, Upload, Trash2, Download, Pencil, X, Check, Loader2, RefreshCw,
   FileText, ChevronDown, ChevronRight, Package, Tag, AlertTriangle, Search,
   Archive, Eye, FolderOpen, ArrowLeft, ArrowRight, Link2, BarChart2,
-  Layers, Filter,
+  Layers, Filter, Folder, FolderPlus,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -24,8 +24,17 @@ interface Document {
   uploaded_at: string;
   s3_key: string;
   category?: string;
+  folder?: string;
   item_id?: string;
   item_name?: string;
+}
+
+interface FolderRecord {
+  folder_id: string;
+  name: string;
+  path: string;
+  parent_path: string;
+  created_at: string;
 }
 
 interface LineItem {
@@ -239,6 +248,9 @@ export default function BrandOrders() {
   const [addingCat, setAddingCat] = useState(false);
   const [recatDoc, setRecatDoc] = useState<string | null>(null);
   const [recatLoading, setRecatLoading] = useState<string | null>(null);
+  const [renamingCat, setRenamingCat] = useState<string | null>(null);
+  const [renameCatInput, setRenameCatInput] = useState('');
+  const [renamingCatLoading, setRenamingCatLoading] = useState(false);
 
   // line items
   const [lineItemsMap, setLineItemsMap] = useState<Record<string, LineItem[]>>({});
@@ -277,6 +289,17 @@ export default function BrandOrders() {
 
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const folderInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // ── folder state ─────────────────────────────────────────────────────────
+  const [orderFolders, setOrderFolders] = useState<Record<string, FolderRecord[]>>({});
+  const [foldersLoading, setFoldersLoading] = useState<Record<string, boolean>>({});
+  const [currentFolderPath, setCurrentFolderPath] = useState<Record<string, string>>({});
+  const [creatingFolderFor, setCreatingFolderFor] = useState<string | null>(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [savingFolder, setSavingFolder] = useState(false);
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renameFolderName, setRenameFolderName] = useState('');
+  const [movingDocId, setMovingDocId] = useState<string | null>(null);
 
   const ordersByVendor = useMemo(() => {
     const map: Record<string, BrandOrder[]> = {};
@@ -414,6 +437,101 @@ export default function BrandOrders() {
     finally { setDocsLoading(prev => ({ ...prev, [orderId]: false })); }
   }, []);
 
+  const fetchOrderFolders = useCallback(async (orderId: string) => {
+    setFoldersLoading(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const { data } = await axios.get<FolderRecord[]>(`${API_URL}/brand_orders/${orderId}/folders`);
+      setOrderFolders(prev => ({ ...prev, [orderId]: data || [] }));
+    } catch { /* silently ignore */ }
+    finally { setFoldersLoading(prev => ({ ...prev, [orderId]: false })); }
+  }, []);
+
+  const handleCreateFolder = useCallback(async (orderId: string) => {
+    const name = newFolderName.trim();
+    if (!name) { setCreatingFolderFor(null); return; }
+    setSavingFolder(true);
+    try {
+      const parent = currentFolderPath[orderId] || '';
+      const { data } = await axios.post<FolderRecord>(`${API_URL}/brand_orders/${orderId}/folders`, { name, parent_path: parent });
+      setOrderFolders(prev => ({ ...prev, [orderId]: [...(prev[orderId] || []), data] }));
+      setCreatingFolderFor(null);
+      setNewFolderName('');
+      toast.success(`Folder "${name}" created`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to create folder');
+    } finally { setSavingFolder(false); }
+  }, [newFolderName, currentFolderPath]);
+
+  const handleRenameFolder = useCallback(async (orderId: string, folderId: string) => {
+    const name = renameFolderName.trim();
+    if (!name) { setRenamingFolderId(null); return; }
+    setSavingFolder(true);
+    try {
+      const { data } = await axios.patch<FolderRecord>(`${API_URL}/brand_orders/${orderId}/folders/${folderId}`, { name });
+      setOrderFolders(prev => ({
+        ...prev,
+        [orderId]: (prev[orderId] || []).map(f => f.folder_id === folderId ? { ...f, name: data.name, path: data.path } : f),
+      }));
+      // also cascade rename in docs
+      setOrderDocs(prev => ({
+        ...prev,
+        [orderId]: (prev[orderId] || []).map(d => {
+          if (d.folder === (orderFolders[orderId]?.find(f => f.folder_id === folderId)?.path || '')) {
+            return { ...d, folder: data.path };
+          }
+          return d;
+        }),
+      }));
+      setRenamingFolderId(null);
+      toast.success('Folder renamed');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to rename folder');
+    } finally { setSavingFolder(false); }
+  }, [renameFolderName, orderFolders]);
+
+  const handleDeleteFolder = useCallback(async (orderId: string, folderId: string, folderName: string) => {
+    if (!confirm(`Delete folder "${folderName}"? Files inside will be moved to the parent folder.`)) return;
+    try {
+      const folderPath = orderFolders[orderId]?.find(f => f.folder_id === folderId)?.path || '';
+      const parentPath = orderFolders[orderId]?.find(f => f.folder_id === folderId)?.parent_path || '';
+      await axios.delete(`${API_URL}/brand_orders/${orderId}/folders/${folderId}`);
+      setOrderFolders(prev => ({
+        ...prev,
+        [orderId]: (prev[orderId] || []).filter(f => f.folder_id !== folderId && !f.path.startsWith(folderPath + '/')),
+      }));
+      // Move docs to parent path in local state
+      setOrderDocs(prev => ({
+        ...prev,
+        [orderId]: (prev[orderId] || []).map(d =>
+          (d.folder === folderPath || d.folder?.startsWith(folderPath + '/'))
+            ? { ...d, folder: parentPath }
+            : d
+        ),
+      }));
+      // If we were viewing the deleted folder, navigate to parent
+      if ((currentFolderPath[orderId] || '') === folderPath || (currentFolderPath[orderId] || '').startsWith(folderPath + '/')) {
+        setCurrentFolderPath(prev => ({ ...prev, [orderId]: parentPath }));
+      }
+      toast.success(`Folder "${folderName}" deleted`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to delete folder');
+    }
+  }, [orderFolders, currentFolderPath]);
+
+  const handleMoveDoc = useCallback(async (orderId: string, docId: string, targetFolder: string) => {
+    try {
+      await axios.patch(`${API_URL}/brand_orders/${orderId}/documents/${docId}`, { folder: targetFolder });
+      setOrderDocs(prev => ({
+        ...prev,
+        [orderId]: (prev[orderId] || []).map(d => d.doc_id === docId ? { ...d, folder: targetFolder } : d),
+      }));
+      setMovingDocId(null);
+      toast.success('File moved');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to move file');
+    }
+  }, []);
+
   const toggleBrand = (n: string) =>
     setExpandedBrands(prev => { const s = new Set(prev); if (s.has(n)) { s.delete(n); } else { s.add(n); } return s; });
 
@@ -437,6 +555,7 @@ export default function BrandOrders() {
     if (expandedOrder === id) { setExpandedOrder(null); return; }
     setExpandedOrder(id);
     fetchOrderDocs(id);
+    fetchOrderFolders(id);
     const order = orders.find(o => o._id === id);
     if (order?.purchaseorder_number && lineItemsMap[id] === undefined) {
       fetchLineItemsForOrder(id);
@@ -618,15 +737,18 @@ export default function BrandOrders() {
     category?: string,
     itemId?: string,
     itemName?: string,
+    folderOverride?: string,
   ) => {
     setUploadingFor(orderId);
     setUploadProgress(prev => ({ ...prev, [orderId]: { done: 0, total: uploads.length } }));
+    const targetFolder = folderOverride !== undefined ? folderOverride : (currentFolderPath[orderId] || '');
     try {
       await Promise.all(uploads.map(async ({ file, relativePath }) => {
         const form = new FormData();
         form.append('file', file);
         if (relativePath) form.append('relative_path', relativePath);
         if (category) form.append('category', category);
+        if (targetFolder) form.append('folder', targetFolder);
         if (itemId) form.append('item_id', itemId);
         if (itemName) form.append('item_name', itemName);
         await axios.post(`${API_URL}/brand_orders/${orderId}/documents`, form);
@@ -676,6 +798,27 @@ export default function BrandOrders() {
       });
     } catch {
       toast.error('Failed to delete category');
+    }
+  }, []);
+
+  const handleRenameCategory = useCallback(async (oldName: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) { setRenamingCat(null); setRenameCatInput(''); return; }
+    setRenamingCatLoading(true);
+    try {
+      await axios.patch(`${API_URL}/brand_orders/categories/${encodeURIComponent(oldName)}`, { new_name: trimmed });
+      setCategories(prev => prev.map(c => c === oldName ? trimmed : c));
+      setOrderUploadCategory(prev => {
+        const next = { ...prev };
+        Object.keys(next).forEach(k => { if (next[k] === oldName) next[k] = trimmed; });
+        return next;
+      });
+      setRenamingCat(null);
+      setRenameCatInput('');
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Failed to rename category');
+    } finally {
+      setRenamingCatLoading(false);
     }
   }, []);
 
@@ -1252,7 +1395,7 @@ export default function BrandOrders() {
                           const lineItems = lineItemsMap[order._id] || [];
                           const lineItemsAreLoading = lineItemsLoading[order._id] ?? false;
                           const rawUploadCat = orderUploadCategory[order._id];
-                          const selectedCategory = rawUploadCat === '' ? 'other' : (rawUploadCat || categories[0] || 'other');
+                          const selectedCategory = rawUploadCat ?? '';
                           const expandedItems = expandedLineItems[order._id] || new Set<string>();
                           const catCounts = docs.reduce<Record<string, number>>((acc, d) => {
                             const c = d.category?.trim() || 'general'; acc[c] = (acc[c] || 0) + 1; return acc;
@@ -1761,6 +1904,30 @@ export default function BrandOrders() {
                                   )}
 
                                   {/* ── Files Section ── */}
+                                  {(() => {
+                                    const activeFolderPath = currentFolderPath[order._id] || '';
+                                    const allFolders = orderFolders[order._id] || [];
+                                    // Folders whose direct parent is the current path
+                                    const visibleFolders = allFolders.filter(f => f.parent_path === activeFolderPath);
+                                    // Docs in the current folder (empty string = root)
+                                    const folderFilteredDocs = filteredDocs.filter(d => (d.folder || '') === activeFolderPath);
+                                    const folderPage = docPage[order._id] ?? 0;
+                                    const folderTotalPages = Math.ceil(folderFilteredDocs.length / DOCS_PER_PAGE);
+                                    const folderPagedDocs = folderFilteredDocs.slice(folderPage * DOCS_PER_PAGE, (folderPage + 1) * DOCS_PER_PAGE);
+
+                                    // Breadcrumb segments
+                                    const breadcrumbs: { label: string; path: string }[] = [{ label: 'Root', path: '' }];
+                                    if (activeFolderPath) {
+                                      const segments = activeFolderPath.split('/');
+                                      let built = '';
+                                      for (const seg of segments) {
+                                        built = built ? `${built}/${seg}` : seg;
+                                        const found = allFolders.find(f => f.path === built);
+                                        breadcrumbs.push({ label: found?.name || seg, path: built });
+                                      }
+                                    }
+
+                                    return (
                                   <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 
                                     {/* Upload toolbar */}
@@ -1810,6 +1977,35 @@ export default function BrandOrders() {
                                               ) : (
                                                 <>
                                                   {categories.map(cat => (
+                                                    renamingCat === cat ? (
+                                                      <span key={cat} className="inline-flex items-center gap-0.5 text-xs rounded-full border border-blue-400 bg-white dark:bg-zinc-800 px-1 py-0.5">
+                                                        <input
+                                                          autoFocus
+                                                          value={renameCatInput}
+                                                          onChange={e => setRenameCatInput(e.target.value)}
+                                                          onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleRenameCategory(cat, renameCatInput);
+                                                            if (e.key === 'Escape') { setRenamingCat(null); setRenameCatInput(''); }
+                                                          }}
+                                                          className="w-20 text-xs bg-transparent text-zinc-800 dark:text-zinc-200 focus:outline-none"
+                                                        />
+                                                        <button
+                                                          onClick={() => handleRenameCategory(cat, renameCatInput)}
+                                                          disabled={renamingCatLoading}
+                                                          className="p-0.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                                                          title="Save"
+                                                        >
+                                                          {renamingCatLoading ? <Loader2 size={9} className="animate-spin" /> : <Check size={9} />}
+                                                        </button>
+                                                        <button
+                                                          onClick={() => { setRenamingCat(null); setRenameCatInput(''); }}
+                                                          className="p-0.5 text-zinc-400 hover:text-zinc-600"
+                                                          title="Cancel"
+                                                        >
+                                                          <X size={9} />
+                                                        </button>
+                                                      </span>
+                                                    ) : (
                                                     <span key={cat} className={`inline-flex items-center gap-0.5 text-xs rounded-full border font-medium transition-all ${
                                                       selectedCategory === cat
                                                         ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -1817,18 +2013,26 @@ export default function BrandOrders() {
                                                     }`}>
                                                       <button
                                                         onClick={() => setOrderUploadCategory(prev => ({ ...prev, [order._id]: selectedCategory === cat ? '' : cat }))}
-                                                        className="pl-2.5 pr-1 py-0.5"
+                                                        className="pl-2.5 pr-0.5 py-0.5"
                                                       >
                                                         {cat}
                                                       </button>
                                                       <button
+                                                        onClick={() => { setRenamingCat(cat); setRenameCatInput(cat); }}
+                                                        className={`p-0.5 rounded-full transition-colors ${selectedCategory === cat ? 'hover:text-blue-200' : 'hover:text-blue-500 dark:hover:text-blue-400'}`}
+                                                        title={`Rename "${cat}"`}
+                                                      >
+                                                        <Pencil size={9} />
+                                                      </button>
+                                                      <button
                                                         onClick={() => handleDeleteCategory(cat)}
-                                                        className={`pr-1.5 py-0.5 rounded-r-full transition-colors ${selectedCategory === cat ? 'hover:text-red-200' : 'hover:text-red-500 dark:hover:text-red-400'}`}
+                                                        className={`pr-1 py-0.5 rounded-r-full transition-colors ${selectedCategory === cat ? 'hover:text-red-200' : 'hover:text-red-500 dark:hover:text-red-400'}`}
                                                         title={`Delete category "${cat}"`}
                                                       >
                                                         <X size={9} />
                                                       </button>
                                                     </span>
+                                                    )
                                                   ))}
                                                   <button
                                                     onClick={() => { setAddingCatForOrder(order._id); setCatInput(''); }}
@@ -1842,29 +2046,154 @@ export default function BrandOrders() {
                                             </div>
                                             {/* Upload buttons */}
                                             <div className="flex items-center gap-1">
-                                              <label className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer px-2.5 py-1 border border-blue-200 dark:border-blue-800 rounded-lg transition-all">
+                                              {!selectedCategory && (
+                                                <span className="text-xs text-amber-500 dark:text-amber-400 italic">↑ select a category</span>
+                                              )}
+                                              <label className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 border rounded-lg transition-all ${!selectedCategory || !!uploadingFor ? 'opacity-40 cursor-not-allowed text-blue-400 border-blue-200 dark:border-blue-800' : 'text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer border-blue-200 dark:border-blue-800'}`}
+                                                title={!selectedCategory ? 'Select a category first' : 'Upload files'}>
                                                 {uploadingFor === order._id ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
                                                 Files
                                                 <input
                                                   ref={el => { fileInputRefs.current[order._id] = el; }}
-                                                  type="file" multiple className="hidden" disabled={!!uploadingFor}
+                                                  type="file" multiple className="hidden" disabled={!!uploadingFor || !selectedCategory}
                                                   onChange={e => { if (e.target.files?.length) handleUploadDoc(order._id, Array.from(e.target.files).map(f => ({ file: f })), selectedCategory); }} />
                                               </label>
-                                              <label className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer px-2.5 py-1 border border-blue-200 dark:border-blue-800 rounded-lg transition-all">
+                                              <label className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 border rounded-lg transition-all ${!selectedCategory || !!uploadingFor ? 'opacity-40 cursor-not-allowed text-blue-400 border-blue-200 dark:border-blue-800' : 'text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer border-blue-200 dark:border-blue-800'}`}
+                                                title={!selectedCategory ? 'Select a category first' : 'Upload folder'}>
                                                 <FolderOpen size={11} />
                                                 Folder
                                                 <input
                                                   ref={el => { folderInputRefs.current[order._id] = el; }}
-                                                  type="file" className="hidden" disabled={!!uploadingFor}
+                                                  type="file" className="hidden" disabled={!!uploadingFor || !selectedCategory}
                                                   // @ts-expect-error -- webkitdirectory is non-standard
                                                   webkitdirectory=""
                                                   onChange={e => { if (e.target.files?.length) handleUploadDoc(order._id, Array.from(e.target.files).map(f => ({ file: f, relativePath: (f as any).webkitRelativePath || undefined })), selectedCategory); }} />
                                               </label>
+                                              {canEdit && (
+                                                creatingFolderFor === order._id ? (
+                                                  <div className="flex items-center gap-1">
+                                                    <input
+                                                      autoFocus
+                                                      value={newFolderName}
+                                                      onChange={e => setNewFolderName(e.target.value)}
+                                                      onKeyDown={e => {
+                                                        if (e.key === 'Enter') handleCreateFolder(order._id);
+                                                        if (e.key === 'Escape') { setCreatingFolderFor(null); setNewFolderName(''); }
+                                                      }}
+                                                      placeholder="Folder name…"
+                                                      className="w-32 text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                                    />
+                                                    <button
+                                                      onClick={() => handleCreateFolder(order._id)}
+                                                      disabled={savingFolder || !newFolderName.trim()}
+                                                      className="text-xs font-medium px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-40 transition-colors"
+                                                    >
+                                                      {savingFolder ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                                                    </button>
+                                                    <button
+                                                      onClick={() => { setCreatingFolderFor(null); setNewFolderName(''); }}
+                                                      className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg"
+                                                    >
+                                                      <X size={10} />
+                                                    </button>
+                                                  </div>
+                                                ) : (
+                                                  <button
+                                                    onClick={() => { setCreatingFolderFor(order._id); setNewFolderName(''); }}
+                                                    className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-white hover:bg-amber-500 dark:text-amber-400 dark:hover:text-white dark:hover:bg-amber-600 cursor-pointer px-2.5 py-1 border border-amber-200 dark:border-amber-800 rounded-lg transition-all"
+                                                    title="New folder"
+                                                  >
+                                                    <FolderPlus size={11} /> Folder
+                                                  </button>
+                                                )
+                                              )}
                                             </div>
                                           </div>
                                         )}
                                       </div>
                                     </div>
+
+                                    {/* ── Breadcrumb navigation ── */}
+                                    {(activeFolderPath || allFolders.length > 0) && (
+                                      <div className="flex items-center gap-1 px-4 py-2 bg-amber-50/60 dark:bg-amber-950/10 border-b border-amber-100 dark:border-amber-900/30 flex-wrap">
+                                        <Folder size={11} className="text-amber-500 flex-shrink-0" />
+                                        {breadcrumbs.map((crumb, i) => (
+                                          <React.Fragment key={crumb.path}>
+                                            {i > 0 && <span className="text-zinc-300 dark:text-zinc-700 text-xs">/</span>}
+                                            <button
+                                              onClick={() => setCurrentFolderPath(prev => ({ ...prev, [order._id]: crumb.path }))}
+                                              className={`text-xs font-medium transition-colors ${crumb.path === activeFolderPath ? 'text-amber-700 dark:text-amber-300 cursor-default' : 'text-zinc-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400'}`}
+                                            >
+                                              {crumb.label}
+                                            </button>
+                                          </React.Fragment>
+                                        ))}
+                                        {foldersLoading[order._id] && <Loader2 size={11} className="animate-spin text-amber-400 ml-1" />}
+                                      </div>
+                                    )}
+
+                                    {/* ── Sub-folder rows ── */}
+                                    {visibleFolders.length > 0 && (
+                                      <div className="bg-amber-50/30 dark:bg-amber-950/5 border-b border-zinc-100 dark:border-zinc-800/60 divide-y divide-zinc-100 dark:divide-zinc-800/40">
+                                        {visibleFolders.map(folder => (
+                                          <div key={folder.folder_id} className="flex items-center gap-3 px-4 py-2 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors group">
+                                            <Folder size={13} className="text-amber-500 flex-shrink-0" />
+                                            {renamingFolderId === folder.folder_id ? (
+                                              <div className="flex items-center gap-1 flex-1 min-w-0">
+                                                <input
+                                                  autoFocus
+                                                  value={renameFolderName}
+                                                  onChange={e => setRenameFolderName(e.target.value)}
+                                                  onKeyDown={e => {
+                                                    if (e.key === 'Enter') handleRenameFolder(order._id, folder.folder_id);
+                                                    if (e.key === 'Escape') { setRenamingFolderId(null); setRenameFolderName(''); }
+                                                  }}
+                                                  className="flex-1 min-w-0 text-xs px-2 py-0.5 bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                                />
+                                                <button onClick={() => handleRenameFolder(order._id, folder.folder_id)} disabled={savingFolder}
+                                                  className="p-1 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded transition-colors">
+                                                  {savingFolder ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                                                </button>
+                                                <button onClick={() => { setRenamingFolderId(null); setRenameFolderName(''); }}
+                                                  className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded transition-colors">
+                                                  <X size={11} />
+                                                </button>
+                                              </div>
+                                            ) : (
+                                              <>
+                                                <button
+                                                  onClick={() => setCurrentFolderPath(prev => ({ ...prev, [order._id]: folder.path }))}
+                                                  className="flex-1 min-w-0 text-left text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:text-amber-700 dark:hover:text-amber-300 transition-colors truncate"
+                                                >
+                                                  {folder.name}
+                                                </button>
+                                                <span className="text-xs text-zinc-400 flex-shrink-0">
+                                                  {docs.filter(d => (d.folder || '') === folder.path || (d.folder || '').startsWith(folder.path + '/')).length} files
+                                                </span>
+                                              </>
+                                            )}
+                                            {canEdit && renamingFolderId !== folder.folder_id && (
+                                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                <button
+                                                  onClick={() => { setRenamingFolderId(folder.folder_id); setRenameFolderName(folder.name); }}
+                                                  className="p-1.5 text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                                                  title="Rename folder"
+                                                >
+                                                  <Pencil size={11} />
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeleteFolder(order._id, folder.folder_id, folder.name)}
+                                                  className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                  title="Delete folder"
+                                                >
+                                                  <Trash2 size={11} />
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
 
                                     {/* Filter bar */}
                                     {docs.length > 0 && (
@@ -1910,7 +2239,7 @@ export default function BrandOrders() {
                                               onChange={e => { setDocItemFilter(prev => ({ ...prev, [order._id]: e.target.value })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
                                               className="text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[220px]"
                                             >
-                                              <option value="">Other</option>
+                                              <option value="">General</option>
                                               {categories.map(cat => (
                                                 <option key={`__cat__${cat}`} value={`__cat__${cat}`}>{cat}</option>
                                               ))}
@@ -1963,17 +2292,17 @@ export default function BrandOrders() {
                                       <div className="flex flex-col items-center justify-center py-10 text-zinc-400 bg-white dark:bg-zinc-900">
                                         <FileText size={22} className="mb-2 opacity-30" />
                                         <p className="text-sm">No files uploaded yet.</p>
-                                        {canEdit && <p className="text-xs mt-1 text-zinc-400">Use the buttons above to upload files or a folder.</p>}
+                                        {canEdit && <p className="text-xs mt-1 text-zinc-400">Use the buttons above to upload files or create a folder.</p>}
                                       </div>
-                                    ) : filteredDocs.length === 0 ? (
+                                    ) : folderFilteredDocs.length === 0 && visibleFolders.length === 0 ? (
                                       <div className="flex flex-col items-center justify-center py-8 text-zinc-400 bg-white dark:bg-zinc-900">
                                         <Filter size={18} className="mb-2 opacity-30" />
-                                        <p className="text-sm">No files match the current filters.</p>
+                                        <p className="text-sm">{hasActiveFilters ? 'No files match the current filters.' : 'This folder is empty.'}</p>
                                       </div>
-                                    ) : (
+                                    ) : folderFilteredDocs.length > 0 ? (
                                       <>
                                         <div className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                                          {pagedDocs.map(doc => (
+                                          {folderPagedDocs.map(doc => (
                                             <div key={doc.doc_id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors group">
                                               <FileText size={13} className={`flex-shrink-0 ${fileIconColor(doc.content_type, doc.filename)}`} />
                                               <div className="flex-1 min-w-0">
@@ -2020,6 +2349,37 @@ export default function BrandOrders() {
                                                 </p>
                                               </div>
                                               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                {canEdit && allFolders.length > 0 && (
+                                                  <div className="relative">
+                                                    {movingDocId === doc.doc_id ? (
+                                                      <div className="flex items-center gap-1">
+                                                        <select
+                                                          autoFocus
+                                                          defaultValue={doc.folder || ''}
+                                                          onChange={e => handleMoveDoc(order._id, doc.doc_id, e.target.value)}
+                                                          onBlur={() => setMovingDocId(null)}
+                                                          className="text-xs px-1.5 py-0.5 border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 rounded-lg text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                                        >
+                                                          <option value="">Root</option>
+                                                          {allFolders.map(f => (
+                                                            <option key={f.folder_id} value={f.path}>{f.path.split('/').join(' / ')}</option>
+                                                          ))}
+                                                        </select>
+                                                        <button onClick={() => setMovingDocId(null)} className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded">
+                                                          <X size={10} />
+                                                        </button>
+                                                      </div>
+                                                    ) : (
+                                                      <button
+                                                        onClick={() => setMovingDocId(doc.doc_id)}
+                                                        className="p-1.5 text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                                                        title="Move to folder"
+                                                      >
+                                                        <Folder size={12} />
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                )}
                                                 <button onClick={() => handleViewDoc(order._id, doc.doc_id)} disabled={viewingDoc === doc.doc_id}
                                                   className="p-1.5 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title="View">
                                                   {viewingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
@@ -2039,23 +2399,23 @@ export default function BrandOrders() {
                                           ))}
                                         </div>
                                         {/* Pagination */}
-                                        {totalPages > 1 && (
+                                        {folderTotalPages > 1 && (
                                           <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
                                             <span className="text-xs text-zinc-400 tabular-nums">
-                                              {page * DOCS_PER_PAGE + 1}–{Math.min((page + 1) * DOCS_PER_PAGE, filteredDocs.length)} of {filteredDocs.length}
+                                              {folderPage * DOCS_PER_PAGE + 1}–{Math.min((folderPage + 1) * DOCS_PER_PAGE, folderFilteredDocs.length)} of {folderFilteredDocs.length}
                                             </span>
                                             <div className="flex items-center gap-1">
-                                              <button onClick={() => setDocPage(prev => ({ ...prev, [order._id]: page - 1 }))} disabled={page === 0}
+                                              <button onClick={() => setDocPage(prev => ({ ...prev, [order._id]: folderPage - 1 }))} disabled={folderPage === 0}
                                                 className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
                                                 <ArrowLeft size={12} />
                                               </button>
-                                              {Array.from({ length: totalPages }, (_, i) => (
+                                              {Array.from({ length: folderTotalPages }, (_, i) => (
                                                 <button key={i} onClick={() => setDocPage(prev => ({ ...prev, [order._id]: i }))}
-                                                  className={`w-6 h-6 text-xs rounded font-medium transition-colors ${i === page ? 'bg-blue-600 text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>
+                                                  className={`w-6 h-6 text-xs rounded font-medium transition-colors ${i === folderPage ? 'bg-blue-600 text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>
                                                   {i + 1}
                                                 </button>
                                               ))}
-                                              <button onClick={() => setDocPage(prev => ({ ...prev, [order._id]: page + 1 }))} disabled={page === totalPages - 1}
+                                              <button onClick={() => setDocPage(prev => ({ ...prev, [order._id]: folderPage + 1 }))} disabled={folderPage === folderTotalPages - 1}
                                                 className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
                                                 <ArrowRight size={12} />
                                               </button>
@@ -2063,8 +2423,10 @@ export default function BrandOrders() {
                                           </div>
                                         )}
                                       </>
-                                    )}
+                                    ) : null}
                                   </div>
+                                    );
+                                  })()}
                                 </div>
                               )}
                             </div>
