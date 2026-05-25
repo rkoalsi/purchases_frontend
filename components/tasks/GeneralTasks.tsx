@@ -10,7 +10,7 @@ import {
   ArrowRight, BarChart2, Search, RefreshCw, Download,
   FileText, Image, Archive, File, Loader2, Flag, Users,
   ChevronDown, ChevronUp, LayoutGrid, List,
-  User, Edit2, Check, Building2,
+  User, Edit2, Check, Building2, Eye,
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -922,6 +922,7 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
   const [submitting, setSubmitting]         = useState(false);
   const [deletingCmt, setDeletingCmt]       = useState<string | null>(null);
   const [deletingAtt, setDeletingAtt]       = useState<string | null>(null);
+  const [downloadingAll, setDownloadingAll] = useState(false);
   const [confirmDel, setConfirmDel]         = useState(false);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
   const assigneesAtPickerOpen = useRef<string[]>([]);
@@ -960,6 +961,40 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
   const handleOpenAtt = async (fileId: string) => {
     try { const { data } = await axios.get(`${API}/tasks/${task._id}/attachments/${fileId}/url`, { headers }); window.open(data.url, '_blank'); }
     catch { toast.error('Could not open file'); }
+  };
+
+  const handleDownloadAtt = async (fileId: string, filename: string) => {
+    try {
+      const { data } = await axios.get(`${API}/tasks/${task._id}/attachments/${fileId}/url`, { headers, params: { download: true } });
+      const a = document.createElement('a');
+      a.href = data.url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch { toast.error('Could not download file'); }
+  };
+
+  const handleDownloadAllAtts = async () => {
+    setDownloadingAll(true);
+    try {
+      const response = await axios.get(`${API}/tasks/${task._id}/attachments/download-all`, {
+        headers,
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const contentDisposition = response.headers['content-disposition'] || '';
+      const match = contentDisposition.match(/filename="?([^"]+)"?/);
+      const filename = match ? match[1] : `task_attachments.zip`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch { toast.error('Could not download attachments'); } finally { setDownloadingAll(false); }
   };
 
   const handleDeleteAtt = async (fileId: string) => {
@@ -1191,7 +1226,19 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
               )}
 
               <div className='px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
-                <p className='text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-3'>Attachments ({task.attachments.length})</p>
+                <div className='flex items-center justify-between mb-3'>
+                  <p className='text-[10px] font-bold text-zinc-400 uppercase tracking-wide'>Attachments ({task.attachments.length})</p>
+                  {task.attachments.length > 1 && (
+                    <button
+                      onClick={handleDownloadAllAtts}
+                      disabled={downloadingAll}
+                      className='flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50'
+                    >
+                      {downloadingAll ? <Loader2 className='w-3 h-3 animate-spin' /> : <Download className='w-3 h-3' />}
+                      Download All
+                    </button>
+                  )}
+                </div>
                 {task.attachments.length > 0 && (
                   <div className='space-y-1.5 mb-3'>
                     {task.attachments.map((att) => {
@@ -1206,7 +1253,18 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
                             <p className='text-[10px] text-zinc-400'>{fmtBytes(att.size)} · {att.uploaded_by_name} · {fmtRelative(att.uploaded_at)}</p>
                           </div>
                           <div className='flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
-                            <button onClick={() => handleOpenAtt(att.file_id)} className='p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600'>
+                            <button
+                              onClick={() => handleOpenAtt(att.file_id)}
+                              title='View file'
+                              className='p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600'
+                            >
+                              <Eye className='w-3.5 h-3.5' />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadAtt(att.file_id, att.filename)}
+                              title='Download file'
+                              className='p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-zinc-400 hover:text-blue-500'
+                            >
                               <Download className='w-3.5 h-3.5' />
                             </button>
                             <button onClick={() => handleDeleteAtt(att.file_id)} disabled={deletingAtt === att.file_id} className='p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-zinc-400 hover:text-red-500'>
