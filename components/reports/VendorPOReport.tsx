@@ -811,6 +811,7 @@ export default function VendorPOReport() {
   const [shippingAddressId, setShippingAddressId] = useState('');
   const [estimateDate, setEstimateDate] = useState('');
   const [creatingEstimate, setCreatingEstimate] = useState(false);
+  const [inactiveEstimateItems, setInactiveEstimateItems] = useState<string[]>([]);
   const [linkEstimateNumber, setLinkEstimateNumber] = useState('');
   const [linkingEstimate, setLinkingEstimate] = useState(false);
   const [unlinkingEstimate, setUnlinkingEstimate] = useState(false);
@@ -1217,6 +1218,7 @@ export default function VendorPOReport() {
 
   const openCreateEstimateModal = async () => {
     setEstimateDate(new Date().toISOString().slice(0, 10));
+    setInactiveEstimateItems([]);
     setCreateEstimateOpen(true);
     if (etradeAddresses.length === 0) {
       try {
@@ -1232,22 +1234,32 @@ export default function VendorPOReport() {
     }
   };
 
-  const handleCreateEstimate = async () => {
+  const handleCreateEstimate = async (skipInactive = false) => {
     if (!selectedPO || !billingAddressId || !shippingAddressId) return;
     setCreatingEstimate(true);
     try {
-      const { data } = await axios.post<{ estimate_id: string; estimate_number: string; total: number; skipped_items?: string[] }>(
+      const { data } = await axios.post<{ estimate_id: string; estimate_number: string; total: number; skipped_items?: string[]; skipped_inactive?: string[] }>(
         `${API_URL}/vendor_po/${selectedPO}/estimate`,
-        { billing_address_id: billingAddressId, shipping_address_id: shippingAddressId, date: estimateDate || undefined },
+        { billing_address_id: billingAddressId, shipping_address_id: shippingAddressId, date: estimateDate || undefined, skip_inactive: skipInactive },
       );
       toast.success(`Estimate ${data.estimate_number} created`);
       if (data.skipped_items?.length) toast.warn(`Skipped ${data.skipped_items.length} item(s) without Zoho item ID`);
+      if (data.skipped_inactive?.length) toast.warn(`Skipped ${data.skipped_inactive.length} inactive item(s)`);
       setReport(prev => prev ? { ...prev, estimate_number: data.estimate_number, zoho_estimate_id: data.estimate_id } : prev);
       setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, estimate_number: data.estimate_number } : p));
+      setInactiveEstimateItems([]);
       setCreateEstimateOpen(false);
     } catch (err) {
-      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Failed to create estimate';
-      toast.error(msg);
+      if (axios.isAxiosError(err)) {
+        const detail = err.response?.data?.detail;
+        if (detail && typeof detail === 'object' && detail.type === 'inactive_items') {
+          setInactiveEstimateItems(detail.items ?? []);
+          return; // keep modal open, show the list
+        }
+        toast.error(typeof detail === 'string' ? detail : err.message);
+      } else {
+        toast.error('Failed to create estimate');
+      }
     } finally {
       setCreatingEstimate(false);
     }
@@ -2601,22 +2613,48 @@ export default function VendorPOReport() {
                 )}
               </div>
             </div>
+            {inactiveEstimateItems.length > 0 && (
+              <div className="mt-4 rounded-lg border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 p-3">
+                <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-2">
+                  ⚠️ The following products are inactive or deleted in Zoho Books:
+                </p>
+                <ul className="max-h-36 overflow-y-auto space-y-1 mb-2">
+                  {inactiveEstimateItems.map((item, i) => (
+                    <li key={i} className="text-xs text-amber-700 dark:text-amber-400 font-mono truncate">• {item}</li>
+                  ))}
+                </ul>
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  You can skip these items and create the estimate with the remaining active products.
+                </p>
+              </div>
+            )}
             <div className="flex justify-end gap-2 mt-6">
               <button
-                onClick={() => setCreateEstimateOpen(false)}
+                onClick={() => { setCreateEstimateOpen(false); setInactiveEstimateItems([]); }}
                 disabled={creatingEstimate}
                 className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleCreateEstimate}
-                disabled={creatingEstimate || !billingAddressId || !shippingAddressId}
-                className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {creatingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <FileText size={13} />}
-                {creatingEstimate ? 'Creating…' : 'Create Estimate'}
-              </button>
+              {inactiveEstimateItems.length > 0 ? (
+                <button
+                  onClick={() => handleCreateEstimate(true)}
+                  disabled={creatingEstimate || !billingAddressId || !shippingAddressId}
+                  className="px-4 py-2 text-sm rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {creatingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <FileText size={13} />}
+                  {creatingEstimate ? 'Creating…' : `Skip ${inactiveEstimateItems.length} inactive & Create`}
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleCreateEstimate(false)}
+                  disabled={creatingEstimate || !billingAddressId || !shippingAddressId}
+                  className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {creatingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <FileText size={13} />}
+                  {creatingEstimate ? 'Creating…' : 'Create Estimate'}
+                </button>
+              )}
             </div>
           </div>
         </div>
