@@ -17,8 +17,10 @@ import {
   formatNumber,
   formatDate,
 } from '@/components/reports/TableStyles';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Zoho Sales Report');
   const { email, isLoading, accessToken, user } = useAuth();
   const [salesReport, setSalesReport] = useState([]);
   const [loading, setLoading] = useState(false);

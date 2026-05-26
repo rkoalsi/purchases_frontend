@@ -3,8 +3,10 @@
 import { useAuth } from '@/components/context/AuthContext';
 import SalesVSInventoryReport from '@/components/reports/BlinkitSalesVsInventoryReport';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Reports');
   // Consume the auth state from the context
   const { email, isLoading, accessToken, user } = useAuth();
 

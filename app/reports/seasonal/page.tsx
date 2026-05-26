@@ -3,8 +3,10 @@
 import { useAuth } from '@/components/context/AuthContext';
 import SeasonalReport from '@/components/reports/SeasonalReport';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Seasonal Report');
     const { isLoading, accessToken } = useAuth();
 
     if (isLoading) return <p>Loading user data...</p>;

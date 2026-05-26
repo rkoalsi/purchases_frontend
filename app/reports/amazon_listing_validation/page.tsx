@@ -3,8 +3,10 @@
 import { useAuth } from '@/components/context/AuthContext';
 import AmazonListingValidationReport from '@/components/reports/AmazonListingValidationReport';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Amazon Listing Validation');
   const { isLoading, accessToken } = useAuth();
 
   if (isLoading) {

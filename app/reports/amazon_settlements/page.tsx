@@ -3,8 +3,10 @@
 import { useAuth } from '@/components/context/AuthContext';
 import AmazonSettlementsReport from '@/components/reports/AmazonSettlementsReport';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Amazon Settlements');
   const { email, isLoading, accessToken, user } = useAuth();
 
   if (isLoading) {

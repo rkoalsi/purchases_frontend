@@ -14,6 +14,7 @@ import {
   PieChart, Pie, Cell, Tooltip as ReTooltip,
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList,
 } from 'recharts';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -508,6 +509,7 @@ const DATE_PRESETS = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Page() {
+  usePageTitle('Dashboard');
   const { isLoading, accessToken, user } = useAuth();
   const router = useRouter();
 

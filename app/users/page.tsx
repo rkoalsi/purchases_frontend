@@ -23,8 +23,10 @@ import {
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import { useAuth } from '@/components/context/AuthContext';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function UserManagementPage() {
+  usePageTitle('Users');
   const { accessToken, user: currentUser, updateUser } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

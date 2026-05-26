@@ -24,6 +24,7 @@ import {
   ShoppingBag,
   Loader2,
 } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const AmazonIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox='0 0 24 24' fill='currentColor'>
@@ -76,6 +77,7 @@ const GROUP_COLORS: Record<string, { dot: string; badge: string; text: string }>
 };
 
 export default function NoAccessPage() {
+  usePageTitle('No Access');
   const { user, accessToken } = useAuth();
   const [allPermissions, setAllPermissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

@@ -3,9 +3,11 @@
 
 import { useAuth } from '@/components/context/AuthContext';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 // Import the useAuth hook
 
 function Page() {
+  usePageTitle('Analytics');
   // Consume the auth state from the context
   const { isLoading, accessToken, user } = useAuth();
 
