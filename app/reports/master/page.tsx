@@ -3,8 +3,10 @@
 import { useAuth } from '@/components/context/AuthContext';
 import MasterReport from '@/components/reports/MasterReport';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Master Report');
   const { email, isLoading, accessToken, user } = useAuth();
 
   if (isLoading) {

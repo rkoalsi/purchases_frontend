@@ -2,9 +2,11 @@
 import FileUploader from '@/components/common/FileUploader';
 import React, { useRef, useState } from 'react';
 import { toast } from 'react-toastify';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 // Main Page Component
 const Page = () => {
+  usePageTitle('PI vs CL');
   const [data, setData] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);

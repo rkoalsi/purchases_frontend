@@ -13,8 +13,10 @@ import {
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import capitalize from '@/util/capitalize';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 export default function Workflows() {
+  usePageTitle('Workflows');
   const [workflows, setWorkflows] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm]: any = useState({});

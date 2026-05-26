@@ -2,8 +2,10 @@
 
 import { useAuth } from '@/components/context/AuthContext';
 import SellerFlexReturnsReport from '@/components/reports/SellerFlexReturnsReport';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Amazon Seller Flex Returns');
   const { isLoading, accessToken } = useAuth();
 
   if (isLoading) return <p>Loading user data...</p>;

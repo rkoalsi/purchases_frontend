@@ -3,8 +3,10 @@
 import { useAuth } from '@/components/context/AuthContext';
 import AmazonFBAPlanning from '@/components/reports/AmazonFBAPlanning';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Amazon FBA Planning');
   const { isLoading, accessToken } = useAuth();
 
   if (isLoading) return <p>Loading user data...</p>;

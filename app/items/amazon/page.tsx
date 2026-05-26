@@ -5,6 +5,7 @@ import axios from 'axios';
 import { RefreshCw, Package, Search, ChevronLeft, ChevronRight, Edit2, Check, X, Upload, Info, Download } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/components/context/AuthContext';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL}/amazon`;
 const MARGINS_API = `${process.env.NEXT_PUBLIC_API_URL}/vendor_po/margins`;
@@ -153,6 +154,7 @@ const ToggleCell: React.FC<{
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AmazonSkuMappingPage() {
+  usePageTitle('Amazon Items');
   const { accessToken } = useAuth();
   const [skuData, setSkuData] = useState<SkuItem[]>([]);
   const [loading, setLoading] = useState(true);

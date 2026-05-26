@@ -2,8 +2,10 @@
 
 import { useAuth } from '@/components/context/AuthContext';
 import VendorCentralReturnsReport from '@/components/reports/VendorCentralReturnsReport';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Amazon VC Returns');
   const { isLoading, accessToken } = useAuth();
 
   if (isLoading) return <p>Loading user data...</p>;

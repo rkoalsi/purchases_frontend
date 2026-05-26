@@ -3,8 +3,10 @@
 import { useAuth } from '@/components/context/AuthContext';
 import EtradeShipmentSummary from '@/components/reports/EtradeShipmentSummary';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Etrade Shipment Summary');
   const { isLoading, accessToken } = useAuth();
 
   if (isLoading) return <p>Loading user data...</p>;

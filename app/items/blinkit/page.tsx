@@ -5,6 +5,7 @@ import BlinkitItemsTable from '@/components/inventory/BlinkitItemsTable';
 import axios from 'axios';
 import { Zap } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 async function buildSkuBrandMap(token: string): Promise<Map<string, string>> {
   const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/sku-brand-map`, {
@@ -14,6 +15,7 @@ async function buildSkuBrandMap(token: string): Promise<Map<string, string>> {
 }
 
 export default function BlinkitItemsPage() {
+  usePageTitle('Blinkit Items');
   const { isLoading, accessToken } = useAuth();
   const [brands, setBrands] = useState<{ value: string; label: string }[]>([]);
   const [brand, setBrand] = useState('');

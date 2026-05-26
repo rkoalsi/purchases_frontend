@@ -10,6 +10,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import axios from "axios";
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const REPORT_TABS = [
   { id: "sales_by_customer", label: "Sales by Customer", icon: FileSpreadsheet },
@@ -19,6 +20,7 @@ const REPORT_TABS = [
 type TabId = (typeof REPORT_TABS)[number]["id"];
 
 const InvoiceReportGenerator = () => {
+  usePageTitle('Sales by Customer');
   const [activeTab, setActiveTab] = useState<TabId>("sales_by_customer");
 
   const [formData, setFormData] = useState({

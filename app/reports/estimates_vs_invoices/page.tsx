@@ -13,6 +13,7 @@ import {
     AlertCircle
 } from 'lucide-react';
 import DateRange from '@/components/reports/DateRange';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 interface EstimateVsInvoiceItem {
     item_id: string;
@@ -38,6 +39,7 @@ interface ReportMeta {
 }
 
 function EstimatesVsInvoicesPage() {
+  usePageTitle('Estimates vs Invoices');
     const { isLoading, accessToken } = useAuth();
     const [data, setData] = useState<EstimateVsInvoiceItem[]>([]);
     const [meta, setMeta] = useState<ReportMeta | null>(null);

@@ -7,6 +7,7 @@ import {
   ChevronLeft, ChevronRight, BookOpen, Search, RefreshCw,
   ArrowDownUp, X, ZoomIn, Video, ExternalLink, Package,
 } from 'lucide-react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/zoho`;
 const PAGE_SIZE = 10;
@@ -664,6 +665,7 @@ function ProductDetailDrawer({
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ZohoItemsPage() {
+  usePageTitle('Zoho Items');
   const { isLoading, accessToken } = useAuth();
   const [tab, setTab] = useState<Tab>('products');
 

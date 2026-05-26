@@ -3,8 +3,10 @@
 import { useAuth } from '@/components/context/AuthContext';
 import AmazonSalesVSInventoryReport from '@/components/reports/AmazonSalesVsInventoryReport';
 import React from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 function Page() {
+  usePageTitle('Amazon Sales Report');
   const { email, isLoading, accessToken, user } = useAuth();
 
   if (isLoading) {
