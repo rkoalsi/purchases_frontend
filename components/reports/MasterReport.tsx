@@ -512,13 +512,17 @@ Seasonal mismatch   — lookback period is in a different calendar quarter than 
   (appended to other labels with ' · ' when combined)`
                                 }
                             />
-                            <ColRow name="Order Qty + Extra Qty" desc="Order Qty plus units to recover missed sales" formula="= Order Qty + Extra Qty (0 for inactive items)" />
+                            <ColRow name="Order Qty + Extra Qty" desc="Order Qty plus missed-sales recovery units. 0 for inactive or EXCESS items." />
                             <ColRow name="CBM" desc="Cubic metres per case (from product master)" />
                             <ColRow name="Case Pack" desc="Units per carton (from product master)" />
                             <ColRow
                                 name="Order Qty + Extra Qty (Rounded)"
-                                desc="Final order quantity, rounded down to the nearest full carton"
-                                formula="= FLOOR(Order Qty + Extra Qty, Case Pack)"
+                                desc="Final order quantity. EXCESS → 0. ORDER with a result of 0 → bumped to 1 case pack (minimum meaningful order)."
+                                formula={
+`EXCESS  → 0
+ORDER, FLOOR result > 0  → FLOOR(Order Qty + Extra Qty, Case Pack)
+ORDER, FLOOR result = 0  → Case Pack  (1 case pack minimum)`
+                                }
                             />
                             <ColRow name="Total CBM" desc="Volume of the full order" formula="= (Rounded Qty ÷ Case Pack) × CBM" />
                             <ColRow name="Days Current Order Lasts" desc="How long the order alone will last at the current DRR" formula="= Rounded Qty ÷ DRR" />
