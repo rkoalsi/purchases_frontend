@@ -537,10 +537,12 @@ const InvoiceReportGenerator = () => {
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <h3 className="font-medium text-blue-900 dark:text-blue-200 mb-2">Report Information</h3>
                 <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                  <li>• BWS: Brand-wise sales with transfer order and pure sales breakdown</li>
-                  <li>• BWC: Brand-wise sales by product category</li>
-                  <li>• BWSC: Brand-wise sales by product sub-category</li>
-                  <li>• P&L charges (Other Charges, Shipping, Post Supply Discount) are auto-fetched from Zoho Books</li>
+                  <li>• <strong>BWS:</strong> Brand-wise sales with transfer order and pure sales breakdown</li>
+                  <li>• <strong>BWC:</strong> Brand-wise sales by product category</li>
+                  <li>• <strong>BWSC:</strong> Brand-wise sales by product sub-category</li>
+                  <li>• <strong>Summary:</strong> Month-over-month pure sales growth per brand (₹ &amp; %) with colour coding</li>
+                  <li>• Each sheet includes the selected month <em>and</em> the previous calendar month side-by-side for easy comparison</li>
+                  <li>• P&amp;L charges (Other Charges, Shipping, Post Supply Discount) are auto-fetched from Zoho Books for both months</li>
                 </ul>
               </div>
             </div>
