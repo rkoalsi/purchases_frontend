@@ -264,8 +264,9 @@ const ReceivedQtyCell: React.FC<{
   poNumber: string;
   asin: string;
   value: number | null;
+  editable: boolean;
   onSaved: (asin: string, qty: number) => void;
-}> = ({ poNumber, asin, value, onSaved }) => {
+}> = ({ poNumber, asin, value, editable, onSaved }) => {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(value != null ? String(value) : '0');
   const [saving, setSaving] = useState(false);
@@ -290,12 +291,14 @@ const ReceivedQtyCell: React.FC<{
     return (
       <div className="flex items-center gap-1 group justify-center">
         <span className="text-sm text-zinc-900 dark:text-zinc-100">{value ?? '—'}</span>
-        <button
-          onClick={() => { setVal(String(value ?? 0)); setEditing(true); }}
-          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
-        >
-          <Edit2 size={12} />
-        </button>
+        {editable && (
+          <button
+            onClick={() => { setVal(String(value ?? 0)); setEditing(true); }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+          >
+            <Edit2 size={12} />
+          </button>
+        )}
       </div>
     );
   }
@@ -322,8 +325,9 @@ const ReceivedQtyCell: React.FC<{
 const POListReceivedQtyCell: React.FC<{
   poNumber: string;
   value: number;
+  editable: boolean;
   onSaved: (poNumber: string, qty: number) => void;
-}> = ({ poNumber, value, onSaved }) => {
+}> = ({ poNumber, value, editable, onSaved }) => {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(String(value));
   const [saving, setSaving] = useState(false);
@@ -348,12 +352,14 @@ const POListReceivedQtyCell: React.FC<{
     return (
       <div className="flex items-center gap-1 group justify-center">
         <span className="text-sm text-zinc-600 dark:text-zinc-400">{value || '—'}</span>
-        <button
-          onClick={() => { setVal(String(value ?? 0)); setEditing(true); }}
-          className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
-        >
-          <Edit2 size={12} />
-        </button>
+        {editable && (
+          <button
+            onClick={() => { setVal(String(value ?? 0)); setEditing(true); }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 text-zinc-400 hover:text-blue-600 transition-opacity"
+          >
+            <Edit2 size={12} />
+          </button>
+        )}
       </div>
     );
   }
@@ -1168,14 +1174,14 @@ export default function VendorPOReport() {
   const handleReceivedQtySaved = useCallback((asin: string, qty: number) => {
     setReport(prev => {
       if (!prev) return prev;
-      return { ...prev, items: prev.items.map(it => it.asin === asin ? { ...it, received_qty: qty } : it) };
+      const updatedItems = prev.items.map(it => it.asin === asin ? { ...it, received_qty: qty } : it);
+      const totalReceived = updatedItems.reduce((sum, it) => sum + (it.received_qty ?? 0), 0);
+      setPoList(pList => pList.map(po =>
+        po.po_number === prev.po_number ? { ...po, total_received_qty: totalReceived } : po
+      ));
+      return { ...prev, items: updatedItems };
     });
-    setPoList(prev => prev.map(po => {
-      if (po.po_number !== report?.po_number) return po;
-      const delta = qty - (report?.items.find(it => it.asin === asin)?.received_qty ?? 0);
-      return { ...po, total_received_qty: (po.total_received_qty ?? 0) + delta };
-    }));
-  }, [report]);
+  }, []);
 
   const handlePOReceivedQtySaved = useCallback((poNumber: string, qty: number) => {
     setPoList(prev => prev.map(po => po.po_number === poNumber ? { ...po, total_received_qty: qty } : po));
@@ -1669,7 +1675,12 @@ export default function VendorPOReport() {
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_supply_qty)}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_accepted_qty)}</span></td>
                         <td className={TABLE_CLASSES.td}>
-                          <POListReceivedQtyCell poNumber={po.po_number} value={po.total_received_qty} onSaved={handlePOReceivedQtySaved} />
+                          <POListReceivedQtyCell
+                            poNumber={po.po_number}
+                            value={po.total_received_qty}
+                            editable={po.po_status === 'delivered' || po.po_status === 'completed'}
+                            onSaved={handlePOReceivedQtySaved}
+                          />
                         </td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.total_cost != null ? `₹${fmt(po.total_cost)}` : '—'}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.total_cost_gst != null ? `₹${fmt(po.total_cost_gst)}` : '—'}</span></td>
@@ -2461,7 +2472,13 @@ export default function VendorPOReport() {
                           <AcceptedQtyCell poNumber={report.po_number} asin={item.asin} value={item.accepted_qty} onSaved={handleAcceptedQtySaved} />
                         </td>
                         <td className="px-3 py-2">
-                          <ReceivedQtyCell poNumber={report.po_number} asin={item.asin} value={item.received_qty} onSaved={handleReceivedQtySaved} />
+                          <ReceivedQtyCell
+                            poNumber={report.po_number}
+                            asin={item.asin}
+                            value={item.received_qty}
+                            editable={report.po_status === 'delivered' || report.po_status === 'completed'}
+                            onSaved={handleReceivedQtySaved}
+                          />
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">₹{fmt(item.zoho_mrp, 0)}</td>
                         <td className="px-3 py-2">
