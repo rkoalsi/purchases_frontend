@@ -361,6 +361,18 @@ export default function MasterReport() {
                                 </span>
                             </div>
                         </div>
+                        <p className="font-semibold text-gray-700 dark:text-gray-300 mt-4 mb-2">
+                            Cell Highlights
+                        </p>
+                        <div className="space-y-2.5">
+                            {/* Negative WH stock */}
+                            <div className="flex items-start gap-3">
+                                <span className="mt-0.5 shrink-0 w-4 h-4 rounded border border-gray-300 dark:border-gray-600" style={{ backgroundColor: '#FF4500' }} />
+                                <span className="text-gray-700 dark:text-gray-300">
+                                    <span className="font-medium">Orange-red cell</span> — The <span className="font-medium">Pupscribe WH Stock (latest)</span> value is <span className="font-medium">negative</span>. This usually indicates that orders have been placed for the item but available stock isn't present (e.g. returns or adjustments posted without a matching receipt). Verify stock levels before placing an order.
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Download button */}
