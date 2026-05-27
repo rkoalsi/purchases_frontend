@@ -10,10 +10,27 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+const STATUS_STYLES: Record<string, string> = {
+  Active: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+  Inactive: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400',
+  'Discontinued on Amazon': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+};
+
+const StatusBadge: React.FC<{ value: string | null | undefined }> = ({ value }) => (
+  <span
+    className={`px-2 py-0.5 rounded text-xs font-medium ${
+      value ? STATUS_STYLES[value] ?? STATUS_STYLES['Inactive'] : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500'
+    }`}
+  >
+    {value ?? 'Not set'}
+  </span>
+);
+
 interface PlanningRow {
   asin: string;
   sku_code: string;
   fnsku: string;
+  amazon_status?: string | null;
   item_name: string;
   mrp: number;
   sp: number;
@@ -30,6 +47,7 @@ interface PlanningRow {
   final_units_to_send: number;
   zoho_stock: number;
   status: string;
+  purchase_status: string;
   platform: string;
   current_inventory_etrade: number;
   open_po: number;
@@ -328,14 +346,14 @@ export default function AmazonFBAPlanning() {
               <thead className={TABLE_CLASSES.thead}>
                 <tr>
                   {[
-                    'ASIN', 'SKU Code', 'Item Name', 'MRP', 'SP',
+                    'ASIN', 'FNSKU', 'Amazon Status', 'SKU Code', 'Item Name', 'MRP', 'SP',
                     meta.fba_inv_date ? `FBA Inv (${meta.fba_inv_date})` : 'FBA Inv',
                     'Open Shipment ✎', 'Total Inv',
                     meta.drr_period ? `DRR (${meta.drr_period})` : 'DRR',
                     'Net Days', 'Lead Time ✎', 'Cover Days ✎', 'Target Days', 'Target Stock',
                     'Final Units ✎',
                     meta.zoho_date ? `Zoho Stock (${meta.zoho_date})` : 'Zoho Stock',
-                    'Status', 'Platform',
+                    'Purchase Status', 'Platform',
                     meta.etrade_date ? `Etrade Inv (${meta.etrade_date})` : 'Etrade Inv',
                     'Open PO', 'Total Qty',
                     ...monthLabels,
@@ -350,6 +368,14 @@ export default function AmazonFBAPlanning() {
                 {paginated.map(row => (
                   <tr key={row.asin} className={TABLE_CLASSES.tr}>
                     <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-600 dark:text-zinc-400'>{row.asin}</span></td>
+                    <td className={TABLE_CLASSES.td}>
+                      <span className='text-xs font-mono text-zinc-500 dark:text-zinc-400'>
+                        {row.fnsku || <span className='text-zinc-300 dark:text-zinc-600'>—</span>}
+                      </span>
+                    </td>
+                    <td className={TABLE_CLASSES.td}>
+                      <StatusBadge value={row.amazon_status} />
+                    </td>
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.sku_code}</span></td>
                     <td className={TABLE_CLASSES.td} style={{ minWidth: 180, maxWidth: 260 }}>
                       <span className='text-sm text-zinc-900 dark:text-zinc-100' style={{ whiteSpace: 'normal', lineHeight: '1.3' }} title={row.item_name}>{row.item_name || '—'}</span>
@@ -429,9 +455,7 @@ export default function AmazonFBAPlanning() {
 
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.zoho_stock.toLocaleString()}</span></td>
                     <td className={TABLE_CLASSES.td}>
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${row.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
-                        {row.status || '—'}
-                      </span>
+                      <span className={TABLE_CLASSES.tdText}>{row.purchase_status || '—'}</span>
                     </td>
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.platform || '—'}</span></td>
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.current_inventory_etrade.toLocaleString()}</span></td>

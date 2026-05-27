@@ -18,12 +18,17 @@ async function buildSkuBrandMap(token: string): Promise<Map<string, string>> {
   return new Map<string, string>(Object.entries(res.data));
 }
 
+const AMAZON_STATUSES = ['Active', 'Inactive', 'Discontinued on Amazon'] as const;
+type AmazonStatus = (typeof AMAZON_STATUSES)[number];
+
 type SkuItem = {
   _id: string;
   item_id: string;
   sku_code: string;
   item_name: string;
   seller_sku?: string;
+  fnsku?: string | null;
+  amazon_status?: AmazonStatus | null;
 };
 
 type MarginData = {
@@ -43,7 +48,72 @@ type SyncResult = {
   total_sp_listings: number;
 };
 
-// ─── Inline edit cell ─────────────────────────────────────────────────────────
+// ─── Inline text edit cell ────────────────────────────────────────────────────
+
+const TextEditableCell: React.FC<{
+  value: string | null | undefined;
+  onSave: (val: string) => Promise<void>;
+  placeholder?: string;
+  mono?: boolean;
+}> = ({ value, onSave, placeholder = 'Not set', mono = false }) => {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () => {
+    setVal(value ?? '');
+    setEditing(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onSave(val.trim());
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1 group">
+        {value
+          ? <span className={`text-sm ${mono ? 'font-mono text-gray-600 dark:text-zinc-300' : 'text-gray-800 dark:text-zinc-200'}`}>{value}</span>
+          : <span className="text-gray-300 dark:text-zinc-600 text-sm">—</span>
+        }
+        <button
+          onClick={startEdit}
+          className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-blue-600 transition-opacity"
+        >
+          <Edit2 size={11} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        autoFocus
+        type="text"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        className="w-28 px-1.5 py-0.5 text-sm border border-blue-500 rounded bg-white dark:bg-zinc-800 text-gray-900 dark:text-zinc-100 font-mono"
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+        placeholder={placeholder}
+      />
+      <button onClick={save} disabled={saving} className="p-0.5 text-green-600 hover:text-green-700">
+        <Check size={12} />
+      </button>
+      <button onClick={() => setEditing(false)} className="p-0.5 text-red-500 hover:text-red-600">
+        <X size={12} />
+      </button>
+    </div>
+  );
+};
+
+// ─── Inline numeric edit cell ─────────────────────────────────────────────────
 
 const EditableCell: React.FC<{
   value: number | null | undefined;
@@ -148,6 +218,68 @@ const ToggleCell: React.FC<{
     >
       {saving ? '…' : value ? 'Yes' : 'No'}
     </button>
+  );
+};
+
+// ─── Amazon status dropdown ───────────────────────────────────────────────────
+
+const STATUS_STYLES: Record<string, string> = {
+  Active: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+  Inactive: 'bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400',
+  'Discontinued on Amazon': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
+};
+
+const StatusDropdown: React.FC<{
+  value: AmazonStatus | null | undefined;
+  onSave: (val: AmazonStatus) => Promise<void>;
+}> = ({ value, onSave }) => {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const select = async (s: AmazonStatus) => {
+    setOpen(false);
+    if (s === value) return;
+    setSaving(true);
+    try { await onSave(s); } finally { setSaving(false); }
+  };
+
+  return (
+    <div className='relative' ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={saving}
+        className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
+          value ? STATUS_STYLES[value] ?? STATUS_STYLES['Inactive'] : 'bg-gray-100 dark:bg-zinc-800 text-gray-400 dark:text-zinc-500'
+        } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        {saving ? '…' : (value ?? 'Not set')}
+      </button>
+      {open && (
+        <div className='absolute left-0 top-full mt-1 z-20 w-48 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg py-1'>
+          {AMAZON_STATUSES.map((s) => (
+            <button
+              key={s}
+              onClick={() => select(s)}
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors ${
+                s === value ? 'font-semibold' : ''
+              }`}
+            >
+              <span className={`inline-block px-1.5 py-0.5 rounded ${STATUS_STYLES[s]}`}>{s}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -317,6 +449,22 @@ export default function AmazonSkuMappingPage() {
     toast.success('Etrade DF updated');
   };
 
+  const saveAmazonStatus = async (asin: string, val: AmazonStatus) => {
+    await axios.put(`${API_BASE}/sku-mapping/${asin}/status?amazon_status=${encodeURIComponent(val)}`);
+    setSkuData((prev) =>
+      prev.map((item) => (item.item_id === asin ? { ...item, amazon_status: val } : item))
+    );
+    toast.success('Amazon status updated');
+  };
+
+  const saveFnsku = async (asin: string, val: string) => {
+    await axios.put(`${API_BASE}/sku-mapping/${asin}/fnsku?fnsku=${encodeURIComponent(val)}`);
+    setSkuData((prev) =>
+      prev.map((item) => (item.item_id === asin ? { ...item, fnsku: val || null } : item))
+    );
+    toast.success('FNSKU updated');
+  };
+
   const handleTemplateDownload = async () => {
     try {
       const res = await axios.get(`${API_BASE}/download-etrade-margins-template`, {
@@ -325,7 +473,7 @@ export default function AmazonSkuMappingPage() {
       const url = URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'etrade_margins_template.xlsx';
+      a.download = 'amazon_items_template.xlsx';
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -388,7 +536,7 @@ export default function AmazonSkuMappingPage() {
                 className='flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium text-sm transition-colors'
               >
                 <Upload className={`w-4 h-4 ${uploading ? 'animate-pulse' : ''}`} />
-                {uploading ? 'Uploading…' : 'Upload eTrade Margins'}
+                {uploading ? 'Uploading…' : 'Upload Amazon Items'}
               </button>
               <button
                 onClick={() => setShowEtradeFormat((v) => !v)}
@@ -399,31 +547,26 @@ export default function AmazonSkuMappingPage() {
               </button>
             </div>
             {showEtradeFormat && (
-              <div className='absolute right-0 top-full mt-1 z-10 w-80 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg p-3 text-xs text-gray-700 dark:text-zinc-300'>
-                <p className='font-semibold mb-2'>Expected Excel format</p>
-                <table className='w-full border-collapse'>
-                  <thead>
-                    <tr className='bg-gray-50 dark:bg-zinc-700'>
-                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>ASIN</th>
-                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>ASP</th>
-                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>New Margin</th>
-                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>Cost Price w/o Tax</th>
-                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>Etrade PO</th>
-                      <th className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-left font-mono'>Etrade DF</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>B01ABC123</td>
-                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>499.00</td>
-                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>0.25</td>
-                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>320.00</td>
-                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>Yes/No</td>
-                      <td className='border border-gray-200 dark:border-zinc-600 px-2 py-1 text-gray-400'>Yes/No</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <p className='mt-2 text-gray-400 dark:text-zinc-500'>Upserts by ASIN. Blank cells are skipped.</p>
+              <div className='absolute right-0 top-full mt-1 z-10 w-72 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg p-3 text-xs text-gray-700 dark:text-zinc-300'>
+                <p className='font-semibold mb-2'>Expected Excel columns</p>
+                <ul className='space-y-1 mb-2'>
+                  {[
+                    { col: 'ASIN', note: 'required' },
+                    { col: 'FNSKU', note: '' },
+                    { col: 'Amazon Status', note: 'Active / Inactive / Discontinued on Amazon' },
+                    { col: 'ASP', note: '' },
+                    { col: 'New Margin', note: 'e.g. 0.25 = 25%' },
+                    { col: 'Cost Price w/o Tax', note: '' },
+                    { col: 'Etrade PO', note: 'Yes / No' },
+                    { col: 'Etrade DF', note: 'Yes / No' },
+                  ].map(({ col, note }) => (
+                    <li key={col} className='flex items-baseline gap-1.5'>
+                      <span className='font-mono text-gray-800 dark:text-zinc-200 shrink-0'>{col}</span>
+                      {note && <span className='text-gray-400 dark:text-zinc-500'>{note}</span>}
+                    </li>
+                  ))}
+                </ul>
+                <p className='text-gray-400 dark:text-zinc-500'>All columns except ASIN are optional — blank cells are skipped.</p>
                 <button
                   onClick={handleTemplateDownload}
                   className='mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-md text-xs font-medium transition-colors'
@@ -498,6 +641,8 @@ export default function AmazonSkuMappingPage() {
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Item Name</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>SKU Code</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>ASIN</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>FNSKU</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Amazon Status</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Margin %</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Cost Price w/o Tax (₹)</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>eTrade ASP (₹)</th>
@@ -508,7 +653,7 @@ export default function AmazonSkuMappingPage() {
               <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
+                    <td colSpan={11} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
                       {search ? `No results for "${search}"` : 'No items yet'}
                     </td>
                   </tr>
@@ -530,6 +675,19 @@ export default function AmazonSkuMappingPage() {
                       </td>
                       <td className='px-6 py-3.5 font-mono text-xs text-gray-600 dark:text-zinc-300'>
                         {asin}
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <TextEditableCell
+                          value={item.fnsku}
+                          onSave={(v) => saveFnsku(asin, v)}
+                          mono
+                        />
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <StatusDropdown
+                          value={item.amazon_status}
+                          onSave={(v) => saveAmazonStatus(asin, v)}
+                        />
                       </td>
                       <td className='px-6 py-3.5'>
                         <EditableCell
