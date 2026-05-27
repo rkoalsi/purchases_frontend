@@ -909,6 +909,29 @@ function FileDropZone({ taskId, onUploaded, headers, currentUser }: {
   );
 }
 
+// ── Description renderer (linkifies URLs) ────────────────────────────────────
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+
+function DescriptionText({ text }: { text: string }) {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  URL_RE.lastIndex = 0;
+  while ((match = URL_RE.exec(text)) !== null) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    const url = match[0];
+    parts.push(
+      <a key={match.index} href={url} target='_blank' rel='noopener noreferrer'
+        className='text-blue-500 dark:text-blue-400 underline underline-offset-2 hover:text-blue-700 dark:hover:text-blue-300 break-all transition-colors'>
+        {url}
+      </a>
+    );
+    last = match.index + url.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <span>{parts}</span>;
+}
+
 // ── Task Drawer ───────────────────────────────────────────────────────────────
 
 function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, onUpdate, onDelete }: {
@@ -926,7 +949,9 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
   const [confirmDel, setConfirmDel]         = useState(false);
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
   const assigneesAtPickerOpen = useRef<string[]>([]);
-  const [editingDeadline, setEditingDeadline]       = useState(false);
+  const [editingDeadline, setEditingDeadline]             = useState(false);
+  const [editingDescription, setEditingDescription]       = useState(false);
+  const [descDraft, setDescDraft]                         = useState(task.description ?? '');
   const headers                             = { Authorization: `Bearer ${accessToken}` };
 
   const refresh = useCallback(async () => {
@@ -1218,12 +1243,42 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
                 )}
               </div>
 
-              {task.description && (
-                <div className='px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
-                  <p className='text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-2'>Description</p>
-                  <p className='text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed'>{task.description}</p>
+              <div className='px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 overflow-hidden'>
+                <div className='flex items-center justify-between mb-2'>
+                  <p className='text-[10px] font-bold text-zinc-400 uppercase tracking-wide'>Description</p>
+                  {!editingDescription ? (
+                    <button onClick={() => { setDescDraft(task.description ?? ''); setEditingDescription(true); }}
+                      className='flex items-center gap-1 px-2 py-1 text-[10px] font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'>
+                      <Edit2 className='w-2.5 h-2.5' />Edit
+                    </button>
+                  ) : (
+                    <div className='flex items-center gap-1'>
+                      <button onClick={async () => {
+                        try { await patch({ description: descDraft.trim() || null }); setEditingDescription(false); }
+                        catch { toast.error('Failed to update description'); }
+                      }} className='px-2.5 py-1 text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors'>Save</button>
+                      <button onClick={() => setEditingDescription(false)}
+                        className='px-2.5 py-1 text-[10px] font-semibold border border-zinc-200 dark:border-zinc-700 text-zinc-500 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'>Cancel</button>
+                    </div>
+                  )}
                 </div>
-              )}
+                {editingDescription ? (
+                  <textarea
+                    autoFocus
+                    value={descDraft}
+                    onChange={(e) => setDescDraft(e.target.value)}
+                    rows={5}
+                    placeholder='Add context or notes…'
+                    className='w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none leading-relaxed'
+                  />
+                ) : task.description ? (
+                  <p className='text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed break-words min-w-0'>
+                    <DescriptionText text={task.description} />
+                  </p>
+                ) : (
+                  <p className='text-xs text-zinc-400 italic'>No description — click Edit to add one</p>
+                )}
+              </div>
 
               <div className='px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
                 <div className='flex items-center justify-between mb-3'>
