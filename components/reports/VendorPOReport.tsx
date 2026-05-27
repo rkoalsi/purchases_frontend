@@ -49,6 +49,8 @@ interface POListItem {
   assembly_numbers?: string[];
   sales_order_no?: string;
   sales_order_id?: string;
+  estimate_linked_so_number?: string;
+  estimate_linked_so_status?: string;
 }
 
 interface POItem {
@@ -123,6 +125,13 @@ interface POReport {
   so_number?: string;
   sales_order_no?: string;
   sales_order_id?: string;
+  estimate_linked_so?: {
+    salesorder_id: string;
+    salesorder_number: string;
+    order_status: string;
+    date: string | null;
+    total: number | null;
+  } | null;
   items: POItem[];
 }
 
@@ -1709,18 +1718,51 @@ export default function VendorPOReport() {
                             <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono whitespace-nowrap">
                               {po.estimate_number}
                             </span>
+                          ) : ['pending', 'processing'].includes(po.po_status) ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => { setSelectedPO(po.po_number); setEstimateDate(new Date().toISOString().slice(0, 10)); setInactiveEstimateItems([]); setCreateEstimateOpen(true); }}
+                                title="Create estimate"
+                                className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors whitespace-nowrap"
+                              >
+                                + Create
+                              </button>
+                              <button
+                                onClick={() => { setSelectedPO(po.po_number); setLinkEstimateOpen(true); setLinkEstimateNumber(''); }}
+                                title="Link existing estimate"
+                                className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+                              >
+                                Link
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-xs text-zinc-400">—</span>
                           )}
                         </td>
                         <td className={TABLE_CLASSES.td}>
-                          {po.sales_order_no ? (
-                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-mono whitespace-nowrap">
-                              {po.sales_order_no}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-zinc-400">—</span>
-                          )}
+                          {(() => {
+                            const soNum = po.estimate_linked_so_number || po.sales_order_no;
+                            const isPendingOrProcessing = ['pending', 'processing'].includes(po.po_status);
+                            if (soNum) {
+                              return (
+                                <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-mono whitespace-nowrap">
+                                  {soNum}
+                                </span>
+                              );
+                            }
+                            if (isPendingOrProcessing) {
+                              return (
+                                <button
+                                  onClick={() => { setSelectedPO(po.po_number); setLinkSOOpen(true); setLinkSONumber(''); setSOSearchResults([]); }}
+                                  title="Link sales order"
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+                                >
+                                  Link SO
+                                </button>
+                              );
+                            }
+                            return <span className="text-xs text-zinc-400">—</span>;
+                          })()}
                         </td>
                         <td className={TABLE_CLASSES.td}>
                           {po.so_packages === undefined || po.so_packages === null ? (
@@ -2061,22 +2103,32 @@ export default function VendorPOReport() {
                   </button>
                 </>
               ))}
+              {report?.estimate_linked_so && (
+                <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-mono">
+                  {report.estimate_linked_so.salesorder_number}
+                </span>
+              )}
               {report && (() => {
                 const currentPO = poList.find(p => p.po_number === selectedPO);
+                // If estimate already has a linked SO (auto-derived), hide manual SO link UI entirely
+                if (report.estimate_linked_so) return null;
+                const isPendingOrProcessing = ['pending', 'processing'].includes(report.po_status);
                 return currentPO?.sales_order_no ? (
                   <div className="flex items-center gap-1.5">
                     <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-mono">
                       {currentPO.sales_order_no}
                     </span>
-                    <button
-                      onClick={() => { setLinkSOOpen(true); setLinkSONumber(currentPO.sales_order_no ?? ''); setSOSearchResults([]); }}
-                      title="Edit sales order"
-                      className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors"
-                    >
-                      <Edit2 size={11} />
-                    </button>
+                    {isPendingOrProcessing && (
+                      <button
+                        onClick={() => { setLinkSOOpen(true); setLinkSONumber(currentPO.sales_order_no ?? ''); setSOSearchResults([]); }}
+                        title="Edit sales order"
+                        className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded transition-colors"
+                      >
+                        <Edit2 size={11} />
+                      </button>
+                    )}
                   </div>
-                ) : (
+                ) : isPendingOrProcessing ? (
                   <button
                     onClick={() => { setLinkSOOpen(true); setLinkSONumber(''); setSOSearchResults([]); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
@@ -2084,7 +2136,7 @@ export default function VendorPOReport() {
                     <Link2 size={13} />
                     Link Sales Order
                   </button>
-                );
+                ) : null;
               })()}
               {report && (() => {
                 const currentPO = poList.find(p => p.po_number === selectedPO);
