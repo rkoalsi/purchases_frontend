@@ -70,6 +70,8 @@ interface POItem {
   cost_price_wo_tax: number | null;
   total_cost: number | null;
   total_cost_gst: number | null;
+  total_cost_fo: number | null;
+  total_cost_fo_gst: number | null;
   total_cost_accepted: number | null;
   total_cost_accepted_gst: number | null;
   total_cost_dispatched: number | null;
@@ -2495,10 +2497,10 @@ export default function VendorPOReport() {
                           {item.cost_price_wo_tax != null ? `₹${fmt(item.cost_price_wo_tax)}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
-                          {item.total_cost != null ? `₹${fmt(item.total_cost)}` : '—'}
+                          {(item.total_cost_fo ?? item.total_cost) != null ? `₹${fmt((item.total_cost_fo ?? item.total_cost)!)}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
-                          {item.total_cost_gst != null ? `₹${fmt(item.total_cost_gst)}` : '—'}
+                          {(item.total_cost_fo_gst ?? item.total_cost_gst) != null ? `₹${fmt((item.total_cost_fo_gst ?? item.total_cost_gst)!)}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
                           {item.total_cost_accepted != null ? `₹${fmt(item.total_cost_accepted)}` : '—'}
