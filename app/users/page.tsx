@@ -463,12 +463,12 @@ export default function UserManagementPage() {
 
         {/* Create User Modal */}
         {showCreateUser && (
-          <div className='fixed inset-0 z-50 flex items-center justify-center'>
+          <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
             <div
               className='absolute inset-0 bg-black/40 backdrop-blur-sm'
               onClick={() => setShowCreateUser(false)}
             />
-            <div className='relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4 p-6'>
+            <div className='relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-4 sm:p-6 max-h-[90vh] overflow-y-auto'>
               <div className='flex items-center justify-between mb-5'>
                 <div className='flex items-center gap-2'>
                   <div className='p-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg'>
@@ -641,12 +641,12 @@ export default function UserManagementPage() {
 
         {/* Create Permission Modal */}
         {showCreatePermission && (
-          <div className='fixed inset-0 z-50 flex items-center justify-center'>
+          <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
             <div
               className='absolute inset-0 bg-black/40 backdrop-blur-sm'
               onClick={() => setShowCreatePermission(false)}
             />
-            <div className='relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md mx-4 p-6'>
+            <div className='relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-4 sm:p-6 max-h-[90vh] overflow-y-auto'>
               <div className='flex items-center justify-between mb-5'>
                 <div className='flex items-center gap-2'>
                   <div className='p-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg'>
@@ -752,12 +752,12 @@ export default function UserManagementPage() {
 
         {/* Delete Confirmation Modal */}
         {deleteConfirmUser && (
-          <div className='fixed inset-0 z-50 flex items-center justify-center'>
+          <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
             <div
               className='absolute inset-0 bg-black/40 backdrop-blur-sm'
               onClick={() => !deletingUser && setDeleteConfirmUser(null)}
             />
-            <div className='relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-sm mx-4 p-6'>
+            <div className='relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-sm p-4 sm:p-6'>
               <div className='flex items-center gap-3 mb-4'>
                 <div className='p-2 bg-red-100 dark:bg-red-900/30 rounded-lg'>
                   <Trash2 className='h-5 w-5 text-red-600 dark:text-red-400' />

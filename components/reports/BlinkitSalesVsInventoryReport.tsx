@@ -681,7 +681,7 @@ const handleUpload = async () => {
       {!loading && reportData.length > 0 && (
         <div className='bg-white rounded-lg shadow-md overflow-hidden dark:bg-zinc-900 dark:border dark:border-zinc-800'>
           {/* Table Header with Search and Filters */}
-          <div className='p-6 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800'>
+          <div className='p-3 sm:p-6 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800'>
             <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4'>
               <div>
                 <h2 className='text-lg font-semibold text-gray-800 dark:text-zinc-100'>

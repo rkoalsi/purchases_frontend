@@ -1681,7 +1681,7 @@ export default function GeneralTasks() {
         </div>
 
         {/* Status pills */}
-        <div className='flex items-center gap-1'>
+        <div className='flex flex-wrap items-center gap-1'>
           {[{ value: '', label: 'All' }, ...STATUSES.map((s) => ({ value: s.value, label: s.label }))].map((s) => (
             <button key={s.value} onClick={() => setActiveStatus(s.value)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition-colors ${

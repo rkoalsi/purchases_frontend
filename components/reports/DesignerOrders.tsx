@@ -756,7 +756,7 @@ export default function DesignerOrders() {
       <div className="max-w-6xl mx-auto px-4 py-6">
 
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-4 mb-6">
           <div>
             <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-center gap-2">
               <Tag size={18} className="text-violet-500" />
@@ -766,8 +766,8 @@ export default function DesignerOrders() {
               Upload design assets and files against purchase orders
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-zinc-500 dark:text-zinc-400">
               <span className="inline-flex items-center gap-1.5">
                 <Package size={12} className="text-violet-400" />
                 {totalOrders} orders

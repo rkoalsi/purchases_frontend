@@ -336,13 +336,13 @@ export default function BlinkitShipmentProcessing() {
             Upload the downloaded Blinkit shipment plan and track shipment progress.
           </p>
         </div>
-        <div className='border-b border-zinc-200 dark:border-zinc-800 px-6'>
+        <div className='border-b border-zinc-200 dark:border-zinc-800 px-3 sm:px-6 overflow-x-auto'>
           <nav className='flex gap-6 -mb-px'>
             {(['processing', 'summary'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
-                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === tab
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'

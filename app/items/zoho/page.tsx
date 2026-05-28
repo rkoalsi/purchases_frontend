@@ -835,7 +835,7 @@ export default function ZohoItemsPage() {
       </div>
 
       {/* Tabs */}
-      <div className='flex gap-1 border-b border-gray-200 dark:border-zinc-800'>
+      <div className='flex gap-1 border-b border-gray-200 dark:border-zinc-800 overflow-x-auto flex-nowrap'>
         {([['products', 'Products', prodTotal], ['composites', 'Composite Items', compTotal]] as const).map(([id, label, count]) => (
           <button
             key={id}

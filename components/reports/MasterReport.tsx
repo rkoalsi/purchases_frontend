@@ -105,7 +105,7 @@ function AccordionSection({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
-            {open && <div className="px-4 pb-4 pt-1 text-sm text-gray-700 dark:text-gray-300">{children}</div>}
+            {open && <div className="px-3 sm:px-4 pb-4 pt-1 text-sm text-gray-700 dark:text-gray-300">{children}</div>}
         </div>
     );
 }
@@ -236,7 +236,7 @@ export default function MasterReport() {
     const hasDraftOrder = !!selectedBrand;
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6">
             <div className="max-w-2xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
@@ -250,7 +250,7 @@ export default function MasterReport() {
                     </p>
                 </div>
 
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 space-y-6">
 
                     {/* Quick presets */}
                     <div>
@@ -276,7 +276,7 @@ export default function MasterReport() {
                     </div>
 
                     {/* Date range */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 Start Date

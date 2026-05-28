@@ -603,16 +603,16 @@ export default function Page() {
 
         {/* ── Header ── */}
         <div className='space-y-3'>
-          <div className='flex items-center justify-between'>
+          <div className='flex flex-wrap items-start justify-between gap-3'>
             <div>
-              <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>
+              <h1 className='text-xl sm:text-2xl font-bold text-gray-900 dark:text-zinc-100'>
                 {greeting()}, {user?.name}!
               </h1>
               <p className='text-sm text-gray-500 dark:text-zinc-400 mt-0.5'>
                 Stock Cover KPI · {startDate} → {endDate}
               </p>
             </div>
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-2 flex-shrink-0'>
               <button
                 onClick={() => fetchData()}
                 disabled={loading}
@@ -626,7 +626,7 @@ export default function Page() {
           </div>
 
           {/* ── Date picker ── */}
-          <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-3 flex flex-wrap items-center gap-3'>
+          <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-3 flex flex-col gap-3'>
             {/* Preset buttons */}
             <div className='flex flex-wrap gap-1.5'>
               {DATE_PRESETS.map((p) => {
@@ -654,19 +654,19 @@ export default function Page() {
             </div>
 
             {/* Manual date inputs */}
-            <div className='flex items-center gap-2 ml-auto'>
+            <div className='flex flex-wrap items-center gap-2'>
               <input
                 type='date'
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className='px-2 py-1 text-sm rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
+                className='flex-1 min-w-[130px] px-2 py-1 text-sm rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
               />
               <span className='text-xs text-gray-400 dark:text-zinc-500'>to</span>
               <input
                 type='date'
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className='px-2 py-1 text-sm rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
+                className='flex-1 min-w-[130px] px-2 py-1 text-sm rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-300'
               />
               <button
                 onClick={() => fetchData()}
@@ -746,12 +746,12 @@ export default function Page() {
         {/* ── Global stock classification summary ── */}
         {gsc && !loading && (
           <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-5'>
-            <div className='flex items-center justify-between mb-3'>
+            <div className='flex flex-wrap items-start justify-between gap-2 mb-3'>
               <h2 className='text-sm font-semibold text-gray-900 dark:text-zinc-100'>
                 Portfolio Stock Classification  ·  {t?.sku_count} SKUs
               </h2>
-              <span className='text-xs text-gray-400 dark:text-zinc-500'>
-                Reorder Risk = &lt;Lead Time · Healthy = 1–1.5× · Heavy = 1.5–2× · Overstock = 2–3× · Dead = &gt;3× or no sales
+              <span className='text-xs text-gray-400 dark:text-zinc-500 max-w-xs sm:max-w-none'>
+                Reorder Risk = &lt;Lead Time · Healthy = 1–1.5× · Heavy = 1.5–2× · Overstock = 2–3× · Dead = &gt;3×
               </span>
             </div>
             <ClassificationBar sc={gsc} />
@@ -773,17 +773,17 @@ export default function Page() {
 
         {/* ── Brand KPI table ── */}
         <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden'>
-          <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between'>
+          <div className='px-3 sm:px-6 py-4 border-b border-gray-200 dark:border-zinc-800 flex flex-wrap items-start justify-between gap-2'>
             <div>
               <h2 className='text-base font-semibold text-gray-900 dark:text-zinc-100'>Stock Cover by Brand</h2>
               <p className='text-xs text-gray-500 dark:text-zinc-400 mt-0.5'>
-                Click a row to see classification breakdown + lowest/highest 10 SKUs &nbsp;·&nbsp;
+                Tap a row to see classification breakdown + lowest/highest 10 SKUs &nbsp;·&nbsp;
                 <span className='text-red-600 font-medium'>Red</span> = &lt;Lead Time &nbsp;·&nbsp;
                 <span className='text-amber-600 font-medium'>Yellow</span> = &lt;Target Days
               </p>
             </div>
             {t && !loading && (
-              <span className='text-xs text-gray-400 dark:text-zinc-500'>
+              <span className='text-xs text-gray-400 dark:text-zinc-500 flex-shrink-0'>
                 {t.brand_count} brands · {t.sku_count} SKUs
               </span>
             )}

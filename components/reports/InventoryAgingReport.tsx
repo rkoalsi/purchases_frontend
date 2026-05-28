@@ -53,13 +53,13 @@ export default function InventoryAgingReport() {
   };
 
   return (
-    <div className="p-6 max-w-xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-1 dark:text-white">Inventory Aging Report</h1>
       <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
         Generates an Excel file comparing slow movers and deadstock across two periods, plus brand-wise collection value.
       </p>
 
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-5 shadow-sm space-y-5">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 sm:p-5 shadow-sm space-y-5">
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             <Calendar className="inline w-4 h-4 mr-1.5 -mt-0.5" />

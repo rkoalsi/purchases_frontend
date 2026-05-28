@@ -261,7 +261,7 @@ function PisModal({
         </div>
 
         {/* Summary tiles */}
-        <div className='grid grid-cols-4 gap-3 px-6 py-4 border-b border-gray-100 dark:border-zinc-800'>
+        <div className='grid grid-cols-2 sm:grid-cols-4 gap-3 px-6 py-4 border-b border-gray-100 dark:border-zinc-800'>
           {[
             { label: 'Total Rows', value: summary.total_rows, color: 'text-gray-700 dark:text-zinc-200', bg: 'bg-gray-50 dark:bg-zinc-800' },
             { label: isPreview ? 'Will Update' : 'Updated', value: summary.updated, color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
@@ -1197,7 +1197,7 @@ export default function DesignNewItemsPage() {
       )}
 
       {/* Filters */}
-      <div className='flex items-center gap-2 flex-wrap'>
+      <div className='flex flex-wrap items-center gap-2'>
         <div className='relative flex-1 min-w-[180px] max-w-sm'>
           <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400' />
           <input type='text' value={search} onChange={e => setSearch(e.target.value)}
@@ -1234,7 +1234,7 @@ export default function DesignNewItemsPage() {
         {total > 0 && (
           <span className='text-xs text-gray-400 dark:text-zinc-500 bg-gray-100 dark:bg-zinc-800 px-3 py-1.5 rounded-full'>{total} products</span>
         )}
-        <div className='ml-auto flex items-center gap-2'>
+        <div className='ml-auto flex flex-wrap items-center gap-2'>
           <ViewToggle mode={viewMode} onChange={setViewMode} />
           <button onClick={downloadXlsx} disabled={downloading}
             className='flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors'>

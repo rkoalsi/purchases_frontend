@@ -506,7 +506,7 @@ export default function AmazonSkuMappingPage() {
   return (
     <div className='space-y-6'>
       {/* Page header */}
-      <div className='flex items-start justify-between'>
+      <div className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex items-center gap-3'>
           <div className='p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg'>
             <Package className='w-5 h-5 text-orange-600 dark:text-orange-400' />
@@ -520,7 +520,7 @@ export default function AmazonSkuMappingPage() {
             </p>
           </div>
         </div>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
           <input
             ref={fileInputRef}
             type='file'

@@ -716,7 +716,7 @@ export default function DraftOrderUpload() {
                 <CheckCircle className="w-6 h-6" />
                 <h2 className="text-lg font-semibold">Purchase Order Created{isMultiCurrency ? ` (${currency})` : ''}</h2>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <p className="text-zinc-500 dark:text-zinc-400">PO Number</p>
                   <p className="font-semibold text-zinc-900 dark:text-zinc-100">{gs.createdPO.purchaseorder_number}</p>
@@ -769,7 +769,7 @@ export default function DraftOrderUpload() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Draft Order Upload</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
@@ -1050,8 +1050,8 @@ export default function DraftOrderUpload() {
       {brandPickerFor && (() => {
         const matchedBrands = getBrandsForVendor(brandPickerFor.vendorId);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">Select Brand</h2>
                 <button onClick={() => setBrandPickerFor(null)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
@@ -1084,8 +1084,8 @@ export default function DraftOrderUpload() {
 
       {/* Missing items modal */}
       {showMissingModal && validation && !validation.valid && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-2xl mx-4 p-6 space-y-4 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-[90vw] sm:max-w-2xl p-6 space-y-4 max-h-[80vh] flex flex-col">
             <div className="flex items-start justify-between flex-shrink-0">
               <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />

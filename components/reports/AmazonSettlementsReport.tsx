@@ -310,11 +310,11 @@ function AmazonSettlementsPage() {
     const chargeColumns = availableColumns.filter(col => !coreColumns.includes(col));
 
     return (
-        <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8'>
+        <div className='min-h-screen bg-gray-50 dark:bg-zinc-950 py-8 px-3 sm:px-6 lg:px-8'>
             <div className='max-w-[1800px] mx-auto'>
                 {/* Header */}
                 <div className='mb-8'>
-                    <h1 className='text-3xl font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-3'>
+                    <h1 className='text-2xl sm:text-3xl font-bold text-gray-900 dark:text-zinc-100 flex items-center gap-3'>
                         <FileText className='w-8 h-8 text-blue-600' />
                         Amazon Settlements Report
                     </h1>
@@ -324,8 +324,8 @@ function AmazonSettlementsPage() {
                 </div>
 
                 {/* Filters Section */}
-                <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-6 mb-6 text-black dark:text-zinc-100'>
-                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
+                <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm p-4 sm:p-6 mb-6 text-black dark:text-zinc-100'>
+                    <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
                         {/* Date Range */}
                         <div>
                             <label className='block font-medium text-black dark:text-zinc-100 mb-2'>

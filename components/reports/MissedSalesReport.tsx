@@ -199,7 +199,7 @@ const MissedSalesReport: React.FC = () => {
   return (
     <div className='space-y-6'>
       {/* Header */}
-      <div className='flex items-center justify-between'>
+      <div className='flex flex-wrap items-start justify-between gap-2'>
         <div className='flex items-center space-x-3'>
           <div className='w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center'>
             <TrendingDown className='w-5 h-5 text-red-600 dark:text-red-400' />
@@ -216,11 +216,11 @@ const MissedSalesReport: React.FC = () => {
       </div>
 
       {/* Controls */}
-      <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 p-5'>
-        <div className='flex flex-wrap items-end gap-4'>
+      <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800 p-3 sm:p-5'>
+        <div className='flex flex-wrap items-end gap-3 sm:gap-4'>
           {/* Date Range */}
-          <div className='flex items-end gap-3'>
-            <div className='w-44'>
+          <div className='flex flex-wrap items-end gap-3'>
+            <div className='min-w-[130px] w-44'>
               <DatePicker
                 label='Start Date'
                 selected={startDate}
@@ -229,7 +229,7 @@ const MissedSalesReport: React.FC = () => {
                 placeholder='Select start date'
               />
             </div>
-            <div className='w-44'>
+            <div className='min-w-[130px] w-44'>
               <DatePicker
                 label='End Date'
                 selected={endDate}
@@ -241,7 +241,7 @@ const MissedSalesReport: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className='flex items-center gap-2 ml-auto'>
+          <div className='flex flex-wrap items-center gap-2 ml-auto'>
             {/* Upload */}
             <input
               ref={fileInputRef}
@@ -323,7 +323,7 @@ const MissedSalesReport: React.FC = () => {
         <div className={TABLE_CLASSES.container}>
           {/* Search */}
           <div className={TABLE_CLASSES.headerSection}>
-            <div className='flex items-center justify-between'>
+            <div className='flex flex-wrap items-center justify-between gap-2'>
               <span className='text-sm text-zinc-500 dark:text-zinc-400'>
                 {filteredData.length} of {data.length} records
               </span>
@@ -332,7 +332,7 @@ const MissedSalesReport: React.FC = () => {
                 placeholder='Search by item, ASIN, code…'
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className='px-3 py-1.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64'
+                className='px-3 py-1.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-64'
               />
             </div>
           </div>
