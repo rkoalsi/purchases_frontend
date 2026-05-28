@@ -458,7 +458,7 @@ function DepartmentView({ tasks, onTaskClick }: { tasks: Task[]; onTaskClick: (t
 
   const toggle = (dept: string) => setCollapsed((prev) => {
     const next = new Set(prev);
-    next.has(dept) ? next.delete(dept) : next.add(dept);
+    if (next.has(dept)) { next.delete(dept); } else { next.add(dept); }
     return next;
   });
 
