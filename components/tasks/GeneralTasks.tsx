@@ -131,6 +131,28 @@ function avatarColor(name: string) {
 }
 function initials(name: string) { return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase(); }
 
+const DEPT_COLORS = [
+  { bg: 'bg-blue-100 dark:bg-blue-900/50',    text: 'text-blue-800 dark:text-blue-200',    icon: 'text-blue-600 dark:text-blue-300',    header: 'bg-blue-50 dark:bg-blue-900/20',    dot: 'bg-blue-500'    },
+  { bg: 'bg-violet-100 dark:bg-violet-900/50', text: 'text-violet-800 dark:text-violet-200', icon: 'text-violet-600 dark:text-violet-300', header: 'bg-violet-50 dark:bg-violet-900/20', dot: 'bg-violet-500'  },
+  { bg: 'bg-emerald-100 dark:bg-emerald-900/50', text: 'text-emerald-800 dark:text-emerald-200', icon: 'text-emerald-600 dark:text-emerald-300', header: 'bg-emerald-50 dark:bg-emerald-900/20', dot: 'bg-emerald-500' },
+  { bg: 'bg-orange-100 dark:bg-orange-900/50', text: 'text-orange-800 dark:text-orange-200', icon: 'text-orange-600 dark:text-orange-300', header: 'bg-orange-50 dark:bg-orange-900/20', dot: 'bg-orange-500'  },
+  { bg: 'bg-pink-100 dark:bg-pink-900/50',    text: 'text-pink-800 dark:text-pink-200',    icon: 'text-pink-600 dark:text-pink-300',    header: 'bg-pink-50 dark:bg-pink-900/20',    dot: 'bg-pink-500'    },
+  { bg: 'bg-cyan-100 dark:bg-cyan-900/50',    text: 'text-cyan-800 dark:text-cyan-200',    icon: 'text-cyan-600 dark:text-cyan-300',    header: 'bg-cyan-50 dark:bg-cyan-900/20',    dot: 'bg-cyan-500'    },
+  { bg: 'bg-amber-100 dark:bg-amber-900/50',  text: 'text-amber-800 dark:text-amber-200',  icon: 'text-amber-600 dark:text-amber-300',  header: 'bg-amber-50 dark:bg-amber-900/20',  dot: 'bg-amber-500'   },
+  { bg: 'bg-rose-100 dark:bg-rose-900/50',    text: 'text-rose-800 dark:text-rose-200',    icon: 'text-rose-600 dark:text-rose-300',    header: 'bg-rose-50 dark:bg-rose-900/20',    dot: 'bg-rose-500'    },
+];
+const DEPT_COLOR_OVERRIDES: Record<string, number> = {
+  'design':   1, // violet
+  'accounts': 0, // blue
+};
+function deptColor(name: string) {
+  const key = name.trim().toLowerCase();
+  if (key in DEPT_COLOR_OVERRIDES) return DEPT_COLORS[DEPT_COLOR_OVERRIDES[key]];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return DEPT_COLORS[Math.abs(h) % DEPT_COLORS.length];
+}
+
 // ── Atoms ─────────────────────────────────────────────────────────────────────
 
 function Avatar({ name, size = 'sm' }: { name: string; size?: 'xs' | 'sm' | 'md' }) {
@@ -180,6 +202,15 @@ function AssigneeStack({ names, max = 3 }: { names: string[]; max?: number }) {
   );
 }
 
+function DeptChip({ dept }: { dept: string }) {
+  const c = deptColor(dept);
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${c.bg} ${c.text}`}>
+      <Building2 className={`w-2.5 h-2.5 flex-shrink-0 ${c.icon}`} />{dept}
+    </span>
+  );
+}
+
 // ── Task Card ─────────────────────────────────────────────────────────────────
 
 function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
@@ -212,11 +243,7 @@ function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
       )}
       {taskForDepts(task).length > 0 && (
         <div className='flex flex-wrap gap-1 mb-2'>
-          {taskForDepts(task).map((d) => (
-            <span key={d} className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400'>
-              <Building2 className='w-2.5 h-2.5' />{d}
-            </span>
-          ))}
+          {taskForDepts(task).map((d) => <DeptChip key={d} dept={d} />)}
         </div>
       )}
       {task.tags.length > 0 && (
@@ -295,7 +322,9 @@ function ListRow({ task, onClick }: { task: Task; onClick: () => void }) {
       <td className='px-2 py-3 max-w-[280px]'>
         <p className='font-medium text-sm text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate'>{task.title}</p>
         {taskForDepts(task).length > 0 && (
-          <p className='text-[10px] text-teal-500 truncate'>{taskForDepts(task).join(', ')}</p>
+          <div className='flex flex-wrap gap-1 mt-0.5'>
+            {taskForDepts(task).map((d) => <DeptChip key={d} dept={d} />)}
+          </div>
         )}
       </td>
       <td className='px-4 py-3'><PriorityBadge priority={task.priority} /></td>
@@ -425,6 +454,14 @@ function AssigneeView({ tasks, users, onTaskClick }: { tasks: Task[]; users: App
 // ── Department View ───────────────────────────────────────────────────────────
 
 function DepartmentView({ tasks, onTaskClick }: { tasks: Task[]; onTaskClick: (t: Task) => void }) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  const toggle = (dept: string) => setCollapsed((prev) => {
+    const next = new Set(prev);
+    next.has(dept) ? next.delete(dept) : next.add(dept);
+    return next;
+  });
+
   const groups = useMemo(() => {
     const map: Record<string, Task[]> = {};
     tasks.forEach((task) => {
@@ -444,47 +481,133 @@ function DepartmentView({ tasks, onTaskClick }: { tasks: Task[]; onTaskClick: (t
     });
   }, [tasks]);
 
+  const allDepts = groups.map(([d]) => d);
+  const allCollapsed = allDepts.length > 0 && allDepts.every((d) => collapsed.has(d));
+
   return (
-    <div className='space-y-6'>
+    <div className='space-y-3'>
+      {/* Collapse / Expand All */}
+      {groups.length > 1 && (
+        <div className='flex justify-end'>
+          <button
+            onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(allDepts))}
+            className='flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors'
+          >
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-150 ${allCollapsed ? '' : 'rotate-180'}`} />
+            {allCollapsed ? 'Expand All' : 'Collapse All'}
+          </button>
+        </div>
+      )}
+
       {groups.map(([dept, deptTasks]) => {
-        const byStatus = Object.fromEntries(STATUSES.map((s) => [s.value, deptTasks.filter((t) => t.status === s.value).length]));
+        const dc = deptColor(dept);
+        const isOpen = !collapsed.has(dept);
+        const overdueCount = deptTasks.filter((t) => isOverdue(t.deadline, t.status)).length;
+        // Group by status, sort tasks within each group by created_at desc
+        const statusGroups = STATUSES
+          .map((s) => ({
+            ...s,
+            tasks: deptTasks
+              .filter((t) => t.status === s.value)
+              .slice()
+              .sort((a, b) => new Date(asUTC(b.created_at)).getTime() - new Date(asUTC(a.created_at)).getTime()),
+          }))
+          .filter((sg) => sg.tasks.length > 0);
+
         return (
-          <div key={dept} className='bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden'>
-            <div className='flex items-center gap-3 px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-teal-50 dark:bg-teal-900/20'>
-              <div className='w-9 h-9 rounded-full bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center'>
-                <Building2 className='w-5 h-5 text-teal-600 dark:text-teal-400' />
+          <div key={dept} className='bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm'>
+            {/* Accordion header */}
+            <button
+              onClick={() => toggle(dept)}
+              className={`w-full flex items-center gap-3 px-5 py-4 ${dc.header} hover:opacity-90 transition-opacity text-left`}
+            >
+              <div className={`w-8 h-8 rounded-lg ${dc.bg} flex items-center justify-center flex-shrink-0`}>
+                <Building2 className={`w-4 h-4 ${dc.icon}`} />
               </div>
-              <div className='flex-1'>
+              <div className='flex-1 min-w-0'>
                 <p className='text-sm font-bold text-zinc-900 dark:text-zinc-100'>{dept}</p>
-                <p className='text-xs text-teal-600 dark:text-teal-400'>{deptTasks.length} tasks</p>
+                <p className={`text-xs font-medium ${dc.text}`}>{deptTasks.length} task{deptTasks.length !== 1 ? 's' : ''}</p>
               </div>
-              <div className='flex items-center gap-2 text-xs flex-wrap justify-end'>
-                {STATUSES.map((s) => byStatus[s.value] > 0 && (
-                  <span key={s.value} className={`px-2 py-0.5 rounded-full font-semibold ${s.bg} ${s.color}`}>{byStatus[s.value]} {s.label}</span>
-                ))}
+              <div className='flex items-center gap-1.5 flex-wrap justify-end'>
+                {STATUSES.map((s) => {
+                  const count = deptTasks.filter((t) => t.status === s.value).length;
+                  return count > 0 ? (
+                    <span key={s.value} className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${s.bg} ${s.color}`}>
+                      {count} {s.label}
+                    </span>
+                  ) : null;
+                })}
+                {overdueCount > 0 && (
+                  <span className='px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center gap-1'>
+                    <AlertCircle className='w-2.5 h-2.5' />{overdueCount} Overdue
+                  </span>
+                )}
               </div>
-            </div>
-            <div className='divide-y divide-zinc-100 dark:divide-zinc-800'>
-              {deptTasks.map((task) => {
-                const overdue = isOverdue(task.deadline, task.status);
-                const p = getPriority(task.priority);
-                return (
-                  <div key={task._id} onClick={() => onTaskClick(task)}
-                    className={`flex items-center gap-3 px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer group border-l-4 ${p.border} transition-colors`}>
-                    <div className='flex-1 min-w-0'>
-                      <p className='text-sm font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate'>{task.title}</p>
-                      <p className='text-[10px] text-zinc-400'>by {task.created_by_name}</p>
+              <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-200 flex-shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Accordion body */}
+            {isOpen && (
+              <div>
+                {statusGroups.map((sg, si) => {
+                  const SIcon = sg.icon;
+                  return (
+                    <div key={sg.value} className={si > 0 ? 'border-t border-zinc-100 dark:border-zinc-800' : ''}>
+                      {/* Status section header */}
+                      <div className={`flex items-center gap-2 px-5 py-2 ${sg.bg}`}>
+                        <SIcon className={`w-3.5 h-3.5 ${sg.color}`} />
+                        <span className={`text-xs font-bold uppercase tracking-wide ${sg.color}`}>{sg.label}</span>
+                        <span className={`text-[10px] font-bold ${sg.color} opacity-60 bg-white/50 dark:bg-black/20 px-1.5 py-0.5 rounded-full`}>{sg.tasks.length}</span>
+                      </div>
+                      {/* Task rows */}
+                      <div className='divide-y divide-zinc-50 dark:divide-zinc-800/50'>
+                        {sg.tasks.map((task) => {
+                          const overdue = isOverdue(task.deadline, task.status);
+                          const p = getPriority(task.priority);
+                          return (
+                            <div key={task._id} onClick={() => onTaskClick(task)}
+                              className={`flex items-center gap-3 px-5 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 cursor-pointer group border-l-4 ${p.border} transition-colors`}>
+                              <div className='flex-1 min-w-0'>
+                                <p className='text-sm font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate'>{task.title}</p>
+                                <div className='flex items-center gap-2 mt-0.5'>
+                                  <span className={`text-[10px] font-semibold ${p.color}`}>{p.label}</span>
+                                  {task.created_by_name && <span className='text-[10px] text-zinc-400'>by {task.created_by_name}</span>}
+                                  <span className='text-[10px] text-zinc-300 dark:text-zinc-600'>·</span>
+                                  <span className='text-[10px] text-zinc-400'>Created: {fmtDateTime(task.created_at)}</span>
+                                </div>
+                              </div>
+                              <div className='flex items-center gap-2.5 flex-shrink-0'>
+                                {task.assigned_to_names.length > 0 && <AssigneeStack names={task.assigned_to_names} max={3} />}
+                                {task.comments.length > 0 && (
+                                  <span className='flex items-center gap-0.5 text-[10px] text-zinc-400'><MessageSquare className='w-3 h-3' />{task.comments.length}</span>
+                                )}
+                                {task.attachments.length > 0 && (
+                                  <span className='flex items-center gap-0.5 text-[10px] text-zinc-400'><Paperclip className='w-3 h-3' />{task.attachments.length}</span>
+                                )}
+                                {task.deadline && (
+                                  <span className={`flex items-center gap-0.5 text-[10px] font-medium ${overdue ? 'text-red-500' : 'text-zinc-400'}`}>
+                                    <Calendar className='w-3 h-3' />
+                                    <span className='text-zinc-400 dark:text-zinc-500 mr-0.5'>Deadline:</span>{fmtDate(task.deadline)}
+                                  </span>
+                                )}
+                                {overdue && (
+                                  <span className='flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded'>
+                                    <AlertCircle className='w-2.5 h-2.5' />Overdue
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className='flex items-center gap-2 flex-shrink-0'>
-                      {task.assigned_to_names.length > 0 && <AssigneeStack names={task.assigned_to_names} max={3} />}
-                      <PriorityBadge priority={task.priority} />
-                      <StatusBadge status={task.status} />
-                      {task.deadline && <span className={`text-xs font-medium ${overdue ? 'text-red-500' : 'text-zinc-400'}`}>{fmtDate(task.deadline)}</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+                {statusGroups.length === 0 && (
+                  <p className='text-xs text-zinc-400 italic text-center py-6'>No tasks</p>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
@@ -589,11 +712,16 @@ function StatsPanel({ stats }: { stats: Stats }) {
             <div className='mb-6'>
               <h3 className='text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3'>Tasks by Department</h3>
               <div className='flex flex-wrap gap-2'>
-                {deptEntries.map(([dept, count]) => (
-                  <span key={dept} className='flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-xs font-semibold'>
-                    <Building2 className='w-3 h-3' />{dept}: {count}
-                  </span>
-                ))}
+                {deptEntries.map(([dept, count]) => {
+                  const dc = deptColor(dept);
+                  return (
+                    <span key={dept} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${dc.bg} ${dc.text}`}>
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dc.dot}`} />
+                      {dept}
+                      <span className='opacity-60 font-bold ml-0.5'>{count}</span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -711,12 +839,15 @@ function AssigneePicker({ allUsers, assignedTo, assignedNames, onToggle }: {
             className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${!deptFilter ? 'bg-blue-600 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>
             All
           </button>
-          {departments.map((d) => (
-            <button key={d} onClick={() => setDeptFilter(d === deptFilter ? '' : d)}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${deptFilter === d ? 'bg-teal-600 text-white' : 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 hover:bg-teal-100 dark:hover:bg-teal-900/40'}`}>
-              <Building2 className='w-2.5 h-2.5' />{d}
-            </button>
-          ))}
+          {departments.map((d) => {
+            const dc = deptColor(d);
+            return (
+              <button key={d} onClick={() => setDeptFilter(d === deptFilter ? '' : d)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${deptFilter === d ? `${dc.dot} text-white` : `${dc.bg} ${dc.text} hover:opacity-80`}`}>
+                <Building2 className='w-2.5 h-2.5' />{d}
+              </button>
+            );
+          })}
         </div>
       )}
       <div className='max-h-48 overflow-y-auto space-y-3'>
@@ -1048,11 +1179,7 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
             <div className='flex items-center gap-1.5 flex-wrap flex-1 min-w-0'>
               <PriorityBadge priority={task.priority} />
               <StatusBadge status={task.status} />
-              {taskForDepts(task).map((d) => (
-                <span key={d} className='flex items-center gap-1 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20 px-1.5 py-0.5 rounded'>
-                  <Building2 className='w-2.5 h-2.5' />{d}
-                </span>
-              ))}
+              {taskForDepts(task).map((d) => <DeptChip key={d} dept={d} />)}
               {overdue && (
                 <span className='flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded'>
                   <AlertCircle className='w-2.5 h-2.5' /> Overdue
@@ -1406,6 +1533,8 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
 export default function GeneralTasks() {
   const { accessToken, user: currentUser } = useAuth();
 
+  const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+
   const [tasks, setTasks]           = useState<Task[]>([]);
   const [allUsers, setAllUsers]     = useState<AppUser[]>([]);
   const [stats, setStats]           = useState<Stats | null>(null);
@@ -1420,9 +1549,7 @@ export default function GeneralTasks() {
   const [search, setSearch]                 = useState('');
   const [sortBy, setSortBy]                 = useState<SortField>('created_at');
   const [sortDir, setSortDir]               = useState<SortDir>('desc');
-  const [view, setView]                     = useState<ViewMode>('kanban');
-
-  const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+  const [view, setView]                     = useState<ViewMode>(isAdminOrManager ? 'department' : 'kanban');
   const headers = { Authorization: `Bearer ${accessToken}` };
 
   const allDepartments = useMemo(() => {
