@@ -1484,12 +1484,12 @@ export default function VendorPOReport() {
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Vendor Central POs</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Upload and manage Vendor Central purchase orders</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setBulkUpdateOpen(o => !o); setUploadOpen(false); }}
             className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium"
@@ -1519,7 +1519,7 @@ export default function VendorPOReport() {
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
             If the PO number already exists and its status is <strong>pending / processing / packed / closed</strong>, the record will be re-enriched and accepted/received quantities preserved.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">PO Excel File</label>
               <input
@@ -1561,7 +1561,7 @@ export default function VendorPOReport() {
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
             Upload an Excel file with columns: <strong>PO Number | ASIN | Accepted Qty | Received Qty | PO Status</strong> (header row required). Only POs with status <strong>pending / processing / packed / closed</strong> will be updated. PO Status is optional.
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Bulk Update Excel File</label>
               <input
@@ -1916,8 +1916,8 @@ export default function VendorPOReport() {
 
       {/* ── Delete Confirmation Modal ── */}
       {deleteConfirmPO && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
                 <Trash2 size={18} className="text-red-600 dark:text-red-400" />
@@ -1952,8 +1952,8 @@ export default function VendorPOReport() {
 
       {/* ── Delete Order File Modal ── */}
       {deleteOrderFilePO && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
                 <Trash2 size={18} className="text-red-600 dark:text-red-400" />
@@ -1988,8 +1988,8 @@ export default function VendorPOReport() {
 
       {/* ── Upload Order Modal ── */}
       {uploadOrderPO && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-md mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-[90vw] sm:max-w-md border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full">
                 <FileUp size={18} className="text-purple-600 dark:text-purple-400" />
@@ -2053,7 +2053,7 @@ export default function VendorPOReport() {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => fetchReport(selectedPO)}
                 disabled={reportLoading}
@@ -2621,8 +2621,8 @@ export default function VendorPOReport() {
 
       {/* ── Create Estimate Modal ── */}
       {createEstimateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-lg mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-[90vw] sm:max-w-lg max-h-[80vh] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">
                 <FileText size={18} className="text-emerald-600 dark:text-emerald-400" />
@@ -2733,8 +2733,8 @@ export default function VendorPOReport() {
 
       {/* ── Link Estimate Modal ── */}
       {linkEstimateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
                 <Link2 size={18} className="text-blue-600 dark:text-blue-400" />
@@ -2781,8 +2781,8 @@ export default function VendorPOReport() {
 
       {/* ── Create Transfer Order Modal ── */}
       {createTOOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-full">
                 <ExternalLink size={18} className="text-violet-600 dark:text-violet-400" />
@@ -2828,8 +2828,8 @@ export default function VendorPOReport() {
 
       {/* ── Link Transfer Order Modal ── */}
       {linkTOOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-full">
                 <Link2 size={18} className="text-violet-600 dark:text-violet-400" />
@@ -2876,8 +2876,8 @@ export default function VendorPOReport() {
 
       {/* ── Link Assembly Modal ── */}
       {linkAssemblyOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-full">
                 <Link2 size={18} className="text-indigo-600 dark:text-indigo-400" />
@@ -2924,8 +2924,8 @@ export default function VendorPOReport() {
 
       {/* ── Link Sales Order Modal ── */}
       {linkSOOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-zinc-200 dark:border-zinc-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full">
                 <FileText size={18} className="text-amber-600 dark:text-amber-400" />

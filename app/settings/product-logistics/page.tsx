@@ -219,8 +219,8 @@ function ProductLogisticsPage() {
         <div className='min-h-screen py-8'>
             {/* Bulk Price Upload Modal */}
             {bulkUploadOpen && (
-                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
-                    <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-lg mx-4 p-6'>
+                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'>
+                    <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-lg p-4 sm:p-6 max-h-[85vh] overflow-y-auto'>
                         <div className='flex items-center justify-between mb-4'>
                             <h2 className='text-lg font-semibold text-zinc-900 dark:text-zinc-50'>Bulk Price Upload</h2>
                             <button onClick={() => setBulkUploadOpen(false)} className='text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200'>
@@ -264,7 +264,7 @@ function ProductLogisticsPage() {
             <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
                 {/* Header */}
                 <div className='mb-6'>
-                    <div className='flex items-center justify-between'>
+                    <div className='flex flex-wrap items-start justify-between gap-3'>
                         <div>
                             <h1 className='text-2xl font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-2'>
                                 <Box className='h-6 w-6' />
@@ -274,7 +274,7 @@ function ProductLogisticsPage() {
                                 Manage status, CBM, Case Pack, Currency and Purchase Price per product. Changes save automatically.
                             </p>
                         </div>
-                        <div className='flex gap-2'>
+                        <div className='flex flex-wrap gap-2'>
                             <button
                                 onClick={handleDownload}
                                 disabled={downloadLoading}

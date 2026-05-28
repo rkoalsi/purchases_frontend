@@ -193,8 +193,8 @@ function VendorResult({ result }: { result: VendorUpdateResult }) {
         )}
       </div>
 
-      <div className='rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700'>
-        <table className='w-full text-sm'>
+      <div className='rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 overflow-x-auto'>
+        <table className='w-full text-sm min-w-[480px]'>
           <thead>
             <tr className='bg-zinc-50 dark:bg-zinc-800 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400'>
               <th className='px-4 py-2'>Tab</th>
@@ -303,7 +303,7 @@ function CombinedResult({ result }: { result: CombinedUpdateResult }) {
         <span className='text-sm font-medium'>{result.message}</span>
       </div>
 
-      <div className='grid grid-cols-3 gap-2'>
+      <div className='grid grid-cols-1 sm:grid-cols-3 gap-2'>
         <StatCard label='Masters rows updated' value={masterUpdated} color='green' />
         <StatCard label='Vendor rows updated'  value={vendorUpdated} color='green' />
         <StatCard label='Tabs updated'         value={`${tabsOk}/${vendorTabs.length}`} color='blue' />
@@ -626,7 +626,7 @@ export default function SheetsUpdater() {
   const anyRunning = combinedRunning || masterRunning || vendorRunning;
 
   return (
-    <div className='space-y-6 p-6 max-w-6xl'>
+    <div className='space-y-6 p-4 sm:p-6 max-w-6xl'>
 
       {/* Page header */}
       <div>
@@ -640,13 +640,13 @@ export default function SheetsUpdater() {
       <div className='rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden'>
         {/* Header */}
         <div className='px-5 py-4 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900'>
-          <div className='flex items-start justify-between gap-4'>
+          <div className='flex flex-wrap items-start justify-between gap-2 sm:gap-4'>
             <div className='flex items-start gap-3'>
               <div className='rounded-lg bg-indigo-100 dark:bg-indigo-900/60 p-2 flex-shrink-0'>
                 <Layers className='h-5 w-5 text-indigo-600 dark:text-indigo-400' />
               </div>
               <div>
-                <div className='flex items-center gap-2'>
+                <div className='flex flex-wrap items-center gap-2'>
                   <h2 className='font-semibold text-zinc-900 dark:text-zinc-100'>
                     Update Both Workbooks
                   </h2>
@@ -748,7 +748,7 @@ export default function SheetsUpdater() {
         {/* Masters card */}
         <div className='rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden'>
           <div className='p-4 border-b border-zinc-100 dark:border-zinc-800'>
-            <div className='flex items-start justify-between gap-3'>
+            <div className='flex flex-wrap items-start justify-between gap-2 sm:gap-3'>
               <div className='flex items-start gap-2.5'>
                 <FileSpreadsheet className='mt-0.5 h-5 w-5 text-green-600 flex-shrink-0' />
                 <div>
@@ -797,7 +797,7 @@ export default function SheetsUpdater() {
         {/* Vendor / Product Costing card */}
         <div className='rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden'>
           <div className='p-4 border-b border-zinc-100 dark:border-zinc-800'>
-            <div className='flex items-start justify-between gap-3'>
+            <div className='flex flex-wrap items-start justify-between gap-2 sm:gap-3'>
               <div className='flex items-start gap-2.5'>
                 <FileSpreadsheet className='mt-0.5 h-5 w-5 text-green-600 flex-shrink-0' />
                 <div>

@@ -247,8 +247,8 @@ export default function BBCodeGenerator() {
       {/* Results */}
       {results.length > 0 && (
         <div className='bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5'>
-          <div className='flex items-center justify-between mb-4'>
-            <div className='flex items-center gap-4'>
+          <div className='flex flex-wrap items-center justify-between gap-3 mb-4'>
+            <div className='flex flex-wrap items-center gap-4'>
               <h2 className='text-sm font-semibold text-zinc-800 dark:text-zinc-100'>
                 Results
               </h2>

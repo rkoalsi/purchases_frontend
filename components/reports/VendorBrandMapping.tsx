@@ -184,7 +184,7 @@ export default function VendorBrandMapping() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        <div className="max-w-5xl mx-auto px-6 py-6">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6">
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
             Vendor Brand Mapping
           </h1>
@@ -194,7 +194,7 @@ export default function VendorBrandMapping() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-6 space-y-4">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 space-y-4">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input

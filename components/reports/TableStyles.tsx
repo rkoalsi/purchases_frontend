@@ -32,14 +32,14 @@ export const SortIcon = ({
 // Standardized table header class names
 export const TABLE_CLASSES = {
   container: 'bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-zinc-200 dark:border-zinc-800',
-  headerSection: 'px-6 py-4 border-b border-zinc-200 dark:border-zinc-800',
+  headerSection: 'px-3 sm:px-6 py-4 border-b border-zinc-200 dark:border-zinc-800',
   table: 'w-full',
   thead: 'bg-zinc-50 dark:bg-zinc-800/50',
-  th: 'px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800',
+  th: 'px-3 sm:px-6 py-3 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800',
   thContent: 'flex items-center space-x-1',
   tbody: 'bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800',
   tr: 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors',
-  td: 'px-6 py-4 whitespace-nowrap',
+  td: 'px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap',
   tdText: 'text-sm text-zinc-900 dark:text-zinc-100',
   tdTextMedium: 'text-sm font-medium text-zinc-900 dark:text-zinc-100',
   overflow: 'overflow-x-auto',
@@ -158,7 +158,7 @@ export const SearchBar = ({
   placeholder?: string;
   className?: string;
 }) => (
-  <div className={`relative max-w-md ${className}`}>
+  <div className={`relative w-full sm:max-w-md ${className}`}>
     <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
       <svg
         className='h-5 w-5 text-gray-400'

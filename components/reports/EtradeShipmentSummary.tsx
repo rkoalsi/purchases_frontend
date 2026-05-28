@@ -398,14 +398,14 @@ export default function EtradeShipmentSummary() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Etrade Shipment Summary</h1>
           <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             One row per Vendor Central PO — tracks supply, dispatch, and delivery details
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleDownload}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium border border-zinc-300 dark:border-zinc-600 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"

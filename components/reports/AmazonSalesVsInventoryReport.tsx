@@ -409,7 +409,7 @@ const processDownload = async (response: any) => {
   // ===== COMPONENT RENDERING =====
   return (
     <div className="container mx-auto p-4 bg-gray-50 dark:bg-zinc-950">
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6 dark:bg-zinc-900 dark:shadow-none dark:border dark:border-zinc-800">
+      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 dark:bg-zinc-900 dark:shadow-none dark:border dark:border-zinc-800">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-zinc-100 mb-6">
           Amazon Sales vs Inventory Report
         </h1>
@@ -478,8 +478,8 @@ const processDownload = async (response: any) => {
       {!loading && reportData.length > 0 && (
         <div className="bg-white rounded-lg shadow-md overflow-hidden dark:bg-zinc-900 dark:border dark:border-zinc-800">
           {/* Table Header with Search and Filters */}
-          <div className="p-6 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+          <div className="px-3 sm:px-6 py-4 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800">
+            <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3 mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-800 dark:text-zinc-100">
                   Report Details
@@ -500,7 +500,7 @@ const processDownload = async (response: any) => {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="min-w-0 flex-1">
                 <select
                   value={reportType}

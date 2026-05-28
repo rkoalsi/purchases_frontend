@@ -442,7 +442,7 @@ const FbaReturnsReport = () => {
     <div className='container mx-auto p-4 bg-gray-50 dark:bg-zinc-950'>
 
       {/* CSV Upload Section */}
-      <div className='bg-white rounded-lg shadow-md p-6 mb-6 dark:bg-zinc-900 dark:border dark:border-zinc-800'>
+      <div className='bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 dark:bg-zinc-900 dark:border dark:border-zinc-800'>
         <h2 className='text-xl font-bold text-gray-800 dark:text-zinc-100 mb-4'>
           Upload FBA Returns CSV
         </h2>
@@ -514,7 +514,7 @@ const FbaReturnsReport = () => {
       </div>
 
       {/* Bulk Update Section */}
-      <div className='bg-white rounded-lg shadow-md p-6 mb-6 dark:bg-zinc-900 dark:border dark:border-zinc-800'>
+      <div className='bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 dark:bg-zinc-900 dark:border dark:border-zinc-800'>
         <h2 className='text-xl font-bold text-gray-800 dark:text-zinc-100 mb-1'>
           Bulk Update Editable Columns
         </h2>
@@ -577,7 +577,7 @@ const FbaReturnsReport = () => {
       </div>
 
       {/* Report Section */}
-      <div className='bg-white rounded-lg shadow-md p-6 mb-6 dark:bg-zinc-900 dark:shadow-none dark:border dark:border-zinc-800'>
+      <div className='bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6 dark:bg-zinc-900 dark:shadow-none dark:border dark:border-zinc-800'>
         <h1 className='text-2xl font-bold text-gray-800 dark:text-zinc-100 mb-2'>
           FBA Returns
         </h1>
@@ -636,8 +636,8 @@ const FbaReturnsReport = () => {
       {/* Table */}
       {!loading && records.length > 0 && (
         <div className='bg-white rounded-lg shadow-md overflow-hidden dark:bg-zinc-900 dark:border dark:border-zinc-800'>
-          <div className='p-6 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800'>
-            <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
+          <div className='px-3 sm:px-6 py-4 bg-gray-50 border-b border-gray-200 dark:bg-zinc-800/50 dark:border-zinc-800'>
+            <div className='flex flex-wrap items-start justify-between gap-2 sm:gap-3'>
               <div>
                 <h2 className='text-lg font-semibold text-gray-800 dark:text-zinc-100'>Return Records</h2>
                 <p className='text-sm text-gray-600 dark:text-zinc-400'>

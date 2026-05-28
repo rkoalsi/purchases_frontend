@@ -339,7 +339,7 @@ export default function AmazonFBAProcessing() {
         </div>
 
         {/* Tabs */}
-        <div className='border-b border-zinc-200 dark:border-zinc-800 px-6'>
+        <div className='border-b border-zinc-200 dark:border-zinc-800 px-3 sm:px-6 overflow-x-auto'>
           <nav className='flex gap-6 -mb-px'>
             {([
               { key: 'queue',      label: 'Shipment Queue' },
@@ -349,7 +349,7 @@ export default function AmazonFBAProcessing() {
               <button
                 key={key}
                 onClick={() => handleTabChange(key)}
-                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === key
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'

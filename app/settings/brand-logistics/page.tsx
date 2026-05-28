@@ -140,7 +140,7 @@ function BrandLogisticsPage() {
             <div className='max-w-5xl mx-auto px-4 sm:px-6 lg:px-8'>
                 {/* Header */}
                 <div className='mb-6'>
-                    <div className='flex items-center justify-between'>
+                    <div className='flex flex-wrap items-start justify-between gap-3'>
                         <div>
                             <h1 className='text-2xl font-bold text-zinc-900 dark:text-zinc-50  flex items-center gap-2'>
                                 <Truck className='h-6 w-6' />
@@ -177,7 +177,7 @@ function BrandLogisticsPage() {
                 {showAddForm && (
                     <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6 dark:bg-zinc-900 dark:border-zinc-800'>
                         <h3 className='text-lg font-medium text-gray-900 mb-4 dark:text-zinc-100'>Add New Brand</h3>
-                        <div className='grid grid-cols-1 md:grid-cols-5 gap-4'>
+                        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4'>
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1 dark:text-zinc-400'>Brand Name</label>
                                 <select
@@ -252,7 +252,7 @@ function BrandLogisticsPage() {
 
                 {/* Brands Table */}
                 <div className='bg-white rounded-lg shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800'>
-                    <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
+                    <div className='px-3 sm:px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
                         <h2 className='text-lg font-semibold text-gray-900 dark:text-zinc-100'>
                             Configured Brands ({brands.length})
                         </h2>

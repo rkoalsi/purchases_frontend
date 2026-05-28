@@ -283,7 +283,7 @@ const SalesReport: React.FC = () => {
   // ===== COMPONENT RENDERING =====
   return (
     <div className='container mx-auto p-4 bg-gray-50'>
-      <div className='bg-white rounded-lg shadow-md p-6 mb-6'>
+      <div className='bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6'>
         <h1 className='text-2xl font-bold text-gray-800 mb-6'>Sales Report</h1>
 
         {/* Controls Section */}

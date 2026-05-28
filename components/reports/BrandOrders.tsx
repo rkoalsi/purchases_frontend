@@ -969,7 +969,7 @@ export default function BrandOrders() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { fetchBrands(); fetchOrders(); }}
             className="p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
@@ -978,7 +978,7 @@ export default function BrandOrders() {
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
           {isAdmin && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <select
                 value={reportBrand}
                 onChange={e => setReportBrand(e.target.value)}
@@ -1108,8 +1108,8 @@ export default function BrandOrders() {
 
       {/* ── Create Brand modal ── */}
       {canEdit && showCreateBrand && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">New Brand</h2>
               <button onClick={() => { setShowCreateBrand(false); setNewBrandName(''); }}
@@ -1148,10 +1148,10 @@ export default function BrandOrders() {
         const cv = vendorList.find(vv => vv.contact_id === createForVendor);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-[90vw] sm:max-w-md max-h-[80vh] overflow-y-auto">
 
               {/* Header */}
-              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-center justify-between px-3 sm:px-6 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
                 <div>
                   <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">New Order</h2>
                   <div className="flex items-center gap-1.5 mt-0.5">
@@ -1171,7 +1171,7 @@ export default function BrandOrders() {
               </div>
 
               {/* Body */}
-              <div className="px-6 py-5 space-y-4">
+              <div className="px-3 sm:px-6 py-5 space-y-4">
 
                 {/* PO Number */}
                 <div>
@@ -1240,7 +1240,7 @@ export default function BrandOrders() {
                 </div>
 
                 {/* Manual dates */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {([
                     ['initiation_date', 'Date of Initiation'],
                     ['proforma_date', 'Date of Proforma Invoice'],
@@ -1264,7 +1264,7 @@ export default function BrandOrders() {
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end gap-2 px-6 pb-5">
+              <div className="flex justify-end gap-2 px-3 sm:px-6 pb-5">
                 <button
                   onClick={() => setCreateForVendor(null)}
                   className="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
@@ -1444,7 +1444,7 @@ export default function BrandOrders() {
                                           </div>
                                         )}
                                         {/* Manual date fields */}
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                           {([
                                             ['initiation_date', 'Date of Initiation (E)'],
                                             ['proforma_date', 'Proforma Invoice (F)'],

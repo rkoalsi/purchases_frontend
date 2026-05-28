@@ -67,8 +67,8 @@ function Page() {
       <div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
         {/* Header */}
         <div className='bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 mb-6'>
-          <div className='px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
-            <div className='flex items-center justify-between'>
+          <div className='px-3 sm:px-6 py-4 border-b border-gray-200 dark:border-zinc-800'>
+            <div className='flex flex-wrap items-center justify-between gap-2'>
               <h1 className='text-2xl font-bold text-gray-900 dark:text-zinc-100'>Settings</h1>
               {!isEditing ? (
                 <button
@@ -79,7 +79,7 @@ function Page() {
                   Edit Profile
                 </button>
               ) : (
-                <div className='flex space-x-2'>
+                <div className='flex flex-wrap gap-2'>
                   <button
                     onClick={handleSave}
                     className='inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors'
@@ -108,7 +108,7 @@ function Page() {
               User Information
             </h2>
           </div>
-          <div className='px-6 py-6'>
+          <div className='px-3 sm:px-6 py-6'>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
               {/* Name */}
               <div>
@@ -190,7 +190,7 @@ function Page() {
               Account Status
             </h2>
           </div>
-          <div className='px-6 py-6'>
+          <div className='px-3 sm:px-6 py-6'>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
               <div>
                 <label className='block text-sm font-medium text-gray-700 dark:text-zinc-400 mb-2'>
