@@ -85,17 +85,21 @@ function taskForDepts(task: Task): string[] {
   return depts.length > 0 ? depts : (task.creator_department ? [task.creator_department] : []);
 }
 
+// Ensure bare ISO strings (no tz suffix) are treated as UTC, not local time
+function asUTC(s: string): string {
+  return s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s) ? s : s + 'Z';
+}
 function fmtDate(s?: string | null) {
   if (!s) return null;
-  try { return new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return s; }
+  try { return new Date(asUTC(s)).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return s; }
 }
 function fmtDateTime(s?: string) {
   if (!s) return '—';
-  try { return new Date(s).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return s; }
+  try { return new Date(asUTC(s)).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return s; }
 }
 function fmtRelative(s?: string) {
   if (!s) return '';
-  const diff = Date.now() - new Date(s).getTime();
+  const diff = Date.now() - new Date(asUTC(s)).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return 'just now';
   if (m < 60) return `${m}m ago`;
