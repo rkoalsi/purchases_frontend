@@ -383,8 +383,8 @@ export default function BrandOrders() {
     axios.get(`${API_URL}/users/permissions`, { headers: { Authorization: `Bearer ${accessToken}` } })
       .then(({ data }: { data: any[] }) => {
         const resolved = data.filter((p) => userPermIds.includes(p._id));
-        const hasView = resolved.some((p) => p.name === 'brand_orders_view');
-        const hasEdit = resolved.some((p) => p.name === 'brand_orders_edit');
+        const hasView = resolved.some((p) => p.name === 'vendors_brand_orders_view' || p.name === 'brand_orders_view');
+        const hasEdit = resolved.some((p) => p.name === 'vendors_brand_orders_edit' || p.name === 'brand_orders_edit');
         if (hasEdit) {
           setCanEdit(true);
         } else if (hasView) {
