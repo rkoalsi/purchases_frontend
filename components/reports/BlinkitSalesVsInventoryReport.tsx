@@ -83,15 +83,13 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   // File upload state
-  const [salesFile, setSalesFile] = useState<File | null>(null);
-  const [returnsFile, setReturnsFile] = useState<File | null>(null);
+  const [ordersFile, setOrdersFile] = useState<File | null>(null);
   const [inventoryFile, setInventoryFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [downloading, setDownloading] = useState<boolean>(false);
 
   // Refs for file inputs
-  const salesFileInputRef = useRef<HTMLInputElement>(null);
-  const returnsFileInputRef = useRef<HTMLInputElement>(null);
+  const ordersFileInputRef = useRef<HTMLInputElement>(null);
   const inventoryFileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [cityFilter, setCityFilter] = useState<string>('');
@@ -274,22 +272,12 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
   };
 
   // ===== FILE HANDLING =====
-  const handleSalesFileChange = (
+  const handleOrdersFileChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSalesFile(file);
-      event.target.value = '';
-    }
-  };
-
-  const handleReturnsFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setReturnsFile(file);
+      setOrdersFile(file);
       event.target.value = '';
     }
   };
@@ -305,9 +293,8 @@ const BlinkitSalesVsInventoryReport: React.FC = () => {
   };
 
 const handleUpload = async () => {
-  // Check if at least one file is selected
-  if (!salesFile && !returnsFile && !inventoryFile) {
-    alert('Please select at least one file (Forward Orders, Return Cancelled, or Inventory).');
+  if (!ordersFile && !inventoryFile) {
+    alert('Please select at least one file.');
     return;
   }
 
@@ -320,12 +307,10 @@ const handleUpload = async () => {
     return;
   }
 
-  // Create an AbortController for cancellation
   const abortController = new AbortController();
 
   try {
-    // Pre-validate files on the client side
-    const maxFileSize = 50 * 1024 * 1024; // 50MB limit
+    const maxFileSize = 50 * 1024 * 1024;
     const validExtensions = ['.xlsx', '.xls'];
 
     const validateFile = (file: File, label: string) => {
@@ -338,11 +323,9 @@ const handleUpload = async () => {
       }
     };
 
-    if (salesFile) validateFile(salesFile, 'Forward Orders');
-    if (returnsFile) validateFile(returnsFile, 'Return Cancelled');
-    if (inventoryFile) validateFile(inventoryFile, 'Inventory');
+    if (ordersFile) validateFile(ordersFile, 'Forward & Return Cancelled Orders');
+    if (inventoryFile) validateFile(inventoryFile, 'Storage Charges');
 
-    // Set up fetch options with timeout and optimized settings
     const fetchOptions = {
       method: 'POST',
       signal: abortController.signal,
@@ -350,142 +333,82 @@ const handleUpload = async () => {
       keepalive: true,
     };
 
-    // Upload Forward Orders file (sales data)
-    if (salesFile) {
+    // Upload orders file to both sales and returns endpoints (different sheets in the same file)
+    if (ordersFile) {
       const salesFormData = new FormData();
-      salesFormData.append('file', salesFile);
-
+      salesFormData.append('file', ordersFile);
       console.log('Uploading Forward Orders (sales) data...');
       const salesResponse = await fetch(`${apiUrl}/blinkit/upload_sales_data`, {
         ...fetchOptions,
         body: salesFormData,
       });
-
       if (!salesResponse.ok) {
         const salesError = await salesResponse.json();
-        throw new Error(
-          `Forward Orders upload failed: ${
-            salesError.detail || salesResponse.statusText
-          }`
-        );
+        throw new Error(`Forward Orders upload failed: ${salesError.detail || salesResponse.statusText}`);
       }
-
       const salesResult = await salesResponse.json();
       console.log(`Forward Orders data uploaded: ${salesResult.message}`);
-    }
 
-    // Upload Return Cancelled file (returns data)
-    if (returnsFile) {
-      const returnSalesFormData = new FormData();
-      returnSalesFormData.append('file', returnsFile);
-
+      const returnFormData = new FormData();
+      returnFormData.append('file', ordersFile);
       console.log('Uploading Return Cancelled data...');
-      const returnSalesResponse = await fetch(`${apiUrl}/blinkit/upload_return_data`, {
+      const returnResponse = await fetch(`${apiUrl}/blinkit/upload_return_data`, {
         ...fetchOptions,
-        body: returnSalesFormData,
+        body: returnFormData,
       });
-
-      if (!returnSalesResponse.ok) {
-        const returnSalesError = await returnSalesResponse.json();
-        throw new Error(
-          `Return Cancelled upload failed: ${
-            returnSalesError.detail || returnSalesResponse.statusText
-          }`
-        );
+      if (!returnResponse.ok) {
+        const returnError = await returnResponse.json();
+        throw new Error(`Return Cancelled upload failed: ${returnError.detail || returnResponse.statusText}`);
       }
-
-      const returnSalesResult = await returnSalesResponse.json();
-      console.log(`Return Cancelled data uploaded: ${returnSalesResult.message}`);
+      const returnResult = await returnResponse.json();
+      console.log(`Return Cancelled data uploaded: ${returnResult.message}`);
     }
 
-    // Upload inventory file if provided
     if (inventoryFile) {
       const inventoryFormData = new FormData();
       inventoryFormData.append('file', inventoryFile);
-
-      console.log('Uploading inventory data...');
-      const inventoryResponse = await fetch(
-        `${apiUrl}/blinkit/upload_inventory_data`,
-        {
-          ...fetchOptions,
-          body: inventoryFormData,
-        }
-      );
-
+      console.log('Uploading Storage Charges (inventory) data...');
+      const inventoryResponse = await fetch(`${apiUrl}/blinkit/upload_inventory_data`, {
+        ...fetchOptions,
+        body: inventoryFormData,
+      });
       if (!inventoryResponse.ok) {
         const inventoryError = await inventoryResponse.json();
-        throw new Error(
-          `Inventory upload failed: ${
-            inventoryError.detail || inventoryResponse.statusText
-          }`
-        );
+        throw new Error(`Storage Charges upload failed: ${inventoryError.detail || inventoryResponse.statusText}`);
       }
-
       const inventoryResult = await inventoryResponse.json();
-      console.log(`Inventory data uploaded: ${inventoryResult.message}`);
+      console.log(`Storage Charges data uploaded: ${inventoryResult.message}`);
     }
 
-    // Generate report with date range parameters
-    console.log('Generating report...');
     const startDateStr = dateUtils.format(startDate, 'yyyy-MM-dd');
     const endDateStr = dateUtils.format(endDate, 'yyyy-MM-dd');
 
-    console.log(
-      'Generating report with dates:',
-      startDateStr,
-      'to',
-      endDateStr
-    );
-
     const generateResponse = await fetch(
       `${apiUrl}/blinkit/generate_report_by_date_range?start_date=${startDateStr}&end_date=${endDateStr}&any_last_90_days=false`,
-      {
-        method: 'GET',
-        signal: abortController.signal,
-      }
+      { method: 'GET', signal: abortController.signal }
     );
-
     if (!generateResponse.ok) {
       const generateError = await generateResponse.json();
-      throw new Error(
-        `Report generation failed: ${
-          generateError.detail || generateResponse.statusText
-        }`
-      );
+      throw new Error(`Report generation failed: ${generateError.detail || generateResponse.statusText}`);
     }
 
-    // Reset file inputs
-    setSalesFile(null);
-    setReturnsFile(null);
+    setOrdersFile(null);
     setInventoryFile(null);
-    if (salesFileInputRef.current) salesFileInputRef.current.value = '';
-    if (returnsFileInputRef.current) returnsFileInputRef.current.value = '';
+    if (ordersFileInputRef.current) ordersFileInputRef.current.value = '';
     if (inventoryFileInputRef.current) inventoryFileInputRef.current.value = '';
 
-    console.log('Report generated successfully!');
+    const uploaded = [ordersFile && 'Orders & Returns', inventoryFile && 'Storage Charges'].filter(Boolean);
+    toast.success(`${uploaded.join(', ')} data uploaded and report generated successfully!`);
 
-    // Show success message based on what was uploaded
-    const uploaded = [salesFile && 'Forward Orders', returnsFile && 'Returns', inventoryFile && 'Inventory'].filter(Boolean);
-    const successMessage = uploaded.length > 0
-      ? `${uploaded.join(', ')} data uploaded and report generated successfully!`
-      : 'Report generated successfully!';
-
-    toast.success(successMessage);
-    
-    // Fetch the updated report data
     await fetchReportData();
     setShowUploadModal(false);
-    
+
   } catch (err: any) {
-    // Handle different types of errors
     if (err.name === 'AbortError') {
-      console.log('Upload was cancelled.');
       toast.info('Upload was cancelled.');
     } else if (err.name === 'TimeoutError') {
-      console.error('Upload timed out. Please try again with smaller files.');
       toast.error('Upload timed out. Please try again with smaller files.');
     } else {
-      console.error('Upload process failed:', err);
       toast.error(err.message || 'An unexpected error occurred during upload.');
     }
   } finally {
@@ -712,11 +635,9 @@ const handleUpload = async () => {
         <UploadModal
           isOpen={showUploadModal}
           onClose={() => setShowUploadModal(false)}
-          salesFile={salesFile}
-          returnsFile={returnsFile}
+          ordersFile={ordersFile}
           inventoryFile={inventoryFile}
-          onSalesFileChange={handleSalesFileChange}
-          onReturnsFileChange={handleReturnsFileChange}
+          onOrdersFileChange={handleOrdersFileChange}
           onInventoryFileChange={handleInventoryFileChange}
           onUpload={handleUpload}
           uploading={uploading}
@@ -869,16 +790,16 @@ const handleUpload = async () => {
                 <div className="inline-flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-full border border-orange-100 dark:bg-orange-900/20 dark:border-orange-800">
                   <TrendingDown className="h-4 w-4 text-orange-600" />
                   <span className="text-sm text-orange-800 dark:text-orange-300">
-                    <span className="font-medium">Missing Inventory Dates:</span> {reportMetadata.inventory_data.missing_dates.join(', ')}
+                    <span className="font-medium">Inventory gaps ({reportMetadata.inventory_data.missing_dates.length} days, may be expected):</span> {reportMetadata.inventory_data.missing_dates.join(', ')}
                   </span>
                 </div>
               )}
 
               {reportMetadata.sales_data?.missing_dates && reportMetadata.sales_data.missing_dates.length > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full border border-red-100 dark:bg-red-900/20 dark:border-red-800">
-                  <TrendingDown className="h-4 w-4 text-red-600" />
-                  <span className="text-sm text-red-800 dark:text-red-300">
-                    <span className="font-medium">Missing Sales Dates:</span> {reportMetadata.sales_data.missing_dates.join(', ')}
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-full border border-gray-200 dark:bg-gray-900/20 dark:border-gray-800">
+                  <TrendingDown className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Sales gaps ({reportMetadata.sales_data.missing_dates.length} days, may be expected):</span> {reportMetadata.sales_data.missing_dates.join(', ')}
                   </span>
                 </div>
               )}
