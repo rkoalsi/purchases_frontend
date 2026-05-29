@@ -16,7 +16,7 @@ import {
 } from 'chart.js';
 
 import { toast } from 'react-toastify';
-import { Search, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Zap, Upload, Download, X, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 
 const BLINKIT_PAGE_SIZE = 25;
@@ -55,6 +55,9 @@ const BlinkitItemsTable: React.FC<BlinkitItemsTableProps> = ({ brand = '', brand
   const [, setSelectedItems] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{ message: string; skipped_no_match?: string[] } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setPage(1); }, [search, brandSkus]);
   const selectedMonth = selectedDate.getMonth() + 1;
@@ -112,6 +115,34 @@ const BlinkitItemsTable: React.FC<BlinkitItemsTableProps> = ({ brand = '', brand
     }
   };
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setUploading(true);
+    setUploadResult(null);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const res = await axios.post(`${apiUrl}/blinkit/upload-sku-mapping`, formData);
+      setUploadResult(res.data);
+      toast.success(res.data.message);
+      fetchItems();
+    } catch (err: any) {
+      const detail = err.response?.data?.detail || err.message;
+      toast.error(`Upload failed: ${detail}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleTemplateDownload = () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    window.open(`${apiUrl}/blinkit/sku-mapping-template`, '_blank');
+  };
+
   // ===== FILTERED + PAGINATED =====
   const q = search.toLowerCase();
   const filtered = reportData.filter((item) => {
@@ -160,7 +191,54 @@ const BlinkitItemsTable: React.FC<BlinkitItemsTableProps> = ({ brand = '', brand
             {filtered.length}{filtered.length !== reportData.length ? ` / ${reportData.length}` : ''} items
           </span>
         )}
+        <div className='flex items-center gap-2 ml-auto shrink-0'>
+          <button
+            onClick={handleTemplateDownload}
+            title='Download template'
+            className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors'
+          >
+            <Download className='w-3.5 h-3.5' />
+            Template
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className='flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+            style={{ backgroundColor: '#FFD34C', color: '#1a1a1a' }}
+          >
+            {uploading ? (
+              <div className='animate-spin rounded-full h-3.5 w-3.5 border-2 border-gray-400 border-t-gray-800' />
+            ) : (
+              <Upload className='w-3.5 h-3.5' />
+            )}
+            {uploading ? 'Uploading…' : 'Upload Mapping'}
+          </button>
+          <input ref={fileInputRef} type='file' accept='.xlsx,.xls' className='hidden' onChange={handleUpload} />
+        </div>
       </div>
+
+      {/* Upload result banner */}
+      {uploadResult && (
+        <div className='mx-4 mt-3 mb-1 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 p-3 flex items-start gap-2'>
+          <div className='flex-1 min-w-0'>
+            <p className='text-sm text-green-800 dark:text-green-300'>{uploadResult.message}</p>
+            {uploadResult.skipped_no_match && uploadResult.skipped_no_match.length > 0 && (
+              <details className='mt-1.5'>
+                <summary className='flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400 cursor-pointer select-none'>
+                  <AlertTriangle className='w-3 h-3' />
+                  {uploadResult.skipped_no_match.length} item(s) skipped — UPC not found in products
+                </summary>
+                <ul className='mt-1 ml-4 text-xs text-amber-600 dark:text-amber-500 list-disc space-y-0.5 max-h-32 overflow-y-auto'>
+                  {uploadResult.skipped_no_match.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+              </details>
+            )}
+          </div>
+          <button onClick={() => setUploadResult(null)} className='text-gray-400 hover:text-gray-600 dark:hover:text-zinc-300 shrink-0'>
+            <X className='w-4 h-4' />
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className='flex items-center justify-center py-16 gap-3 text-gray-400 dark:text-zinc-500'>
