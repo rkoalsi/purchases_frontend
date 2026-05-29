@@ -442,8 +442,8 @@ Yellow / Orange rows (lookback):
                             <ColRow name="FBA Inventory" desc="Latest FBA inventory snapshot (date shown in column header)" />
                             <ColRow name="Blinkit Inventory" desc="Latest Blinkit dark-store inventory snapshot" />
                             <ColRow name="Etrade Inventory" desc="Latest Etrade warehouse inventory snapshot" />
-                            <ColRow name="Etrade DRR" desc="Daily run rate calculated from Etrade sales data" />
-                            <ColRow name="Days Total Inventory Lasts (Etrade)" desc="How many days Etrade stock covers at current Etrade DRR" formula="= Etrade Inventory ÷ Etrade DRR" />
+                            <ColRow name="Amazon DRR" desc="Final DRR (units/day) from the Amazon PSR report for the same date range — identical to the 'Final DRR' column in the Amazon Sales vs Inventory report. Combines VC + FBA sales. 0 when the SKU has no Amazon sales history." />
+                            <ColRow name="Days Total Inventory Lasts (Amazon)" desc="How many days the combined Amazon stock (VC + FBA) covers at the PSR DRR" formula="= Amazon Total Inventory ÷ Amazon DRR (0 when Amazon DRR = 0)" />
                         </ColGroup>
 
                         <ColGroup title="Order Calculations">
