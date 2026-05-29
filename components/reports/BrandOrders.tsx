@@ -664,7 +664,7 @@ export default function BrandOrders() {
       const form = new FormData();
       if (editForm.name !== undefined) form.append('name', editForm.name);
       if (editForm.order_date !== undefined) form.append('order_date', editForm.order_date);
-      if (editForm.shipment_eta !== undefined) form.append('shipment_eta', editForm.shipment_eta);
+      if (editForm.shipment_eta != null) form.append('shipment_eta', editForm.shipment_eta);
       form.append('initiation_date', editForm.initiation_date ?? '');
       form.append('proforma_date', editForm.proforma_date ?? '');
       form.append('ready_date', editForm.ready_date ?? '');
