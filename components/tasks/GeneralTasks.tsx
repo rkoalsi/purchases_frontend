@@ -1330,6 +1330,10 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
 
               <div className='px-5 py-4 space-y-3.5 border-b border-zinc-100 dark:border-zinc-800'>
                 <div>
+                  <p className='text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-1'>Created At</p>
+                  <span className='text-sm font-semibold text-zinc-800 dark:text-zinc-100'>{fmtDateTime(task.created_at)}</span>
+                </div>
+                <div>
                   <div className='flex items-center justify-between mb-1'>
                     <p className='text-[10px] font-bold text-zinc-400 uppercase tracking-wide'>Deadline</p>
                     <button onClick={() => setEditingDeadline((v) => !v)}
