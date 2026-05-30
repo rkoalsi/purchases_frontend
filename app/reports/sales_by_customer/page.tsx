@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { usePageTitle } from '@/hooks/usePageTitle';
+import InvoiceSyncWarning from '@/components/reports/InvoiceSyncWarning';
 
 const REPORT_TABS = [
   { id: "sales_by_customer", label: "Sales by Customer", icon: FileSpreadsheet },
@@ -209,6 +210,7 @@ const InvoiceReportGenerator = () => {
 
   return (
     <div className="max-w-2xl mx-auto">
+      <InvoiceSyncWarning />
       <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-lg dark:shadow-none border border-transparent dark:border-zinc-800 overflow-hidden">
 
         {/* Tab bar */}

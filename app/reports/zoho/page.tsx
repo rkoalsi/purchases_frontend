@@ -18,6 +18,7 @@ import {
   formatDate,
 } from '@/components/reports/TableStyles';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import InvoiceSyncWarning from '@/components/reports/InvoiceSyncWarning';
 
 function Page() {
   usePageTitle('Zoho Sales Report');
@@ -202,6 +203,7 @@ function Page() {
   return (
     <div className='min-h-screen py-8'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+        <InvoiceSyncWarning />
         {/* Header */}
         <div className='mb-8'>
           <h1 className='text-3xl font-bold text-zinc-900 dark:text-zinc-50'>Zoho Sales Report</h1>
