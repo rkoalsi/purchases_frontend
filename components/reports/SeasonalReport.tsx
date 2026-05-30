@@ -3,6 +3,7 @@
 import { useAuth } from '@/components/context/AuthContext';
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
+import InvoiceSyncWarning from '@/components/reports/InvoiceSyncWarning';
 
 function buildYearPresets() {
     const currentYear = new Date().getFullYear();
@@ -114,6 +115,7 @@ export default function SeasonalReport() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6">
             <div className="max-w-2xl mx-auto">
+                <InvoiceSyncWarning />
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
