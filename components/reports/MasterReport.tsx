@@ -175,7 +175,17 @@ export default function MasterReport() {
             .get(`${process.env.NEXT_PUBLIC_API_URL}/master/brands`, {
                 headers: { Authorization: `Bearer ${accessToken}` },
             })
-            .then((res) => setBrands(res.data.brands || []))
+            .then((res) => {
+                const raw: { value: string; label: string }[] = res.data.brands || [];
+                const hasDog = raw.some((b) => b.value.toLowerCase() === 'dogfest');
+                const hasCat = raw.some((b) => b.value.toLowerCase() === 'catfest');
+                const merged = raw.filter(
+                    (b) => b.value.toLowerCase() !== 'dogfest' && b.value.toLowerCase() !== 'catfest'
+                );
+                if (hasDog || hasCat) merged.push({ value: 'Petfest', label: 'Petfest' });
+                merged.sort((a, b) => a.label.localeCompare(b.label));
+                setBrands(merged);
+            })
             .catch(() => {});
     }, [accessToken]);
 
