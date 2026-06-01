@@ -120,6 +120,81 @@ const fmtCurrency = (n: any) =>
 const fmtPct = (n: any) =>
   `${safeNum(n).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
+// ─── Petfest brand merge ───────────────────────────────────────────────────────
+
+const PETFEST_BRANDS = new Set(['dogfest', 'catfest']);
+
+function mergePetfestBrands(brands: BrandKPI[]): BrandKPI[] {
+  const petfestGroup = brands.filter((b) => PETFEST_BRANDS.has(b.brand.toLowerCase()));
+  const rest = brands.filter((b) => !PETFEST_BRANDS.has(b.brand.toLowerCase()));
+  if (petfestGroup.length === 0) return brands;
+
+  const sumField = (f: keyof BrandKPI) =>
+    petfestGroup.reduce((acc, b) => acc + safeNum(b[f]), 0);
+  const sumClassCounts = (): Record<StockClassKey, number> => {
+    const keys: StockClassKey[] = ['reorder_risk', 'healthy', 'heavy', 'overstock', 'dead'];
+    const counts: Record<string, number> = {};
+    for (const k of keys) counts[k] = petfestGroup.reduce((acc, b) => acc + safeNum(b.stock_classification.counts[k]), 0);
+    return counts as Record<StockClassKey, number>;
+  };
+
+  const mergedCounts = sumClassCounts();
+  const totalSkus = Object.values(mergedCounts).reduce((a, b) => a + b, 0);
+  const mergedPct: Record<StockClassKey, number> = {} as any;
+  for (const k of Object.keys(mergedCounts) as StockClassKey[]) {
+    mergedPct[k] = totalSkus > 0 ? Math.round((mergedCounts[k] / totalSkus) * 100) : 0;
+  }
+
+  const totalUnits = sumField('units_sold') + sumField('units_returned');
+  const mergedDrr = sumField('drr');
+  const mergedStock = sumField('latest_net_stock');
+
+  const merged: BrandKPI = {
+    brand: 'Petfest',
+    sku_count: sumField('sku_count'),
+    units_sold: sumField('units_sold'),
+    units_returned: sumField('units_returned'),
+    credit_notes: sumField('credit_notes'),
+    transfer_orders: sumField('transfer_orders'),
+    net_sales: sumField('net_sales'),
+    revenue: sumField('revenue'),
+    return_pct: totalUnits > 0 ? (sumField('units_returned') / totalUnits) * 100 : 0,
+    growth_rate: petfestGroup.every((b) => b.growth_rate === null)
+      ? null
+      : petfestGroup.filter((b) => b.growth_rate !== null).reduce((acc, b) => acc + safeNum(b.growth_rate), 0) /
+        petfestGroup.filter((b) => b.growth_rate !== null).length,
+    drr: mergedDrr,
+    latest_net_stock: mergedStock,
+    latest_zoho_stock: sumField('latest_zoho_stock'),
+    latest_fba_stock: sumField('latest_fba_stock'),
+    net_sellable_inventory_value: sumField('net_sellable_inventory_value'),
+    stock_in_transit: sumField('stock_in_transit'),
+    total_cbm: sumField('total_cbm'),
+    days_cover: mergedDrr > 0 ? mergedStock / mergedDrr : 0,
+    current_days_coverage: mergedDrr > 0 ? mergedStock / mergedDrr : 0,
+    weighted_avg_days_cover: mergedDrr > 0 ? mergedStock / mergedDrr : 0,
+    lead_time: Math.max(...petfestGroup.map((b) => b.lead_time)),
+    safety_days: Math.max(...petfestGroup.map((b) => b.safety_days)),
+    target_days: Math.max(...petfestGroup.map((b) => b.target_days)),
+    alert_level: Math.max(...petfestGroup.map((b) => b.alert_level)),
+    order_count: sumField('order_count'),
+    excess_count: sumField('excess_count'),
+    no_movement_count: sumField('no_movement_count'),
+    fast_mover_count: sumField('fast_mover_count'),
+    medium_mover_count: sumField('medium_mover_count'),
+    slow_mover_count: sumField('slow_mover_count'),
+    missed_sales_units: sumField('missed_sales_units'),
+    missed_sales_daily_units: sumField('missed_sales_daily_units'),
+    missed_sales_value_total: sumField('missed_sales_value_total'),
+    missed_sales_daily_value: sumField('missed_sales_daily_value'),
+    stock_classification: { counts: mergedCounts, pct: mergedPct },
+    sku_lowest_10: petfestGroup.flatMap((b) => b.sku_lowest_10 ?? []),
+    sku_highest_10: petfestGroup.flatMap((b) => b.sku_highest_10 ?? []),
+  };
+
+  return [...rest, merged].sort((a, b) => a.brand.localeCompare(b.brand));
+}
+
 const greeting = () => {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
@@ -541,7 +616,9 @@ export default function Page() {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!res.ok) throw new Error(res.statusText);
-      setData(await res.json());
+      const raw = await res.json();
+      if (raw?.brands) raw.brands = mergePetfestBrands(raw.brands);
+      setData(raw);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {

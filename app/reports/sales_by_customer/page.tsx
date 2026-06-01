@@ -46,7 +46,15 @@ const InvoiceReportGenerator = () => {
   const getBrands = async () => {
     try {
       const { data } = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/zoho/brands`);
-      setBrands(data.brands);
+      const raw: { value: string; label: string }[] = data.brands || [];
+      const hasDog = raw.some((b) => b.value.toLowerCase() === 'dogfest');
+      const hasCat = raw.some((b) => b.value.toLowerCase() === 'catfest');
+      const merged = raw.filter(
+        (b) => b.value.toLowerCase() !== 'dogfest' && b.value.toLowerCase() !== 'catfest'
+      );
+      if (hasDog || hasCat) merged.push({ value: 'Petfest', label: 'Petfest' });
+      merged.sort((a, b) => a.label.localeCompare(b.label));
+      setBrands(merged as any);
     } catch (error) {
       console.log(error);
     }
