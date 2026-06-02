@@ -172,7 +172,9 @@ function mergePetfestBrands(brands: BrandKPI[]): BrandKPI[] {
     total_cbm: sumField('total_cbm'),
     days_cover: mergedDrr > 0 ? mergedStock / mergedDrr : 0,
     current_days_coverage: mergedDrr > 0 ? mergedStock / mergedDrr : 0,
-    weighted_avg_days_cover: mergedDrr > 0 ? mergedStock / mergedDrr : 0,
+    weighted_avg_days_cover: mergedStock > 0
+      ? petfestGroup.reduce((acc, b) => acc + safeNum(b.latest_net_stock) * safeNum(b.weighted_avg_days_cover), 0) / mergedStock
+      : 0,
     lead_time: Math.max(...petfestGroup.map((b) => b.lead_time)),
     safety_days: Math.max(...petfestGroup.map((b) => b.safety_days)),
     target_days: Math.max(...petfestGroup.map((b) => b.target_days)),
