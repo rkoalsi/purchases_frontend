@@ -418,11 +418,9 @@ export default function VCUnderOrdering() {
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.total_inv.toLocaleString()}</span></td>
 
                     <td className={TABLE_CLASSES.td}>
-                      {row.drr_flag?.startsWith('OK')
-                        ? row.drr === 0
-                          ? <span className='text-xs text-amber-600 dark:text-amber-400 italic'>Manual input required</span>
-                          : <span className={TABLE_CLASSES.tdText}>{row.drr}</span>
-                        : <span className='text-xs text-zinc-400 italic'>{row.drr_flag || '—'}</span>
+                      {row.drr_flag?.startsWith('OK') && row.drr > 0
+                        ? <span className={TABLE_CLASSES.tdText}>{row.drr}</span>
+                        : <span className='text-xs text-amber-600 dark:text-amber-400 italic'>Manual input required</span>
                       }
                     </td>
 
