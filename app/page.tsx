@@ -178,7 +178,15 @@ function mergePetfestBrands(brands: BrandKPI[]): BrandKPI[] {
     lead_time: Math.max(...petfestGroup.map((b) => b.lead_time)),
     safety_days: Math.max(...petfestGroup.map((b) => b.safety_days)),
     target_days: Math.max(...petfestGroup.map((b) => b.target_days)),
-    alert_level: Math.max(...petfestGroup.map((b) => b.alert_level)),
+    alert_level: (() => {
+      const mergedLeadTime = Math.max(...petfestGroup.map((b) => b.lead_time));
+      const mergedTargetDays = Math.max(...petfestGroup.map((b) => b.target_days));
+      const dc = mergedDrr > 0 ? mergedStock / mergedDrr : 0;
+      if (mergedDrr === 0) return 3;
+      if (dc < mergedLeadTime) return 2;
+      if (dc < mergedTargetDays) return 1;
+      return 0;
+    })(),
     order_count: sumField('order_count'),
     excess_count: sumField('excess_count'),
     no_movement_count: sumField('no_movement_count'),
@@ -488,12 +496,12 @@ const DaysCoverChart = ({ brands }: { brands: BrandKPI[] }) => {
       brand: b.brand,
       cover: Math.round(b.weighted_avg_days_cover * 10) / 10,
       target: b.target_days,
-      alert: b.alert_level,
+      lead_time: b.lead_time,
     }));
   if (!chartData.length) return null;
   const h = Math.max(200, chartData.length * 52 + 40);
-  const coverColor = (alert: number) =>
-    alert === 2 ? '#f87171' : alert === 1 ? '#fbbf24' : '#34d399';
+  const coverColor = (cover: number, target: number, leadTime: number) =>
+    cover < leadTime ? '#f87171' : cover < target ? '#fbbf24' : '#34d399';
   return (
     <div className='bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 p-5'>
       <h2 className='text-sm font-semibold text-gray-900 dark:text-zinc-100 mb-1'>W. Avg Days of Cover vs Target</h2>
@@ -527,7 +535,7 @@ const DaysCoverChart = ({ brands }: { brands: BrandKPI[] }) => {
           </Bar>
           <Bar dataKey='cover' radius={[0, 3, 3, 0]} maxBarSize={20}>
             {chartData.map((d, i) => (
-              <Cell key={i} fill={coverColor(d.alert)} />
+              <Cell key={i} fill={coverColor(d.cover, d.target, d.lead_time)} />
             ))}
             <LabelList dataKey='cover' position='right' formatter={(v: number) => `${v}d`} style={{ fontSize: 10, fill: '#d1d5db', fontWeight: 600 }} />
           </Bar>
