@@ -6,6 +6,7 @@ import axios from 'axios';
 import {
   ChevronLeft, ChevronRight, BookOpen, Search, RefreshCw,
   ArrowDownUp, X, ZoomIn, Video, ExternalLink, Package,
+  Upload, Download, CheckCircle, AlertCircle, Loader2, Plus,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
@@ -662,6 +663,436 @@ function ProductDetailDrawer({
   );
 }
 
+// ─── Bulk Upload Modal ─────────────────────────────────────────────────────────
+
+type UploadStep = 'idle' | 'validating' | 'validated' | 'creating' | 'done';
+
+interface ValidatedComponent {
+  sku_code: string;
+  quantity: number;
+  name: string | null;
+  item_id: string | null;
+  product_id: string | null;
+}
+
+interface ValidatedRow {
+  row: number;
+  name: string;
+  sku_code: string;
+  rate: number;
+  components: ValidatedComponent[];
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+interface ValidationResult {
+  rows: ValidatedRow[];
+  valid_count: number;
+  error_count: number;
+  total_count: number;
+}
+
+interface CreateResult {
+  sku_code: string;
+  name: string;
+  success: boolean;
+  composite_item_id?: string;
+  error?: string;
+}
+
+function BulkUploadModal({
+  accessToken,
+  onClose,
+  onCreated,
+}: {
+  accessToken: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [step, setStep] = useState<UploadStep>('idle');
+  const [file, setFile] = useState<File | null>(null);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [createResults, setCreateResults] = useState<CreateResult[]>([]);
+  const [createdCount, setCreatedCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [showOnlyErrors, setShowOnlyErrors] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && step !== 'creating') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, step]);
+
+  const downloadTemplate = async () => {
+    const res = await fetch(`${API}/composite-upload/template`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'composite_items_template.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileChange = (f: File | null) => {
+    setFile(f);
+    setValidation(null);
+    setError(null);
+    setStep('idle');
+  };
+
+  const handleValidate = async () => {
+    if (!file) return;
+    setStep('validating');
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await axios.post(`${API}/composite-upload/validate`, form, {
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'multipart/form-data' },
+      });
+      setValidation(res.data);
+      setStep('validated');
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Validation failed');
+      setStep('idle');
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!validation) return;
+    const validItems = validation.rows.filter(r => r.valid);
+    setStep('creating');
+    setError(null);
+    try {
+      const res = await axios.post(
+        `${API}/composite-upload/create`,
+        { items: validItems },
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      setCreateResults(res.data.results);
+      setCreatedCount(res.data.created_count);
+      setFailedCount(res.data.failed_count);
+      setStep('done');
+      if (res.data.created_count > 0) onCreated();
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Creation failed');
+      setStep('validated');
+    }
+  };
+
+  const isDone = step === 'done';
+  const isCreating = step === 'creating';
+
+  return (
+    <div
+      ref={overlayRef}
+      onClick={e => { if (e.target === overlayRef.current && !isCreating) onClose(); }}
+      className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'
+    >
+      <div className='bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col'>
+        {/* Header */}
+        <div className='flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800 shrink-0'>
+          <div className='flex items-center gap-3'>
+            <div className='p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30'>
+              <Upload className='w-4 h-4 text-blue-600 dark:text-blue-400' />
+            </div>
+            <div>
+              <h2 className='text-base font-semibold text-gray-900 dark:text-zinc-100'>Bulk Create Composite Items</h2>
+              <p className='text-xs text-gray-500 dark:text-zinc-400'>Upload a filled template to create items in Zoho Inventory</p>
+            </div>
+          </div>
+          {!isCreating && (
+            <button onClick={onClose} className='p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors'>
+              <X className='w-5 h-5' />
+            </button>
+          )}
+        </div>
+
+        {/* Body */}
+        <div className='flex-1 overflow-y-auto min-h-0 px-6 py-5 space-y-5'>
+
+          {/* Step 1 — Template + Upload */}
+          {(step === 'idle' || step === 'validating' || step === 'validated') && (
+            <div className='space-y-4'>
+              {/* Download template */}
+              <div className='flex items-center justify-between p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'>
+                <div>
+                  <p className='text-sm font-medium text-blue-800 dark:text-blue-300'>Step 1 — Download Template</p>
+                  <p className='text-xs text-blue-600 dark:text-blue-400 mt-0.5'>Fill in composite name, SKU, rate, and component SKUs + quantities</p>
+                </div>
+                <button
+                  onClick={downloadTemplate}
+                  className='flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shrink-0'
+                >
+                  <Download className='w-4 h-4' /> Template
+                </button>
+              </div>
+
+              {/* File upload */}
+              <div>
+                <p className='text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2'>Step 2 — Upload Filled Template</p>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFileChange(f); }}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                    file
+                      ? 'border-green-400 bg-green-50 dark:bg-green-900/10'
+                      : 'border-gray-300 dark:border-zinc-700 hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/10'
+                  }`}
+                >
+                  {file ? (
+                    <div className='flex items-center justify-center gap-2 text-green-700 dark:text-green-400'>
+                      <CheckCircle className='w-5 h-5' />
+                      <span className='text-sm font-medium'>{file.name}</span>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleFileChange(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                        className='ml-1 p-0.5 rounded text-green-600 hover:text-red-500 transition-colors'
+                      >
+                        <X className='w-4 h-4' />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className='text-gray-400 dark:text-zinc-500 space-y-1'>
+                      <Upload className='w-8 h-8 mx-auto opacity-50' />
+                      <p className='text-sm'>Drop your .xlsx file here or click to browse</p>
+                    </div>
+                  )}
+                </div>
+                <input ref={fileInputRef} type='file' accept='.xlsx' className='hidden' onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
+              </div>
+
+              {error && (
+                <div className='flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm'>
+                  <AlertCircle className='w-4 h-4 shrink-0 mt-0.5' />
+                  {error}
+                </div>
+              )}
+
+              {file && step !== 'validating' && (
+                <button
+                  onClick={handleValidate}
+                  className='w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors'
+                >
+                  Validate File
+                </button>
+              )}
+
+              {step === 'validating' && (
+                <div className='flex items-center justify-center gap-2 py-4 text-gray-500 dark:text-zinc-400'>
+                  <Loader2 className='w-5 h-5 animate-spin' /> Validating…
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Validation results */}
+          {step === 'validated' && validation && (
+            <div className='space-y-4'>
+              {/* Summary pills */}
+              <div className='flex flex-wrap gap-3'>
+                <div className='flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium'>
+                  <CheckCircle className='w-3.5 h-3.5' />
+                  {validation.valid_count} valid
+                </div>
+                {validation.error_count > 0 && (
+                  <div className='flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-medium'>
+                    <AlertCircle className='w-3.5 h-3.5' />
+                    {validation.error_count} with errors
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowOnlyErrors(v => !v)}
+                  className={`ml-auto text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    showOnlyErrors
+                      ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 text-red-700 dark:text-red-400'
+                      : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-500 dark:text-zinc-400'
+                  }`}
+                >
+                  {showOnlyErrors ? 'Show all' : 'Show errors only'}
+                </button>
+              </div>
+
+              {/* Rows table */}
+              <div className='border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden'>
+                <div className='overflow-x-auto max-h-72'>
+                  <table className='w-full text-xs'>
+                    <thead>
+                      <tr className='bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
+                        <th className='px-3 py-2.5 text-left w-6'>#</th>
+                        <th className='px-3 py-2.5 text-left'>Status</th>
+                        <th className='px-3 py-2.5 text-left'>Name</th>
+                        <th className='px-3 py-2.5 text-left'>SKU</th>
+                        <th className='px-3 py-2.5 text-left'>Rate</th>
+                        <th className='px-3 py-2.5 text-left'>Components</th>
+                      </tr>
+                    </thead>
+                    <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
+                      {validation.rows
+                        .filter(r => !showOnlyErrors || !r.valid)
+                        .map(r => (
+                          <tr key={r.row} className={r.valid ? '' : 'bg-red-50/50 dark:bg-red-900/10'}>
+                            <td className='px-3 py-2.5 text-gray-400'>{r.row}</td>
+                            <td className='px-3 py-2.5'>
+                              {r.valid ? (
+                                <CheckCircle className='w-4 h-4 text-green-500' />
+                              ) : (
+                                <AlertCircle className='w-4 h-4 text-red-500' />
+                              )}
+                            </td>
+                            <td className='px-3 py-2.5 font-medium text-gray-800 dark:text-zinc-200 max-w-[180px]'>
+                              <div className='truncate'>{r.name}</div>
+                              {r.errors.length > 0 && (
+                                <div className='text-red-500 dark:text-red-400 text-[10px] mt-0.5 space-y-0.5'>
+                                  {r.errors.map((e, i) => <div key={i}>• {e}</div>)}
+                                </div>
+                              )}
+                              {r.warnings.length > 0 && (
+                                <div className='text-amber-500 text-[10px] mt-0.5 space-y-0.5'>
+                                  {r.warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
+                                </div>
+                              )}
+                            </td>
+                            <td className='px-3 py-2.5'>
+                              <span className='font-mono bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded text-[10px]'>
+                                {r.sku_code || '—'}
+                              </span>
+                            </td>
+                            <td className='px-3 py-2.5 text-gray-600 dark:text-zinc-400'>
+                              {r.rate > 0 ? `₹${r.rate.toLocaleString('en-IN')}` : <span className='text-amber-500'>—</span>}
+                            </td>
+                            <td className='px-3 py-2.5'>
+                              <div className='flex flex-wrap gap-1'>
+                                {r.components.map((c, ci) => (
+                                  <span
+                                    key={ci}
+                                    className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                      c.item_id
+                                        ? 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400'
+                                        : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                    }`}
+                                  >
+                                    {c.sku_code}{c.quantity !== 1 ? ` ×${c.quantity}` : ''}
+                                    {!c.item_id && ' ✗'}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {error && (
+                <div className='flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm'>
+                  <AlertCircle className='w-4 h-4 shrink-0 mt-0.5' />
+                  {error}
+                </div>
+              )}
+
+              {validation.valid_count > 0 ? (
+                <button
+                  onClick={handleCreate}
+                  className='w-full py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2'
+                >
+                  <Plus className='w-4 h-4' />
+                  Create {validation.valid_count} Composite Item{validation.valid_count !== 1 ? 's' : ''} in Zoho
+                </button>
+              ) : (
+                <p className='text-center text-sm text-red-500 py-2'>Fix all errors before proceeding</p>
+              )}
+            </div>
+          )}
+
+          {/* Creating */}
+          {step === 'creating' && (
+            <div className='flex flex-col items-center justify-center py-12 gap-4 text-gray-500 dark:text-zinc-400'>
+              <Loader2 className='w-10 h-10 animate-spin text-blue-500' />
+              <p className='text-sm font-medium'>Creating composite items in Zoho Inventory…</p>
+              <p className='text-xs text-gray-400'>This may take a moment</p>
+            </div>
+          )}
+
+          {/* Done */}
+          {step === 'done' && (
+            <div className='space-y-4'>
+              <div className={`flex items-center gap-3 p-4 rounded-xl ${
+                failedCount === 0
+                  ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                  : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+              }`}>
+                <CheckCircle className={`w-6 h-6 shrink-0 ${failedCount === 0 ? 'text-green-600' : 'text-amber-600'}`} />
+                <div>
+                  <p className={`text-sm font-semibold ${failedCount === 0 ? 'text-green-800 dark:text-green-300' : 'text-amber-800 dark:text-amber-300'}`}>
+                    {createdCount} item{createdCount !== 1 ? 's' : ''} created successfully
+                    {failedCount > 0 && `, ${failedCount} failed`}
+                  </p>
+                  <p className='text-xs text-gray-500 dark:text-zinc-400 mt-0.5'>The Composite Items list has been refreshed</p>
+                </div>
+              </div>
+
+              {createResults.length > 0 && (
+                <div className='border border-gray-200 dark:border-zinc-700 rounded-xl overflow-hidden'>
+                  <div className='overflow-x-auto max-h-64'>
+                    <table className='w-full text-xs'>
+                      <thead>
+                        <tr className='bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>
+                          <th className='px-3 py-2.5 text-left'>Status</th>
+                          <th className='px-3 py-2.5 text-left'>SKU</th>
+                          <th className='px-3 py-2.5 text-left'>Name</th>
+                          <th className='px-3 py-2.5 text-left'>Zoho ID</th>
+                        </tr>
+                      </thead>
+                      <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
+                        {createResults.map((r, i) => (
+                          <tr key={i} className={r.success ? '' : 'bg-red-50/50 dark:bg-red-900/10'}>
+                            <td className='px-3 py-2.5'>
+                              {r.success
+                                ? <CheckCircle className='w-4 h-4 text-green-500' />
+                                : <AlertCircle className='w-4 h-4 text-red-500' />}
+                            </td>
+                            <td className='px-3 py-2.5 font-mono text-blue-700 dark:text-blue-300'>{r.sku_code}</td>
+                            <td className='px-3 py-2.5 text-gray-700 dark:text-zinc-300 max-w-[200px]'>
+                              <div className='truncate'>{r.name}</div>
+                              {r.error && <div className='text-red-500 text-[10px]'>{r.error}</div>}
+                            </td>
+                            <td className='px-3 py-2.5 font-mono text-gray-400 text-[10px]'>{r.composite_item_id || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {isDone && (
+          <div className='px-6 py-4 border-t border-gray-100 dark:border-zinc-800 shrink-0 flex justify-end'>
+            <button
+              onClick={onClose}
+              className='px-6 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors'
+            >
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ZohoItemsPage() {
@@ -719,6 +1150,7 @@ export default function ZohoItemsPage() {
   const [compTotal, setCompTotal] = useState(0);
   const [compTotalPages, setCompTotalPages] = useState(1);
   const [compLoading, setCompLoading] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
 
   // Fetch brands
   useEffect(() => {
@@ -796,6 +1228,15 @@ export default function ZohoItemsPage() {
 
   return (
     <div className='space-y-6'>
+      {/* Bulk upload modal */}
+      {showBulkUpload && accessToken && (
+        <BulkUploadModal
+          accessToken={accessToken}
+          onClose={() => setShowBulkUpload(false)}
+          onCreated={() => { fetchComposites(); setTab('composites'); }}
+        />
+      )}
+
       {/* Carousel modal */}
       {carousel && (
         <ImageCarouselModal
@@ -1032,9 +1473,9 @@ export default function ZohoItemsPage() {
       {/* Composite items tab */}
       {tab === 'composites' && (
         <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden'>
-          <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-4'>
+          <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-4 flex-wrap'>
             <h2 className='text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider shrink-0'>Composite Items</h2>
-            <div className='relative flex-1 max-w-sm'>
+            <div className='relative flex-1 min-w-[160px] max-w-sm'>
               <Search className='absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400' />
               <input
                 type='text'
@@ -1044,6 +1485,12 @@ export default function ZohoItemsPage() {
                 className='w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 placeholder-gray-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
               />
             </div>
+            <button
+              onClick={() => setShowBulkUpload(true)}
+              className='shrink-0 flex items-center gap-2 px-4 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors'
+            >
+              <Upload className='w-3.5 h-3.5' /> Bulk Upload
+            </button>
           </div>
 
           {compLoading ? (
