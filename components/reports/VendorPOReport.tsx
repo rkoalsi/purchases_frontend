@@ -33,6 +33,7 @@ interface POListItem {
   total_accepted_qty: number;
   total_received_qty: number;
   total_supply_qty: number;
+  total_final_supply_qty: number;
   total_cost: number | null;
   total_cost_gst: number | null;
   order_file_s3_key?: string;
@@ -1657,7 +1658,7 @@ export default function VendorPOReport() {
                           title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
                         />
                       </th>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost (Supply Qty)', 'Total cost w/o GST (Supply Qty)', 'Total Cost (Accepted Qty)', 'Total cost w/o GST (Accepted Qty)', 'Status', 'Uploaded At', 'Estimate', 'Sales Order', 'Packages', 'Transfer Order', 'Assembly', 'Order File', 'Actions'].map(h => (
+                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Final Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost (Supply Qty)', 'Total cost w/o GST (Supply Qty)', 'Total Cost (Accepted Qty)', 'Total cost w/o GST (Accepted Qty)', 'Status', 'Uploaded At', 'Estimate', 'Sales Order', 'Packages', 'Transfer Order', 'Assembly', 'Order File', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -1684,6 +1685,7 @@ export default function VendorPOReport() {
                         <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.item_count}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_requested_qty)}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_supply_qty)}</span></td>
+                        <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_final_supply_qty)}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_accepted_qty)}</span></td>
                         <td className={TABLE_CLASSES.td}>
                           <POListReceivedQtyCell
@@ -2517,7 +2519,7 @@ export default function VendorPOReport() {
                           <SupplyQtyCell
                             poNumber={report.po_number}
                             asin={item.asin}
-                            value={item.final_supply_fo ?? item.final_supply_qty ?? item.supply_qty ?? 0}
+                            value={item.supply_qty_override ?? item.final_supply_fo ?? item.final_supply_qty ?? item.supply_qty ?? 0}
                             isOverride={item.supply_qty_override != null || item.final_supply_fo_override != null}
                             onSaved={handleSupplyQtySaved}
                           />
