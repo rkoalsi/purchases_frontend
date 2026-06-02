@@ -1723,7 +1723,7 @@ export default function VendorPOReport() {
                           ) : ['pending', 'processing'].includes(po.po_status) ? (
                             <div className="flex items-center gap-1">
                               <button
-                                onClick={() => { setSelectedPO(po.po_number); setEstimateDate(new Date().toISOString().slice(0, 10)); setInactiveEstimateItems([]); setCreateEstimateOpen(true); }}
+                                onClick={() => { setSelectedPO(po.po_number); openCreateEstimateModal(); }}
                                 title="Create estimate"
                                 className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors whitespace-nowrap"
                               >
