@@ -32,6 +32,8 @@ interface Row {
   final_units: number | null;
   final_units_overridden: boolean;
   zoho_stock: number;
+  sit_total: number;
+  sit_brands: string;
   status: string;
   etrade_asp: number | null;
   monthly_sales: Record<string, number>;
@@ -201,13 +203,17 @@ export default function VCUnderOrdering() {
         updated.target_stock = updated.drr > 0 ? Math.round(updated.drr * updated.total_target_days) : 0;
 
         if (field !== 'final_units') {
-          const ntd = updated.net_total_days;
-          const ttd = updated.total_target_days;
-          const lt = updated.lead_time;
-          if (updated.drr > 0 && ntd !== null) {
-            if (ntd < lt) updated.final_units = Math.round(updated.drr * ttd);
-            else if (ntd > ttd) updated.final_units = 0;
-            else updated.final_units = Math.max(0, Math.round((ttd - ntd) * updated.drr));
+          if (updated.zoho_stock === 0) {
+            updated.final_units = 0;
+          } else {
+            const ntd = updated.net_total_days;
+            const ttd = updated.total_target_days;
+            const lt = updated.lead_time;
+            if (updated.drr > 0 && ntd !== null) {
+              if (ntd < lt) updated.final_units = Math.round(updated.drr * ttd);
+              else if (ntd > ttd) updated.final_units = 0;
+              else updated.final_units = Math.max(0, Math.round((ttd - ntd) * updated.drr));
+            }
           }
           updated.final_units_overridden = false;
         }
@@ -367,7 +373,7 @@ export default function VCUnderOrdering() {
                     'Lead Time ✎', 'Coverage Days ✎',
                     'Total Target Days', 'Target Stock',
                     'Final Units ✎',
-                    zohoHeader, 'Status',
+                    zohoHeader, 'Stock in Transit', 'SIT Brands', 'Status',
                     ...monthLabels,
                   ].map((h, i) => (
                     <th key={i} className={TABLE_CLASSES.th} style={{ whiteSpace: 'nowrap' }}>{h}</th>
@@ -471,6 +477,18 @@ export default function VCUnderOrdering() {
                     </td>
 
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.zoho_stock.toLocaleString()}</span></td>
+
+                    <td className={TABLE_CLASSES.td}>
+                      <span className={`text-sm tabular-nums ${row.sit_total > 0 ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                        {row.sit_total > 0 ? row.sit_total.toLocaleString() : '—'}
+                      </span>
+                    </td>
+
+                    <td className={TABLE_CLASSES.td} style={{ minWidth: 160, maxWidth: 240 }}>
+                      <span className='text-xs text-zinc-600 dark:text-zinc-400 break-words whitespace-normal leading-snug'>
+                        {row.sit_brands || '—'}
+                      </span>
+                    </td>
 
                     <td className={TABLE_CLASSES.td}>
                       <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
