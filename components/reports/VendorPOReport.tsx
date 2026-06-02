@@ -823,6 +823,7 @@ export default function VendorPOReport() {
 
   // estimate modals
   const [createEstimateOpen, setCreateEstimateOpen] = useState(false);
+  const [estimateModalMode, setEstimateModalMode] = useState<'create' | 'update'>('create');
   const [linkEstimateOpen, setLinkEstimateOpen] = useState(false);
   const [etradeAddresses, setEtradeAddresses] = useState<EtradeAddress[]>([]);
   const [billingAddressId, setBillingAddressId] = useState('');
@@ -1235,6 +1236,26 @@ export default function VendorPOReport() {
   // ─── estimate handlers ────────────────────────────────────────────────────────
 
   const openCreateEstimateModal = async () => {
+    setEstimateModalMode('create');
+    setEstimateDate(new Date().toISOString().slice(0, 10));
+    setInactiveEstimateItems([]);
+    setCreateEstimateOpen(true);
+    if (etradeAddresses.length === 0) {
+      try {
+        const { data } = await axios.get<{ contact_id: string; addresses: EtradeAddress[] }>(`${API_URL}/vendor_po/etrade_customer`);
+        setEtradeAddresses(data.addresses);
+        if (data.addresses.length > 0) {
+          setBillingAddressId(data.addresses[0].address_id);
+          setShippingAddressId(data.addresses[0].address_id);
+        }
+      } catch {
+        toast.error('Failed to load ETRADE addresses');
+      }
+    }
+  };
+
+  const openUpdateEstimateModal = async () => {
+    setEstimateModalMode('update');
     setEstimateDate(new Date().toISOString().slice(0, 10));
     setInactiveEstimateItems([]);
     setCreateEstimateOpen(true);
@@ -1277,6 +1298,36 @@ export default function VendorPOReport() {
         toast.error(typeof detail === 'string' ? detail : err.message);
       } else {
         toast.error('Failed to create estimate');
+      }
+    } finally {
+      setCreatingEstimate(false);
+    }
+  };
+
+  const handleUpdateEstimate = async (skipInactive = false) => {
+    if (!selectedPO || !billingAddressId || !shippingAddressId) return;
+    setCreatingEstimate(true);
+    try {
+      const { data } = await axios.put<{ estimate_id: string; estimate_number: string; total: number; skipped_items?: string[]; skipped_inactive?: string[] }>(
+        `${API_URL}/vendor_po/${selectedPO}/estimate`,
+        { billing_address_id: billingAddressId, shipping_address_id: shippingAddressId, date: estimateDate || undefined, skip_inactive: skipInactive },
+      );
+      toast.success(`Estimate ${data.estimate_number} updated`);
+      if (data.skipped_items?.length) toast.warn(`Skipped ${data.skipped_items.length} item(s) without Zoho item ID`);
+      if (data.skipped_inactive?.length) toast.warn(`Skipped ${data.skipped_inactive.length} inactive item(s)`);
+      setInactiveEstimateItems([]);
+      setCreateEstimateOpen(false);
+      setEstimateDiff(null); // invalidate cached diff
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const detail = err.response?.data?.detail;
+        if (detail && typeof detail === 'object' && detail.type === 'inactive_items') {
+          setInactiveEstimateItems(detail.items ?? []);
+          return;
+        }
+        toast.error(typeof detail === 'string' ? detail : err.message);
+      } else {
+        toast.error('Failed to update estimate');
       }
     } finally {
       setCreatingEstimate(false);
@@ -1717,9 +1768,19 @@ export default function VendorPOReport() {
                         <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
                         <td className={TABLE_CLASSES.td}>
                           {po.estimate_number ? (
-                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono whitespace-nowrap">
-                              {po.estimate_number}
-                            </span>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono whitespace-nowrap">
+                                {po.estimate_number}
+                              </span>
+                              <button
+                                onClick={() => { setSelectedPO(po.po_number); openUpdateEstimateModal(); }}
+                                title="Update estimate with current PO data"
+                                className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap flex items-center gap-0.5"
+                              >
+                                <RefreshCw size={9} />
+                                Update
+                              </button>
+                            </div>
                           ) : ['pending', 'processing'].includes(po.po_status) ? (
                             <div className="flex items-center gap-1">
                               <button
@@ -2078,6 +2139,14 @@ export default function VendorPOReport() {
                     <FileText size={12} />
                     {report.estimate_number}
                   </span>
+                  <button
+                    onClick={openUpdateEstimateModal}
+                    title="Update estimate with current PO data"
+                    className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
+                  >
+                    <RefreshCw size={10} />
+                    Update
+                  </button>
                   <button
                     onClick={handleUnlinkEstimate}
                     disabled={unlinkingEstimate}
@@ -2551,10 +2620,10 @@ export default function VendorPOReport() {
                           {item.cost_price_wo_tax != null ? `₹${fmt(item.cost_price_wo_tax)}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
-                          {(item.total_cost_fo ?? item.total_cost) != null ? `₹${fmt((item.total_cost_fo ?? item.total_cost)!)}` : '—'}
+                          {(() => { const v = item.supply_qty_override != null ? item.total_cost : (item.total_cost_fo ?? item.total_cost); return v != null ? `₹${fmt(v)}` : '—'; })()}
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
-                          {(item.total_cost_fo_gst ?? item.total_cost_gst) != null ? `₹${fmt((item.total_cost_fo_gst ?? item.total_cost_gst)!)}` : '—'}
+                          {(() => { const v = item.supply_qty_override != null ? item.total_cost_gst : (item.total_cost_fo_gst ?? item.total_cost_gst); return v != null ? `₹${fmt(v)}` : '—'; })()}
                         </td>
                         <td className="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">
                           {item.total_cost_accepted != null ? `₹${fmt(item.total_cost_accepted)}` : '—'}
@@ -2621,7 +2690,7 @@ export default function VendorPOReport() {
         </div>
       )}
 
-      {/* ── Create Estimate Modal ── */}
+      {/* ── Create / Update Estimate Modal ── */}
       {createEstimateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-[90vw] sm:max-w-lg max-h-[80vh] overflow-y-auto border border-zinc-200 dark:border-zinc-700">
@@ -2630,14 +2699,17 @@ export default function VendorPOReport() {
                 <FileText size={18} className="text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Create Zoho Estimate</h3>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                  {estimateModalMode === 'update' ? 'Update Zoho Estimate' : 'Create Zoho Estimate'}
+                </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{selectedPO}</p>
               </div>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
-              Creates an estimate in Zoho Books for <strong>all PO items</strong> — items with Final Supply Qty = 0 appear on the estimate with quantity 0.
-              Customer is fixed to <strong>ETRADE MARKETING PRIVATE LIMITED</strong>.
-              Reference number will be the PO number.
+              {estimateModalMode === 'update'
+                ? <>Updates the existing estimate <strong className="font-mono">{report?.estimate_number}</strong> in Zoho Books with current PO line items — quantities, rates, and discounts will be overwritten.</>
+                : <>Creates an estimate in Zoho Books for <strong>all PO items</strong> — items with Final Supply Qty = 0 appear on the estimate with quantity 0. Customer is fixed to <strong>ETRADE MARKETING PRIVATE LIMITED</strong>. Reference number will be the PO number.</>
+              }
             </p>
             <div className="space-y-4">
               <div>
@@ -2711,21 +2783,25 @@ export default function VendorPOReport() {
               </button>
               {inactiveEstimateItems.length > 0 ? (
                 <button
-                  onClick={() => handleCreateEstimate(true)}
+                  onClick={() => estimateModalMode === 'update' ? handleUpdateEstimate(true) : handleCreateEstimate(true)}
                   disabled={creatingEstimate || !billingAddressId || !shippingAddressId}
                   className="px-4 py-2 text-sm rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {creatingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <FileText size={13} />}
-                  {creatingEstimate ? 'Creating…' : `Skip ${inactiveEstimateItems.length} inactive & Create`}
+                  {creatingEstimate
+                    ? (estimateModalMode === 'update' ? 'Updating…' : 'Creating…')
+                    : `Skip ${inactiveEstimateItems.length} inactive & ${estimateModalMode === 'update' ? 'Update' : 'Create'}`}
                 </button>
               ) : (
                 <button
-                  onClick={() => handleCreateEstimate(false)}
+                  onClick={() => estimateModalMode === 'update' ? handleUpdateEstimate(false) : handleCreateEstimate(false)}
                   disabled={creatingEstimate || !billingAddressId || !shippingAddressId}
                   className="px-4 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {creatingEstimate ? <RefreshCw size={13} className="animate-spin" /> : <FileText size={13} />}
-                  {creatingEstimate ? 'Creating…' : 'Create Estimate'}
+                  {creatingEstimate
+                    ? (estimateModalMode === 'update' ? 'Updating…' : 'Creating…')
+                    : (estimateModalMode === 'update' ? 'Update Estimate' : 'Create Estimate')}
                 </button>
               )}
             </div>
