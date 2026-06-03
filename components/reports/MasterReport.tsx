@@ -166,6 +166,7 @@ export default function MasterReport() {
 
     const [brands, setBrands] = useState<{ value: string; label: string }[]>([]);
     const [selectedBrand, setSelectedBrand] = useState('');
+    const [includeCogs, setIncludeCogs] = useState(false);
     const [downloading, setDownloading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -204,6 +205,7 @@ export default function MasterReport() {
                 start_date: startDate,
                 end_date: endDate,
                 include_zoho: true,
+                include_cogs: includeCogs,
             };
             if (selectedBrand) params.brand = selectedBrand;
 
@@ -361,6 +363,24 @@ export default function MasterReport() {
                             </span>
                         </div>
                     </div>
+
+                    {/* COGS toggle */}
+                    <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={includeCogs}
+                            onChange={(e) => setIncludeCogs(e.target.checked)}
+                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <div>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Include COGS
+                            </span>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                Adds Unit Cost, Pupscribe Stock Value, and Pupscribe Stock on Hand columns (from Zoho Books inventory valuation — adds ~30s to generation time)
+                            </p>
+                        </div>
+                    </label>
 
                     {/* Error */}
                     {error && (
