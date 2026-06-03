@@ -44,3 +44,4 @@ next-env.d.ts
 graphify-out/
 CLAUDE.md
 settings.json
+.claude/

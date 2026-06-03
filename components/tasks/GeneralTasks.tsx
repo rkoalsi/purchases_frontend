@@ -1805,6 +1805,23 @@ export default function GeneralTasks() {
     Promise.all([fetchTasks(), fetchUsers(), fetchStats()]).finally(() => setLoading(false));
   }, []);
 
+  // Open task from notification link (?open=taskId)
+  useEffect(() => {
+    if (loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const openId = params.get('open');
+    if (!openId) return;
+    // Clear param from URL without navigation
+    window.history.replaceState({}, '', window.location.pathname);
+    const found = tasks.find(t => t._id === openId);
+    if (found) {
+      setSelectedTask(found);
+    } else {
+      // Task may be hidden/done — fetch directly
+      axios.get(`${API}/tasks/${openId}`, { headers }).then(({ data }) => setSelectedTask(data)).catch(() => {});
+    }
+  }, [loading]);
+
   useEffect(() => { fetchTasks(); }, [activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir, showHidden]);
 
   const handleCreate = async (data: any) => {
