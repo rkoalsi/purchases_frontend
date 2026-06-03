@@ -845,6 +845,10 @@ export default function VendorPOReport() {
   const [creatingTO, setCreatingTO] = useState(false);
   const [linkingTO, setLinkingTO] = useState(false);
   const [unlinkingTO, setUnlinkingTO] = useState(false);
+  const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
+  const [fromWarehouseId, setFromWarehouseId] = useState('3220178000000403010');
+  const [toWarehouseId, setToWarehouseId] = useState('3220178000156676949');
 
   // sales order modal
   const [linkSOOpen, setLinkSOOpen] = useState(false);
@@ -1372,13 +1376,28 @@ export default function VendorPOReport() {
 
   // ─── transfer order handlers ─────────────────────────────────────────────────
 
+  const openCreateTODialog = async () => {
+    setCreateTOOpen(true);
+    if (warehouses.length === 0) {
+      setWarehousesLoading(true);
+      try {
+        const { data } = await axios.get<{ warehouses: { warehouse_id: string; warehouse_name: string }[] }>(`${API_URL}/vendor_po/warehouses`);
+        setWarehouses(data.warehouses);
+      } catch {
+        toast.error('Failed to load warehouses');
+      } finally {
+        setWarehousesLoading(false);
+      }
+    }
+  };
+
   const handleCreateTransferOrder = async () => {
     if (!selectedPO) return;
     setCreatingTO(true);
     try {
       const { data } = await axios.post<{ transfer_order_id: string; transfer_order_number: string; status: string }>(
         `${API_URL}/vendor_po/${selectedPO}/transfer_order`,
-        { date: toDate || undefined },
+        { date: toDate || undefined, from_warehouse_id: fromWarehouseId, to_warehouse_id: toWarehouseId },
       );
       toast.success(`Transfer order ${data.transfer_order_number} created`);
       setPoList(prev => prev.map(p => p.po_number === selectedPO ? { ...p, transfer_order_number: data.transfer_order_number, transfer_order_id: data.transfer_order_id } : p));
@@ -2247,7 +2266,7 @@ export default function VendorPOReport() {
                 ) : (
                   <>
                     <button
-                      onClick={() => { setCreateTOOpen(true); setToDate(''); }}
+                      onClick={() => { setToDate(''); openCreateTODialog(); }}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-violet-600 text-white rounded-md hover:bg-violet-700 transition-colors"
                     >
                       <ExternalLink size={13} />
@@ -2860,7 +2879,7 @@ export default function VendorPOReport() {
       {/* ── Create Transfer Order Modal ── */}
       {createTOOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-md border border-zinc-200 dark:border-zinc-700">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-violet-100 dark:bg-violet-900/30 rounded-full">
                 <ExternalLink size={18} className="text-violet-600 dark:text-violet-400" />
@@ -2872,16 +2891,53 @@ export default function VendorPOReport() {
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
               Creates a Zoho Inventory transfer order from the linked package&apos;s line items.
-              From: <span className="font-medium">Pupscribe Warehouse</span> → To: <span className="font-medium">Mumbai (Amazon)</span>.
             </p>
-            <div>
-              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Date (optional — defaults to today)</label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={e => setToDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">From Warehouse</label>
+                {warehousesLoading ? (
+                  <div className="flex items-center gap-2 px-3 py-2 text-xs text-zinc-400 border border-zinc-300 dark:border-zinc-600 rounded-md">
+                    <RefreshCw size={12} className="animate-spin" /> Loading warehouses…
+                  </div>
+                ) : (
+                  <select
+                    value={fromWarehouseId}
+                    onChange={e => setFromWarehouseId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  >
+                    {warehouses.map(w => (
+                      <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">To Warehouse</label>
+                {warehousesLoading ? (
+                  <div className="flex items-center gap-2 px-3 py-2 text-xs text-zinc-400 border border-zinc-300 dark:border-zinc-600 rounded-md">
+                    <RefreshCw size={12} className="animate-spin" /> Loading warehouses…
+                  </div>
+                ) : (
+                  <select
+                    value={toWarehouseId}
+                    onChange={e => setToWarehouseId(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  >
+                    {warehouses.map(w => (
+                      <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Date (optional — defaults to today)</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={e => setToDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button
