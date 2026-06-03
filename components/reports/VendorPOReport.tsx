@@ -1852,12 +1852,23 @@ export default function VendorPOReport() {
                           ) : po.so_packages.length === 0 ? (
                             <span className="text-xs text-zinc-400">—</span>
                           ) : (
-                            <div className="flex flex-col gap-0.5">
-                              {po.so_packages.map((pkg, i) => (
-                                <span key={i} className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono whitespace-nowrap">
-                                  {pkg}
-                                </span>
-                              ))}
+                            <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-0.5">
+                                {po.so_packages.map((pkg, i) => (
+                                  <span key={i} className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono whitespace-nowrap">
+                                    {pkg}
+                                  </span>
+                                ))}
+                              </div>
+                              {!po.transfer_order_number && (
+                                <button
+                                  onClick={() => { setSelectedPO(po.po_number); setToDate(''); openCreateTODialog(); }}
+                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-600 text-white hover:bg-violet-700 transition-colors whitespace-nowrap w-fit"
+                                >
+                                  <ExternalLink size={10} />
+                                  Create TO
+                                </button>
+                              )}
                             </div>
                           )}
                         </td>
