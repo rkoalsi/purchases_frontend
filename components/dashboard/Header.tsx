@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import NotificationBell from './NotificationBell';
 
 interface HeaderProps {
   onSidebarOpen: () => void;
@@ -9,6 +10,7 @@ interface HeaderProps {
   userEmail: string;
   darkMode: boolean;
   toggleDarkMode: () => void;
+  user: any;
 }
 
 export default function Header({
@@ -17,6 +19,7 @@ export default function Header({
   userEmail,
   darkMode,
   toggleDarkMode,
+  user,
 }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -66,6 +69,7 @@ export default function Header({
             </button>
           </div>
           <div className='flex items-center'>
+            <NotificationBell />
             <div className='ml-4 relative flex-shrink-0' ref={dropdownRef}>
               <div>
                 <button

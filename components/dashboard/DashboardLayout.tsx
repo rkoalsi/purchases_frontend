@@ -54,6 +54,7 @@ export default function DashboardLayout({
           userEmail={userEmail}
           darkMode={darkMode}
           toggleDarkMode={toggleDarkMode}
+          user={user}
         />
 
         {/* Main content */}
