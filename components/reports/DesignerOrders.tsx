@@ -7,7 +7,7 @@ import { useAuth } from '@/components/context/AuthContext';
 import {
   Upload, Trash2, Download, Loader2, RefreshCw, FileText, ChevronDown,
   ChevronRight, Tag, Search, Eye, FolderOpen, ArrowLeft, ArrowRight, X, Archive,
-  Calendar, Package, Plus, Layers, Filter, Folder, FolderPlus, Pencil, Check,
+  Calendar, Package, Plus, Layers, Filter, Folder, FolderPlus, Pencil, Check, Link2,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -126,18 +126,34 @@ function fileIconColor(contentType: string, filename: string): string {
   return 'text-zinc-400';
 }
 
-interface DateBadgeProps { label: string; value?: string | null; highlight?: boolean; }
-function DateBadge({ label, value, highlight }: DateBadgeProps) {
+type DateStage = 'neutral' | 'teal' | 'sky' | 'blue' | 'amber' | 'orange' | 'indigo' | 'purple' | 'emerald' | 'red';
+const DATE_CHIP_STYLES: Record<DateStage, { wrap: string; icon: string; label: string; value: string }> = {
+  neutral: { wrap: 'bg-zinc-50 border-zinc-200 dark:bg-zinc-800/60 dark:border-zinc-700', icon: 'text-zinc-400 dark:text-zinc-500', label: 'text-zinc-400 dark:text-zinc-500', value: 'text-zinc-700 dark:text-zinc-300' },
+  teal:    { wrap: 'bg-teal-50 border-teal-200 dark:bg-teal-900/20 dark:border-teal-800', icon: 'text-teal-500 dark:text-teal-400', label: 'text-teal-600 dark:text-teal-500', value: 'text-teal-900 dark:text-teal-200' },
+  sky:     { wrap: 'bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800', icon: 'text-sky-400 dark:text-sky-400', label: 'text-sky-500 dark:text-sky-400', value: 'text-sky-800 dark:text-sky-200' },
+  blue:    { wrap: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800', icon: 'text-blue-400', label: 'text-blue-500 dark:text-blue-400', value: 'text-blue-800 dark:text-blue-200' },
+  amber:   { wrap: 'bg-amber-50 border-amber-300 dark:bg-amber-900/25 dark:border-amber-700', icon: 'text-amber-500 dark:text-amber-400', label: 'text-amber-600 dark:text-amber-500', value: 'text-amber-900 dark:text-amber-200' },
+  orange:  { wrap: 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700', icon: 'text-orange-400', label: 'text-orange-500 dark:text-orange-400', value: 'text-orange-800 dark:text-orange-200' },
+  indigo:  { wrap: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800', icon: 'text-indigo-400', label: 'text-indigo-500 dark:text-indigo-400', value: 'text-indigo-800 dark:text-indigo-200' },
+  purple:  { wrap: 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800', icon: 'text-purple-400', label: 'text-purple-500 dark:text-purple-400', value: 'text-purple-800 dark:text-purple-200' },
+  emerald: { wrap: 'bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-700', icon: 'text-emerald-500 dark:text-emerald-400', label: 'text-emerald-600 dark:text-emerald-500', value: 'text-emerald-900 dark:text-emerald-200' },
+  red:     { wrap: 'bg-red-50 border-red-300 dark:bg-red-900/25 dark:border-red-700', icon: 'text-red-500 dark:text-red-400', label: 'text-red-500 dark:text-red-400', value: 'text-red-800 dark:text-red-200' },
+};
+const LABEL_STAGE_MAP: Record<string, DateStage> = {
+  'PO Date': 'teal', 'Initiated': 'sky', 'Proforma': 'blue',
+  'Shipment ETA': 'amber', 'Ready': 'amber', 'ETD': 'orange',
+  'Port ETA': 'indigo', 'Inward': 'emerald',
+};
+interface DateBadgeProps { label: string; value?: string | null; stage?: DateStage; dim?: boolean; }
+function DateBadge({ label, value, stage, dim }: DateBadgeProps) {
   if (!value) return null;
+  const s = dim ? 'neutral' : (stage ?? LABEL_STAGE_MAP[label] ?? 'neutral');
+  const cls = DATE_CHIP_STYLES[s];
   return (
-    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium ${
-      highlight
-        ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
-        : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
-    }`}>
-      <Calendar size={9} className="flex-shrink-0" />
-      <span className="text-zinc-400 dark:text-zinc-500">{label}:</span>
-      <span>{fmtDate(value)}</span>
+    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${cls.wrap}`}>
+      <Calendar size={10} className={`flex-shrink-0 ${cls.icon}`} />
+      <span className={`text-[9px] font-semibold uppercase tracking-wider ${cls.label}`}>{label}</span>
+      <span className={`font-semibold ${cls.value}`}>{fmtDate(value)}</span>
     </span>
   );
 }
@@ -1028,10 +1044,12 @@ export default function DesignerOrders() {
                                       <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 leading-none">NEW</span>
                                     )}
                                     {order.purchaseorder_number && (
-                                      <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full font-medium flex items-center gap-1.5">
-                                        {order.purchaseorder_number}
+                                      <span className="inline-flex items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-full">
+                                        <Link2 size={10} className="flex-shrink-0 text-slate-400 dark:text-slate-500" />
+                                        <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">PO</span>
+                                        <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{order.purchaseorder_number}</span>
                                         {order.po_status && (
-                                          <span className={`text-[10px] px-1.5 py-0 rounded font-medium ${poStatusClass(order.po_status)}`}>
+                                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${poStatusClass(order.po_status)}`}>
                                             {order.po_status}
                                           </span>
                                         )}
@@ -1047,14 +1065,14 @@ export default function DesignerOrders() {
 
                                   {/* Dates */}
                                   <div className="flex flex-wrap gap-1.5">
-                                    <DateBadge label="PO Date" value={order.order_date} />
-                                    <DateBadge label="Shipment ETA" value={order.shipment_eta} highlight />
-                                    <DateBadge label="Initiated" value={order.initiation_date} />
-                                    <DateBadge label="Proforma" value={order.proforma_date} />
-                                    <DateBadge label="Ready" value={order.ready_date} highlight />
-                                    <DateBadge label="ETD" value={order.etd_date} />
-                                    <DateBadge label="Port ETA" value={order.eta_port_date} />
-                                    <DateBadge label="Inward" value={order.inward_date} />
+                                    <DateBadge label="PO Date" value={order.order_date} dim={!isNewOrder} />
+                                    <DateBadge label="Shipment ETA" value={order.shipment_eta} dim={!isNewOrder} />
+                                    <DateBadge label="Initiated" value={order.initiation_date} dim={!isNewOrder} />
+                                    <DateBadge label="Proforma" value={order.proforma_date} dim={!isNewOrder} />
+                                    <DateBadge label="Ready" value={order.ready_date} dim={!isNewOrder} />
+                                    <DateBadge label="ETD" value={order.etd_date} dim={!isNewOrder} />
+                                    <DateBadge label="Port ETA" value={order.eta_port_date} dim={!isNewOrder} />
+                                    <DateBadge label="Inward" value={order.inward_date} dim={!isNewOrder} />
                                   </div>
                                 </div>
 

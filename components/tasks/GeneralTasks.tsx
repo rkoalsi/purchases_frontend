@@ -1191,7 +1191,7 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
                 className='flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'>
                 <Edit2 className='w-3 h-3' /> Edit
               </button>
-              {!confirmDel ? (
+              {task.status !== 'done' && (!confirmDel ? (
                 <button onClick={() => setConfirmDel(true)} className='p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors'>
                   <Trash2 className='w-4 h-4' />
                 </button>
@@ -1200,7 +1200,7 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
                   <button onClick={handleDeleteTask} className='px-2.5 py-1.5 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg'>Delete</button>
                   <button onClick={() => setConfirmDel(false)} className='px-2.5 py-1.5 text-xs font-semibold border border-zinc-200 dark:border-zinc-700 text-zinc-500 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800'>Cancel</button>
                 </div>
-              )}
+              ))}
               <button onClick={onClose} className='p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors'>
                 <X className='w-4 h-4' />
               </button>
