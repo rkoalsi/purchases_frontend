@@ -10,7 +10,7 @@ import {
   ArrowRight, BarChart2, Search, RefreshCw, Download,
   FileText, Image, Archive, File, Loader2, Flag, Users,
   ChevronDown, ChevronUp, LayoutGrid, List,
-  User, Edit2, Check, Building2, Eye,
+  User, Edit2, Check, Building2, Eye, EyeOff,
 } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -38,6 +38,7 @@ interface Task {
   deadline?: string; tags: string[];
   created_by: string; created_by_name: string;
   creator_department?: string;
+  is_hidden?: boolean;
   comments: Comment[]; attachments: Attachment[];
   activity: ActivityEntry[]; created_at: string; updated_at: string;
 }
@@ -229,11 +230,18 @@ function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
     >
       <div className='flex items-start justify-between gap-2 mb-2.5'>
         <PriorityBadge priority={task.priority} />
-        {overdue && (
-          <span className='flex items-center gap-1 text-[10px] font-semibold text-red-500 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded'>
-            <AlertCircle className='w-2.5 h-2.5' /> Overdue
-          </span>
-        )}
+        <div className='flex items-center gap-1'>
+          {task.is_hidden && (
+            <span className='flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded'>
+              <EyeOff className='w-2.5 h-2.5' /> Hidden
+            </span>
+          )}
+          {overdue && (
+            <span className='flex items-center gap-1 text-[10px] font-semibold text-red-500 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded'>
+              <AlertCircle className='w-2.5 h-2.5' /> Overdue
+            </span>
+          )}
+        </div>
       </div>
       <h3 className='text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-1.5 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug'>
         {task.title}
@@ -328,7 +336,12 @@ function ListRow({ task, onClick }: { task: Task; onClick: () => void }) {
         )}
       </td>
       <td className='px-4 py-3'><PriorityBadge priority={task.priority} /></td>
-      <td className='px-4 py-3'><StatusBadge status={task.status} /></td>
+      <td className='px-4 py-3'>
+        <div className='flex items-center gap-1'>
+          <StatusBadge status={task.status} />
+          {task.is_hidden && <span className='flex items-center gap-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded'><EyeOff className='w-2.5 h-2.5' /> Hidden</span>}
+        </div>
+      </td>
       <td className='px-4 py-3'>
         {task.assigned_to_names.length > 0 ? (
           <div className='flex items-center gap-2'>
@@ -1168,6 +1181,20 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
     catch { toast.error('Failed to delete task'); }
   };
 
+  const handleHide = async () => {
+    try {
+      await axios.put(`${API}/tasks/${task._id}`, { is_hidden: true, actor_id: currentUser._id, actor_name: currentUser.name }, { headers });
+      onDelete(task._id); onClose(); toast.success('Task hidden');
+    } catch { toast.error('Failed to hide task'); }
+  };
+
+  const handleUnhide = async () => {
+    try {
+      const { data } = await axios.put(`${API}/tasks/${task._id}`, { is_hidden: false, actor_id: currentUser._id, actor_name: currentUser.name }, { headers });
+      setTask(data); onUpdate(data); toast.success('Task unhidden');
+    } catch { toast.error('Failed to unhide task'); }
+  };
+
   const overdue = isOverdue(task.deadline, task.status);
 
   return (
@@ -1191,6 +1218,17 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
                 className='flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors'>
                 <Edit2 className='w-3 h-3' /> Edit
               </button>
+              {task.is_hidden ? (
+                <button onClick={handleUnhide} title='Unhide task'
+                  className='flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors'>
+                  <Eye className='w-3 h-3' /> Unhide
+                </button>
+              ) : task.status === 'done' && (
+                <button onClick={handleHide} title='Hide this task'
+                  className='flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors'>
+                  <EyeOff className='w-3 h-3' /> Hide
+                </button>
+              )}
               {task.status !== 'done' && (!confirmDel ? (
                 <button onClick={() => setConfirmDel(true)} className='p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors'>
                   <Trash2 className='w-4 h-4' />
@@ -1532,6 +1570,168 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
   );
 }
 
+// ── Report Download Modal ─────────────────────────────────────────────────────
+
+function ReportModal({ allUsers, allDepartments, accessToken, onClose }: {
+  allUsers: AppUser[];
+  allDepartments: string[];
+  accessToken: string;
+  onClose: () => void;
+}) {
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const todayStr = today.toISOString().slice(0, 10);
+
+  const [mode, setMode]               = useState<'month' | 'custom'>('month');
+  const [selectedMonth, setSelectedMonth] = useState(() => today.toISOString().slice(0, 7)); // YYYY-MM
+  const [startDate, setStartDate]     = useState(firstOfMonth);
+  const [endDate, setEndDate]         = useState(todayStr);
+  const [department, setDepartment]   = useState('');
+  const [userId, setUserId]           = useState('');
+  const [downloading, setDownloading] = useState(false);
+
+  const computedDates = useMemo(() => {
+    if (mode === 'custom') return { start: startDate, end: endDate };
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const start = `${selectedMonth}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const end = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+    return { start, end };
+  }, [mode, selectedMonth, startDate, endDate]);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const params = new URLSearchParams({
+        start_date: computedDates.start,
+        end_date: computedDates.end,
+      });
+      if (department) params.set('department', department);
+      if (userId) params.set('user_id', userId);
+
+      const resp = await axios.get(`${API}/tasks/report/download?${params}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        responseType: 'blob',
+      });
+      const blob = new Blob([resp.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const cd = (resp.headers['content-disposition'] as string) || '';
+      const match = cd.match(/filename="?([^"]+)"?/);
+      a.download = match ? match[1] : `tasks_report_${computedDates.start}_to_${computedDates.end}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Report downloaded');
+      onClose();
+    } catch {
+      toast.error('Failed to download report');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className='fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm'>
+      <div className='bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden'>
+        <div className='flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800'>
+          <div className='flex items-center gap-2'>
+            <Download className='w-4 h-4 text-blue-500' />
+            <h2 className='text-sm font-bold text-zinc-900 dark:text-zinc-100'>Download Tasks Report</h2>
+          </div>
+          <button onClick={onClose} className='p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 transition-colors'>
+            <X className='w-4 h-4' />
+          </button>
+        </div>
+
+        <div className='p-6 space-y-5'>
+          {/* Mode toggle */}
+          <div>
+            <label className='block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2'>Period</label>
+            <div className='flex rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden'>
+              {(['month', 'custom'] as const).map((m) => (
+                <button key={m} onClick={() => setMode(m)}
+                  className={`flex-1 py-2 text-xs font-semibold transition-colors capitalize ${
+                    mode === m
+                      ? 'bg-blue-600 text-white'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  }`}>
+                  {m === 'month' ? 'By Month' : 'Custom Range'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {mode === 'month' ? (
+            <div>
+              <label className='block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5'>Month</label>
+              <input type='month' value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}
+                max={today.toISOString().slice(0, 7)}
+                className='w-full px-3 py-2 text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500' />
+            </div>
+          ) : (
+            <div className='grid grid-cols-2 gap-3'>
+              <div>
+                <label className='block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5'>From</label>
+                <input type='date' value={startDate} onChange={(e) => setStartDate(e.target.value)} max={endDate}
+                  className='w-full px-3 py-2 text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500' />
+              </div>
+              <div>
+                <label className='block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5'>To</label>
+                <input type='date' value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate} max={todayStr}
+                  className='w-full px-3 py-2 text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500' />
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className='block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5'>Department <span className='font-normal text-zinc-400'>(optional)</span></label>
+            <select value={department} onChange={(e) => setDepartment(e.target.value)}
+              className='w-full px-3 py-2 text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+              <option value=''>All departments</option>
+              {allDepartments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className='block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5'>Person <span className='font-normal text-zinc-400'>(optional)</span></label>
+            <select value={userId} onChange={(e) => setUserId(e.target.value)}
+              className='w-full px-3 py-2 text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+              <option value=''>All people</option>
+              {allUsers.map((u) => (
+                <option key={u._id} value={u._id}>{u.name}{u.department ? ` (${u.department})` : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className='bg-zinc-50 dark:bg-zinc-800/60 rounded-xl p-3 text-xs text-zinc-500 dark:text-zinc-400'>
+            <p className='font-semibold text-zinc-700 dark:text-zinc-300 mb-1'>Report includes 3 sheets:</p>
+            <ul className='space-y-0.5 list-disc list-inside'>
+              <li><span className='font-medium'>Summary</span> — completion rate per person</li>
+              <li><span className='font-medium'>Tasks Detail</span> — all tasks with status, deadline &amp; assignees</li>
+              <li><span className='font-medium'>By Department</span> — department-level breakdown</li>
+            </ul>
+          </div>
+        </div>
+
+        <div className='flex items-center justify-end gap-2 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800'>
+          <button onClick={onClose} className='px-4 py-2 text-sm font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors'>
+            Cancel
+          </button>
+          <button onClick={handleDownload} disabled={downloading}
+            className='flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors disabled:opacity-50 shadow-sm'>
+            {downloading ? <Loader2 className='w-3.5 h-3.5 animate-spin' /> : <Download className='w-3.5 h-3.5' />}
+            {downloading ? 'Generating…' : 'Download Excel'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function GeneralTasks() {
@@ -1545,11 +1745,13 @@ export default function GeneralTasks() {
   const [loading, setLoading]       = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const [filterPriority, setFilterPriority] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
   const [filterDept, setFilterDept]         = useState('');
   const [activeStatus, setActiveStatus]     = useState('');
+  const [showHidden, setShowHidden]         = useState(false);
   const [search, setSearch]                 = useState('');
   const [sortBy, setSortBy]                 = useState<SortField>('created_at');
   const [sortDir, setSortDir]               = useState<SortDir>('desc');
@@ -1574,10 +1776,11 @@ export default function GeneralTasks() {
       if (filterAssignee)  params.assigned_to = filterAssignee;
       if (filterDept)      params.department  = filterDept;
       if (search)          params.search      = search;
+      if (showHidden)      params.show_hidden = 'true';
       const { data } = await axios.get(`${API}/tasks`, { headers, params });
       setTasks(data);
     } catch { toast.error('Failed to load tasks'); }
-  }, [accessToken, activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir]);
+  }, [accessToken, activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir, showHidden]);
 
   const fetchUsers = useCallback(async () => {
     if (!accessToken) return;
@@ -1602,7 +1805,7 @@ export default function GeneralTasks() {
     Promise.all([fetchTasks(), fetchUsers(), fetchStats()]).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchTasks(); }, [activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir]);
+  useEffect(() => { fetchTasks(); }, [activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir, showHidden]);
 
   const handleCreate = async (data: any) => {
     try {
@@ -1666,6 +1869,12 @@ export default function GeneralTasks() {
             className='p-2 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors'>
             <RefreshCw className='w-4 h-4' />
           </button>
+          {isAdminOrManager && (
+            <button onClick={() => setShowReport(true)}
+              className='flex items-center gap-2 px-4 py-2 text-sm font-semibold border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-xl transition-colors'>
+              <Download className='w-4 h-4' /> Report
+            </button>
+          )}
           <button onClick={() => setShowCreate(true)}
             className='flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm'>
             <Plus className='w-4 h-4' /> New Task
@@ -1728,6 +1937,17 @@ export default function GeneralTasks() {
           <option value='updated_at:desc'>Recently updated</option>
           <option value='title:asc'>Title A→Z</option>
         </select>
+
+        <button onClick={() => setShowHidden((v) => !v)}
+          title={showHidden ? 'Hide completed tasks' : 'Show completed tasks > 2 days old'}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition-colors ${
+            showHidden
+              ? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+              : 'border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+          }`}>
+          {showHidden ? <Eye className='w-3.5 h-3.5' /> : <EyeOff className='w-3.5 h-3.5' />}
+          {showHidden ? 'Showing hidden' : 'Show hidden'}
+        </button>
 
         {/* View toggle */}
         <div className='flex items-center gap-1 ml-auto bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1'>
@@ -1799,6 +2019,16 @@ export default function GeneralTasks() {
       {/* Create modal */}
       {showCreate && (
         <TaskModal allUsers={allUsers} currentUser={currentUser} onClose={() => setShowCreate(false)} onSave={handleCreate} />
+      )}
+
+      {/* Report modal */}
+      {showReport && (
+        <ReportModal
+          allUsers={allUsers}
+          allDepartments={allDepartments}
+          accessToken={accessToken!}
+          onClose={() => setShowReport(false)}
+        />
       )}
     </div>
   );
