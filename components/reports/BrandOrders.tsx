@@ -8,7 +8,7 @@ import {
   Plus, Upload, Trash2, Download, Pencil, X, Check, Loader2, RefreshCw,
   FileText, ChevronDown, ChevronRight, Package, Tag, AlertTriangle, Search,
   Archive, Eye, FolderOpen, ArrowLeft, ArrowRight, Link2, BarChart2,
-  Layers, Filter, Folder, FolderPlus,
+  Layers, Filter, Folder, FolderPlus, Calendar,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -112,6 +112,38 @@ function fmtSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+type DateStage = 'neutral' | 'teal' | 'sky' | 'blue' | 'amber' | 'orange' | 'indigo' | 'purple' | 'emerald' | 'red';
+const DATE_CHIP_STYLES: Record<DateStage, { wrap: string; icon: string; label: string; value: string }> = {
+  neutral: { wrap: 'bg-zinc-50 border-zinc-200 dark:bg-zinc-800/60 dark:border-zinc-700', icon: 'text-zinc-400 dark:text-zinc-500', label: 'text-zinc-400 dark:text-zinc-500', value: 'text-zinc-700 dark:text-zinc-300' },
+  teal:    { wrap: 'bg-teal-50 border-teal-200 dark:bg-teal-900/20 dark:border-teal-800', icon: 'text-teal-500 dark:text-teal-400', label: 'text-teal-600 dark:text-teal-500', value: 'text-teal-900 dark:text-teal-200' },
+  sky:     { wrap: 'bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800', icon: 'text-sky-400 dark:text-sky-400', label: 'text-sky-500 dark:text-sky-400', value: 'text-sky-800 dark:text-sky-200' },
+  blue:    { wrap: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800', icon: 'text-blue-400', label: 'text-blue-500 dark:text-blue-400', value: 'text-blue-800 dark:text-blue-200' },
+  amber:   { wrap: 'bg-amber-50 border-amber-300 dark:bg-amber-900/25 dark:border-amber-700', icon: 'text-amber-500 dark:text-amber-400', label: 'text-amber-600 dark:text-amber-500', value: 'text-amber-900 dark:text-amber-200' },
+  orange:  { wrap: 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700', icon: 'text-orange-400', label: 'text-orange-500 dark:text-orange-400', value: 'text-orange-800 dark:text-orange-200' },
+  indigo:  { wrap: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800', icon: 'text-indigo-400', label: 'text-indigo-500 dark:text-indigo-400', value: 'text-indigo-800 dark:text-indigo-200' },
+  purple:  { wrap: 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800', icon: 'text-purple-400', label: 'text-purple-500 dark:text-purple-400', value: 'text-purple-800 dark:text-purple-200' },
+  emerald: { wrap: 'bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-700', icon: 'text-emerald-500 dark:text-emerald-400', label: 'text-emerald-600 dark:text-emerald-500', value: 'text-emerald-900 dark:text-emerald-200' },
+  red:     { wrap: 'bg-red-50 border-red-300 dark:bg-red-900/25 dark:border-red-700', icon: 'text-red-500 dark:text-red-400', label: 'text-red-500 dark:text-red-400', value: 'text-red-800 dark:text-red-200' },
+};
+const LABEL_STAGE_MAP: Record<string, DateStage> = {
+  'PO Date': 'teal', 'Initiated': 'sky', 'Proforma': 'blue',
+  'Bill Date': 'amber', 'Ready': 'amber', 'ETD': 'orange',
+  'Port ETA': 'indigo', 'Duty Paid': 'purple', 'Inward': 'emerald',
+};
+interface DateChipProps { label: string; value?: string | null; stage?: DateStage; dim?: boolean; }
+function DateChip({ label, value, stage, dim }: DateChipProps) {
+  if (!value) return null;
+  const s = dim ? 'neutral' : (stage ?? LABEL_STAGE_MAP[label] ?? 'neutral');
+  const cls = DATE_CHIP_STYLES[s];
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${cls.wrap}`}>
+      <Calendar size={10} className={`flex-shrink-0 ${cls.icon}`} />
+      <span className={`text-[9px] font-semibold uppercase tracking-wider ${cls.label}`}>{label}</span>
+      <span className={`font-semibold ${cls.value}`}>{fmtDate(value)}</span>
+    </span>
+  );
 }
 
 function daysBetween(a: string | undefined | null, b: string | undefined | null): number | null {
@@ -1533,60 +1565,15 @@ export default function BrandOrders() {
                                           )}
                                         </div>
                                         <div className="flex flex-wrap items-center gap-1.5">
-                                          {order.order_date && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-medium text-zinc-400 dark:text-zinc-500">PO Date</span>
-                                              {fmtDate(order.order_date)}
-                                            </span>
-                                          )}
-                                          {order.shipment_eta && (
-                                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${etaPast ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'}`}>
-                                              <span className={`font-medium ${etaPast ? 'text-red-500' : 'text-zinc-400 dark:text-zinc-500'}`}>Bill Date</span>
-                                              {fmtDate(order.shipment_eta)}
-                                            </span>
-                                          )}
-                                          {order.initiation_date && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-medium text-zinc-400 dark:text-zinc-500">Initiated</span>
-                                              {fmtDate(order.initiation_date)}
-                                            </span>
-                                          )}
-                                          {order.proforma_date && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-medium text-zinc-400 dark:text-zinc-500">Proforma</span>
-                                              {fmtDate(order.proforma_date)}
-                                            </span>
-                                          )}
-                                          {order.ready_date && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-medium text-zinc-400 dark:text-zinc-500">Ready</span>
-                                              {fmtDate(order.ready_date)}
-                                            </span>
-                                          )}
-                                          {order.etd_date && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-medium text-zinc-400 dark:text-zinc-500">ETD</span>
-                                              {fmtDate(order.etd_date)}
-                                            </span>
-                                          )}
-                                          {order.eta_port_date && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-medium text-zinc-400 dark:text-zinc-500">Port ETA</span>
-                                              {fmtDate(order.eta_port_date)}
-                                            </span>
-                                          )}
-                                          {order.duty_payment_date && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-medium text-zinc-400 dark:text-zinc-500">Duty Paid</span>
-                                              {fmtDate(order.duty_payment_date)}
-                                            </span>
-                                          )}
-                                          {order.inward_date && (
-                                            <span className="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-medium text-zinc-400 dark:text-zinc-500">Inward</span>
-                                              {fmtDate(order.inward_date)}
-                                            </span>
-                                          )}
+                                          <DateChip label="PO Date" value={order.order_date} dim={!isNewOrder} />
+                                          <DateChip label="Bill Date" value={order.shipment_eta} stage={etaPast ? 'red' : undefined} dim={!isNewOrder && !etaPast} />
+                                          <DateChip label="Initiated" value={order.initiation_date} dim={!isNewOrder} />
+                                          <DateChip label="Proforma" value={order.proforma_date} dim={!isNewOrder} />
+                                          <DateChip label="Ready" value={order.ready_date} dim={!isNewOrder} />
+                                          <DateChip label="ETD" value={order.etd_date} dim={!isNewOrder} />
+                                          <DateChip label="Port ETA" value={order.eta_port_date} dim={!isNewOrder} />
+                                          <DateChip label="Duty Paid" value={order.duty_payment_date} dim={!isNewOrder} />
+                                          <DateChip label="Inward" value={order.inward_date} dim={!isNewOrder} />
                                           {(() => {
                                             const count = orderDocs[order._id]?.length ?? order.doc_count ?? 0;
                                             return (
@@ -1597,13 +1584,15 @@ export default function BrandOrders() {
                                             );
                                           })()}
                                           {order.purchaseorder_number && (
-                                            <span className="inline-flex items-center gap-1.5 text-xs bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                                              <span className="font-mono text-zinc-600 dark:text-zinc-300">{order.purchaseorder_number}</span>
+                                            <span className="inline-flex items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-full">
+                                              <Link2 size={10} className="flex-shrink-0 text-slate-400 dark:text-slate-500" />
+                                              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">PO</span>
+                                              <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{order.purchaseorder_number}</span>
                                               {order.po_currency_code && (
-                                                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">{order.po_currency_code}</span>
+                                                <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">{order.po_currency_code}</span>
                                               )}
                                               {order.po_status && (
-                                                <span className={`text-xs px-1.5 py-0 rounded font-medium ${poStatusClass(order.po_status)}`}>
+                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${poStatusClass(order.po_status)}`}>
                                                   {order.po_status}
                                                 </span>
                                               )}
