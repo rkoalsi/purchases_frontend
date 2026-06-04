@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/components/context/AuthContext';
@@ -241,6 +242,7 @@ function fileIconColor(contentType: string, filename: string) {
 
 export default function BrandOrders() {
   const { user, accessToken } = useAuth();
+  const searchParams = useSearchParams();
   const [canEdit, setCanEdit] = useState(false);
   const isAdmin = user?.role === 'admin';
 
@@ -458,6 +460,25 @@ export default function BrandOrders() {
     };
     run();
   }, [fetchBrands, fetchOrders]);
+
+  // Deep-link: ?po=<purchaseorder_number> → expand vendor + order and scroll into view
+  useEffect(() => {
+    const targetPo = searchParams.get('po');
+    if (!targetPo || orders.length === 0) return;
+    const order = orders.find(o => o.purchaseorder_number === targetPo);
+    if (!order) return;
+    const vendorId = order.vendor_id ?? '__unassigned__';
+    setExpandedBrands(prev => { const s = new Set(prev); s.add(vendorId); return s; });
+    setExpandedOrder(order._id);
+    fetchOrderDocs(order._id);
+    fetchOrderFolders(order._id);
+    if (order.purchaseorder_number && lineItemsMap[order._id] === undefined) {
+      fetchLineItemsForOrder(order._id);
+    }
+    setTimeout(() => {
+      document.getElementById(`order-${order._id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }, [orders, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchOrderDocs = useCallback(async (orderId: string) => {
     setDocsLoading(prev => ({ ...prev, [orderId]: true }));
@@ -1440,7 +1461,7 @@ export default function BrandOrders() {
                           const hasActiveFilters = !!(dsq || catFilter || itemFilter);
 
                           return (
-                            <div key={order._id} className={etaPast ? 'border-l-[3px] border-red-400' : ''}>
+                            <div key={order._id} id={`order-${order._id}`} className={etaPast ? 'border-l-[3px] border-red-400' : ''}>
 
                               {/* Order row */}
                               <div className={`px-5 py-3.5 ${etaPast ? 'bg-red-50/40 dark:bg-red-950/10' : ''}`}>
