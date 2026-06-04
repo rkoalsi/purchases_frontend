@@ -281,6 +281,24 @@ export default function DesignerOrders() {
       if (!map[key]) map[key] = [];
       map[key].push(order);
     }
+    // Merge brand groups that share the same vendor_id into the largest group
+    const vendorToKeys: Record<string, string[]> = {};
+    for (const [k, kOrders] of Object.entries(map)) {
+      const vid = kOrders.find(o => o.vendor_id)?.vendor_id;
+      if (vid) {
+        if (!vendorToKeys[vid]) vendorToKeys[vid] = [];
+        vendorToKeys[vid].push(k);
+      }
+    }
+    for (const keys of Object.values(vendorToKeys)) {
+      if (keys.length <= 1) continue;
+      const primaryKey = keys.reduce((a, b) => (map[a]?.length ?? 0) >= (map[b]?.length ?? 0) ? a : b);
+      for (const k of keys) {
+        if (k === primaryKey) continue;
+        map[primaryKey].push(...(map[k] ?? []));
+        delete map[k];
+      }
+    }
     for (const orders of Object.values(map)) {
       orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
