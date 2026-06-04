@@ -815,6 +815,10 @@ export default function VendorPOReport() {
   const [deleteOrderFilePO, setDeleteOrderFilePO] = useState<string | null>(null);
   const [deletingOrderFile, setDeletingOrderFile] = useState(false);
 
+  // delete invoice file
+  const [deleteInvoiceFilePO, setDeleteInvoiceFilePO] = useState<string | null>(null);
+  const [deletingInvoiceFile, setDeletingInvoiceFile] = useState(false);
+
   // delete
   const [deleteConfirmPO, setDeleteConfirmPO] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -1054,6 +1058,24 @@ export default function VendorPOReport() {
       toast.error('Failed to delete order file');
     } finally {
       setDeletingOrderFile(false);
+    }
+  };
+
+  // ─── delete invoice file ──────────────────────────────────────────────────────
+
+  const handleDeleteInvoiceFile = async (poNumber: string) => {
+    setDeletingInvoiceFile(true);
+    try {
+      await axios.delete(`${API_URL}/vendor_po/${poNumber}/invoice_file`);
+      toast.success('Invoice file deleted');
+      setPoList(prev => prev.map(p =>
+        p.po_number === poNumber ? { ...p, invoice_file_s3_key: undefined } : p
+      ));
+      setDeleteInvoiceFilePO(null);
+    } catch {
+      toast.error('Failed to delete invoice file');
+    } finally {
+      setDeletingInvoiceFile(false);
     }
   };
 
@@ -1962,20 +1984,29 @@ export default function VendorPOReport() {
                               </div>
                             ) : null}
                             {po.invoice_file_s3_key ? (
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    const { data } = await axios.get<{ url: string }>(`${API_URL}/vendor_po/${po.po_number}/invoice_file`);
-                                    window.open(data.url, '_blank');
-                                  } catch {
-                                    toast.error('Failed to get download link');
-                                  }
-                                }}
-                                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
-                              >
-                                <ExternalLink size={11} />
-                                VC Invoice
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const { data } = await axios.get<{ url: string }>(`${API_URL}/vendor_po/${po.po_number}/invoice_file`);
+                                      window.open(data.url, '_blank');
+                                    } catch {
+                                      toast.error('Failed to get download link');
+                                    }
+                                  }}
+                                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                                >
+                                  <ExternalLink size={11} />
+                                  VC Invoice
+                                </button>
+                                <button
+                                  onClick={() => setDeleteInvoiceFilePO(po.po_number)}
+                                  className="p-0.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors"
+                                  title="Delete invoice file"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
                             ) : null}
                             {!po.order_file_s3_key && !po.invoice_file_s3_key && (
                               <span className="text-xs text-zinc-400">—</span>
@@ -2139,6 +2170,42 @@ export default function VendorPOReport() {
               >
                 {deletingOrderFile ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 {deletingOrderFile ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Invoice File Modal ── */}
+      {deleteInvoiceFilePO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+                <Trash2 size={18} className="text-red-600 dark:text-red-400" />
+              </div>
+              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Delete VC Invoice</h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
+              Delete the uploaded VC invoice for PO{' '}
+              <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">{deleteInvoiceFilePO}</span>?
+            </p>
+            <p className="text-xs text-red-600 dark:text-red-400 mb-5">This will remove the file from S3 and cannot be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleteInvoiceFilePO(null)}
+                disabled={deletingInvoiceFile}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteInvoiceFile(deleteInvoiceFilePO)}
+                disabled={deletingInvoiceFile}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deletingInvoiceFile ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                {deletingInvoiceFile ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>
