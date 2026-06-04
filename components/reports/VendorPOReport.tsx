@@ -37,6 +37,7 @@ interface POListItem {
   total_cost: number | null;
   total_cost_gst: number | null;
   order_file_s3_key?: string;
+  invoice_file_s3_key?: string;
   estimate_number?: string;
   zoho_estimate_id?: string;
   packages?: string[];
@@ -804,6 +805,12 @@ export default function VendorPOReport() {
   const [uploadingOrder, setUploadingOrder] = useState(false);
   const orderFileInputRef = useRef<HTMLInputElement>(null);
 
+  // upload invoice
+  const [uploadInvoicePO, setUploadInvoicePO] = useState<string | null>(null);
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [uploadingInvoice, setUploadingInvoice] = useState(false);
+  const invoiceFileInputRef = useRef<HTMLInputElement>(null);
+
   // delete order file
   const [deleteOrderFilePO, setDeleteOrderFilePO] = useState<string | null>(null);
   const [deletingOrderFile, setDeletingOrderFile] = useState(false);
@@ -996,6 +1003,39 @@ export default function VendorPOReport() {
       toast.error('Failed to process order file');
     } finally {
       setUploadingOrder(false);
+    }
+  };
+
+  // ─── upload invoice ───────────────────────────────────────────────────────────
+
+  const handleUploadInvoice = async () => {
+    if (!invoiceFile || !uploadInvoicePO) return;
+    setUploadingInvoice(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', invoiceFile);
+      const res = await axios.post(
+        `${API_URL}/vendor_po/${uploadInvoicePO}/upload_invoice`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' }, responseType: 'blob' }
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `InvoiceLineItems_${uploadInvoicePO}_filled.xls`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Invoice filled and downloaded');
+      setPoList(prev => prev.map(p =>
+        p.po_number === uploadInvoicePO ? { ...p, invoice_file_s3_key: 'uploaded' } : p
+      ));
+      setUploadInvoicePO(null);
+      setInvoiceFile(null);
+      if (invoiceFileInputRef.current) invoiceFileInputRef.current.value = '';
+    } catch {
+      toast.error('Failed to process invoice file');
+    } finally {
+      setUploadingInvoice(false);
     }
   };
 
@@ -1895,33 +1935,52 @@ export default function VendorPOReport() {
                           )}
                         </td>
                         <td className={TABLE_CLASSES.td}>
-                          {po.order_file_s3_key ? (
-                            <div className="flex items-center gap-1.5">
+                          <div className="flex flex-col gap-1">
+                            {po.order_file_s3_key ? (
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const { data } = await axios.get<{ url: string }>(`${API_URL}/vendor_po/${po.po_number}/order_file`);
+                                      window.open(data.url, '_blank');
+                                    } catch {
+                                      toast.error('Failed to get download link');
+                                    }
+                                  }}
+                                  className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 dark:text-green-400"
+                                >
+                                  <ExternalLink size={11} />
+                                  PO Order
+                                </button>
+                                <button
+                                  onClick={() => setDeleteOrderFilePO(po.po_number)}
+                                  className="p-0.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors"
+                                  title="Delete order file"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
+                            ) : null}
+                            {po.invoice_file_s3_key ? (
                               <button
                                 onClick={async () => {
                                   try {
-                                    const { data } = await axios.get<{ url: string }>(`${API_URL}/vendor_po/${po.po_number}/order_file`);
+                                    const { data } = await axios.get<{ url: string }>(`${API_URL}/vendor_po/${po.po_number}/invoice_file`);
                                     window.open(data.url, '_blank');
                                   } catch {
                                     toast.error('Failed to get download link');
                                   }
                                 }}
-                                className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 dark:text-green-400"
+                                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
                               >
                                 <ExternalLink size={11} />
-                                Download
+                                VC Invoice
                               </button>
-                              <button
-                                onClick={() => setDeleteOrderFilePO(po.po_number)}
-                                className="p-0.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors"
-                                title="Delete order file"
-                              >
-                                <Trash2 size={11} />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-zinc-400">—</span>
-                          )}
+                            ) : null}
+                            {!po.order_file_s3_key && !po.invoice_file_s3_key && (
+                              <span className="text-xs text-zinc-400">—</span>
+                            )}
+                          </div>
                         </td>
                         <td className={TABLE_CLASSES.td}>
                           <div className="flex items-center gap-1.5">
@@ -1937,6 +1996,13 @@ export default function VendorPOReport() {
                               title="Upload Order (POItemExport)"
                             >
                               <FileUp size={13} />
+                            </button>
+                            <button
+                              onClick={() => { setUploadInvoicePO(po.po_number); setInvoiceFile(null); if (invoiceFileInputRef.current) invoiceFileInputRef.current.value = ''; }}
+                              className="p-1 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors"
+                              title="Upload VC Invoice (AmazonInvoiceLineItems)"
+                            >
+                              <FileText size={13} />
                             </button>
                             <button
                               onClick={() => setDeleteConfirmPO(po.po_number)}
@@ -2073,6 +2139,55 @@ export default function VendorPOReport() {
               >
                 {deletingOrderFile ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 {deletingOrderFile ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Upload Invoice Modal ── */}
+      {uploadInvoicePO && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-[90vw] sm:max-w-md border border-zinc-200 dark:border-zinc-700">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                <FileText size={18} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Upload VC Invoice</h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{uploadInvoicePO}</p>
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+              Upload the <strong>AmazonInvoiceLineItems .xls</strong> from Vendor Central. The backend will fill in
+              <strong> Quantity</strong>, <strong>HSN</strong>, and <strong>Tax rate</strong> from the linked packages,
+              save the completed file to S3, and download it for you.
+            </p>
+            <div className="mb-5">
+              <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">AmazonInvoiceLineItems .xls File</label>
+              <input
+                ref={invoiceFileInputRef}
+                type="file"
+                accept=".xls"
+                onChange={(e) => setInvoiceFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-zinc-700 dark:text-zinc-300 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-400"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setUploadInvoicePO(null); setInvoiceFile(null); }}
+                disabled={uploadingInvoice}
+                className="px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUploadInvoice}
+                disabled={uploadingInvoice || !invoiceFile}
+                className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {uploadingInvoice ? <RefreshCw size={13} className="animate-spin" /> : <FileText size={13} />}
+                {uploadingInvoice ? 'Processing…' : 'Upload & Download'}
               </button>
             </div>
           </div>
