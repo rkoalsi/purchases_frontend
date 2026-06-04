@@ -81,6 +81,7 @@ const PERMISSION_REQUIREMENTS = {
   FBA_SHIPMENT_PLANNING: { name: 'reports_amazon_fba_shipment_planning' },
   FBA_SHIPMENT_PROCESSING: { name: 'reports_amazon_fba_shipment_processing' },
   FBA_SHIPMENT_QUEUE: { name: 'reports_amazon_fba_shipment_queue' },
+  AMAZON_DF_INVENTORY: { name: 'reports_amazon_df_inventory' },
   BLINKIT_SHIPMENT_PLANNING: { name: 'blinkit_shipment_planning' },
   BLINKIT_SHIPMENT_PROCESSING: { name: 'blinkit_shipment_processing' },
   VC_UNDER_ORDERING: { name: 'reports_vc_under_ordering' },
@@ -208,6 +209,12 @@ const navigation = [
             href: '/reports/amazon_fba_processing',
             icon: Truck,
             requiredPermission: PERMISSION_REQUIREMENTS.FBA_SHIPMENT_PROCESSING,
+          },
+          {
+            name: 'DF Inventory',
+            href: '/reports/amazon_df_inventory',
+            icon: AmazonIcon,
+            requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_DF_INVENTORY,
           },
 
 
