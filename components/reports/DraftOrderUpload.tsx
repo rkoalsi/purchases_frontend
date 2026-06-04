@@ -3,7 +3,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle, ShoppingCart, Loader2, Trash2, RefreshCw, Package } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle, ShoppingCart, Loader2, Trash2, RefreshCw, Package, ExternalLink } from 'lucide-react';
 import { TABLE_CLASSES } from './TableStyles';
 import capitalize from '@/util/capitalize';
 
@@ -131,6 +132,7 @@ function groupItemsByCurrency(items: OrderItem[]): Record<string, OrderItem[]> {
 
 // ── component ──────────────────────────────────────────────────────────────
 export default function DraftOrderUpload() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [validating, setValidating] = useState(false);
@@ -194,7 +196,7 @@ export default function DraftOrderUpload() {
     fetchDrafts();
     axios.get<{ brands: VendorBrand[] }>(`${API_URL}/vendors/brands`)
       .then(r => setVendorBrands(r.data.brands || []))
-      .catch(() => {});
+      .catch(() => { });
   }, [fetchDrafts]);
 
   // ── reset ──────────────────────────────────────────────────────────────
@@ -229,7 +231,8 @@ export default function DraftOrderUpload() {
     try {
       const { data } = await axios.post<{ created: any[]; failed: any[] }>(
         `${API_URL}/vendors/draft_orders/create_zoho_items`,
-        { items: items.map(m => {
+        {
+          items: items.map(m => {
             const key = m.bb_code || m.manufacturer_code;
             const edits = itemEdits[key] ?? {};
             return {
@@ -285,7 +288,7 @@ export default function DraftOrderUpload() {
           tax_rate: updated.tax_rate,
           upc_code: updated.upc_code,
           ean_code: updated.ean_code,
-        }).catch(() => {});
+        }).catch(() => { });
       }, 600);
       return { ...prev, [key]: updated };
     });
@@ -343,7 +346,7 @@ export default function DraftOrderUpload() {
                 if (poData.next_po_number) {
                   initialGroups[currency].purchaseorderNumber = poData.next_po_number;
                 }
-              }).catch(() => {})
+              }).catch(() => { })
             );
           }
         }
@@ -740,9 +743,12 @@ export default function DraftOrderUpload() {
               </div>
               <div className="flex items-center justify-end pt-2 border-t border-green-200 dark:border-green-800">
                 {brandOrderCreated[key] ? (
-                  <span className="flex items-center gap-1.5 text-sm text-green-700 dark:text-green-400 font-medium">
-                    <CheckCircle className="w-4 h-4" /> Brand Order Created
-                  </span>
+                  <button
+                    onClick={() => router.push(`/brand_orders?po=${encodeURIComponent(gs.createdPO.purchaseorder_number)}`)}
+                    className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Visit Brand Order
+                  </button>
                 ) : (
                   <button
                     onClick={() => handleCreateBrandOrder(key, vendorId, gs.createdPO.purchaseorder_number, gs.poDate, singleBrand ?? undefined)}
@@ -807,7 +813,7 @@ export default function DraftOrderUpload() {
             <table className={TABLE_CLASSES.table}>
               <thead className={TABLE_CLASSES.thead}>
                 <tr>
-                  {['Vendor', 'Brand', 'Date', 'Items', 'Status', 'PO Status', 'PO Number', 'Created', 'Actions'].map(h => (
+                  {['Brand', 'Date', 'Items', 'Status', 'PO Status', 'PO Number', 'PO Created', 'Actions'].map(h => (
                     <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                   ))}
                 </tr>
@@ -820,11 +826,6 @@ export default function DraftOrderUpload() {
                   const canCreateBrandOrder = draft.po_created && !!draft.po_number && draftBrands.length > 0;
                   return (
                     <tr key={draft._id} className={TABLE_CLASSES.tr}>
-                      <td className={TABLE_CLASSES.td}>
-                        <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                          {draft.detected_vendor?.contact_name || <span className="text-zinc-400">—</span>}
-                        </span>
-                      </td>
                       <td className={TABLE_CLASSES.td}>
                         <span className="text-sm text-zinc-700 dark:text-zinc-300">{draftBrandLabel}</span>
                       </td>
@@ -855,7 +856,7 @@ export default function DraftOrderUpload() {
                         )}
                       </td>
                       <td className={TABLE_CLASSES.td}>
-                        <span className="text-sm text-zinc-600 dark:text-zinc-400 font-mono">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">
                           {draft.po_number || <span className="text-zinc-400 text-xs">—</span>}
                         </span>
                       </td>
@@ -874,9 +875,12 @@ export default function DraftOrderUpload() {
                           </button>
                           {canCreateBrandOrder && (
                             brandOrderCreated[draftKey] ? (
-                              <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
-                                <CheckCircle size={12} /> Brand Order Created
-                              </span>
+                              <button
+                                onClick={() => router.push(`/brand_orders?po=${encodeURIComponent(draft.po_number!)}`)}
+                                className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border border-blue-400 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                              >
+                                <ExternalLink size={11} /> Visit Brand Order
+                              </button>
                             ) : (
                               <button
                                 onClick={() => handleCreateBrandOrder(
@@ -1115,7 +1119,7 @@ export default function DraftOrderUpload() {
                     const key = m.bb_code || m.manufacturer_code;
                     const edits = itemEdits[key] ?? { tax_rate: m.tax_rate ?? 18, upc_code: m.upc_code ?? m.sku_code ?? '', ean_code: m.ean_code ?? m.sku_code ?? '' };
                     const isCreated = zohoItemResults?.created.some(c => c.bb_code === m.bb_code && c.manufacturer_code === m.manufacturer_code);
-                    const isFailed  = zohoItemResults?.failed.find(f => f.bb_code === m.bb_code && f.manufacturer_code === m.manufacturer_code);
+                    const isFailed = zohoItemResults?.failed.find(f => f.bb_code === m.bb_code && f.manufacturer_code === m.manufacturer_code);
                     return (
                       <tr key={i} className={`border-t border-zinc-100 dark:border-zinc-800 ${isCreated ? 'bg-green-50 dark:bg-green-900/20' : isFailed ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
                         <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 font-mono text-xs">{m.manufacturer_code || '—'}</td>
@@ -1124,7 +1128,7 @@ export default function DraftOrderUpload() {
                           <div className="flex items-center gap-2">
                             {m.item_name}
                             {isCreated && <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Created</span>}
-                            {isFailed  && <span className="text-xs text-red-600 dark:text-red-400 font-medium" title={isFailed.error}>✗ Failed</span>}
+                            {isFailed && <span className="text-xs text-red-600 dark:text-red-400 font-medium" title={isFailed.error}>✗ Failed</span>}
                           </div>
                         </td>
                         <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400 text-xs">{m.hsn_or_sac || '—'}</td>

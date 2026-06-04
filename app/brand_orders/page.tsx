@@ -1,10 +1,11 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useAuth } from '@/components/context/AuthContext';
 import BrandOrders from '@/components/reports/BrandOrders';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
-export default function Page() {
+function BrandOrdersPage() {
   usePageTitle('Brand Orders');
   const { isLoading, accessToken } = useAuth();
 
@@ -12,4 +13,12 @@ export default function Page() {
   if (!accessToken) return <p>Please log in to see this content.</p>;
 
   return <BrandOrders />;
+}
+
+export default function Page() {
+  return (
+    <Suspense>
+      <BrandOrdersPage />
+    </Suspense>
+  );
 }
