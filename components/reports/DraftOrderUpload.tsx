@@ -120,6 +120,15 @@ function currencySym(code?: string) {
   return '$';
 }
 
+function poStatusChipClass(status: string): string {
+  const s = status.toLowerCase();
+  if (s === 'issued' || s === 'open') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+  if (s === 'received' || s === 'closed' || s === 'billed') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+  if (s === 'cancelled' || s === 'void') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+  if (s === 'draft' || s === 'pending approval') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+  return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300';
+}
+
 function groupItemsByCurrency(items: OrderItem[]): Record<string, OrderItem[]> {
   const groups: Record<string, OrderItem[]> = {};
   for (const it of items) {
@@ -813,7 +822,7 @@ export default function DraftOrderUpload() {
             <table className={TABLE_CLASSES.table}>
               <thead className={TABLE_CLASSES.thead}>
                 <tr>
-                  {['Brand', 'Date', 'Items', 'Status', 'PO Status', 'PO Number', 'PO Created', 'Actions'].map(h => (
+                  {['Brand', 'Date', 'Items', 'Status', 'PO Status', 'PO Number', 'Actions'].map(h => (
                     <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                   ))}
                 </tr>
@@ -848,8 +857,8 @@ export default function DraftOrderUpload() {
                       </td>
                       <td className={TABLE_CLASSES.td}>
                         {draft.po_status ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                            {capitalize(draft.po_status)}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${poStatusChipClass(draft.po_status)}`}>
+                            {draft.po_status}
                           </span>
                         ) : (
                           <span className="text-zinc-400 text-xs">—</span>
@@ -858,11 +867,6 @@ export default function DraftOrderUpload() {
                       <td className={TABLE_CLASSES.td}>
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400">
                           {draft.po_number || <span className="text-zinc-400 text-xs">—</span>}
-                        </span>
-                      </td>
-                      <td className={TABLE_CLASSES.td}>
-                        <span className="text-xs text-zinc-500">
-                          {new Date(draft.created_at).toLocaleDateString('en-IN')}
                         </span>
                       </td>
                       <td className={TABLE_CLASSES.td}>
