@@ -87,8 +87,8 @@ function BatchRow({
 
   return (
     <>
-      <tr className={TABLE_CLASSES.row}>
-        <td className={TABLE_CLASSES.cell}>
+      <tr className={TABLE_CLASSES.tr}>
+        <td className={TABLE_CLASSES.td}>
           <button
             onClick={toggle}
             className='flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline font-mono text-xs'
@@ -97,11 +97,11 @@ function BatchRow({
             {batch.filename}
           </button>
         </td>
-        <td className={TABLE_CLASSES.cell}>{batch.start_date}</td>
-        <td className={TABLE_CLASSES.cell}>{batch.end_date}</td>
-        <td className={TABLE_CLASSES.cell}>{fmtDate(batch.uploaded_at)}</td>
-        <td className={TABLE_CLASSES.cell + ' text-center'}>{batch.row_count.toLocaleString()}</td>
-        <td className={TABLE_CLASSES.cell + ' text-center'}>
+        <td className={TABLE_CLASSES.td}>{batch.start_date}</td>
+        <td className={TABLE_CLASSES.td}>{batch.end_date}</td>
+        <td className={TABLE_CLASSES.td}>{fmtDate(batch.uploaded_at)}</td>
+        <td className={TABLE_CLASSES.td + ' text-center'}>{batch.row_count.toLocaleString()}</td>
+        <td className={TABLE_CLASSES.td + ' text-center'}>
           <button
             onClick={handleDelete}
             disabled={deleting}
@@ -124,21 +124,21 @@ function BatchRow({
                   <thead>
                     <tr>
                       {['Date', 'SKU', 'ASIN', 'Title', 'Warehouse', 'Warehouse Name', 'Available Units', 'Status'].map(h => (
-                        <th key={h} className={TABLE_CLASSES.header}>{h}</th>
+                        <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((r, i) => (
-                      <tr key={i} className={TABLE_CLASSES.row}>
-                        <td className={TABLE_CLASSES.cell + ' whitespace-nowrap'}>{r.date || '—'}</td>
-                        <td className={TABLE_CLASSES.cell + ' font-mono whitespace-nowrap'}>{r.sku || '—'}</td>
-                        <td className={TABLE_CLASSES.cell + ' font-mono whitespace-nowrap'}>{r.asin || '—'}</td>
-                        <td className={TABLE_CLASSES.cell + ' max-w-xs truncate'} title={r.title}>{r.title || '—'}</td>
-                        <td className={TABLE_CLASSES.cell}>{r.warehouse || '—'}</td>
-                        <td className={TABLE_CLASSES.cell}>{r.warehouse_name || '—'}</td>
-                        <td className={TABLE_CLASSES.cell + ' text-right'}>{r.available_units ?? '—'}</td>
-                        <td className={TABLE_CLASSES.cell}>
+                      <tr key={i} className={TABLE_CLASSES.tr}>
+                        <td className={TABLE_CLASSES.td + ' whitespace-nowrap'}>{r.date || '—'}</td>
+                        <td className={TABLE_CLASSES.td + ' font-mono whitespace-nowrap'}>{r.sku || '—'}</td>
+                        <td className={TABLE_CLASSES.td + ' font-mono whitespace-nowrap'}>{r.asin || '—'}</td>
+                        <td className={TABLE_CLASSES.td + ' max-w-xs truncate'} title={r.title}>{r.title || '—'}</td>
+                        <td className={TABLE_CLASSES.td}>{r.warehouse || '—'}</td>
+                        <td className={TABLE_CLASSES.td}>{r.warehouse_name || '—'}</td>
+                        <td className={TABLE_CLASSES.td + ' text-right'}>{r.available_units ?? '—'}</td>
+                        <td className={TABLE_CLASSES.td}>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                             r.status === 'ACTIVE'
                               ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
@@ -306,7 +306,7 @@ export default function AmazonDFInventory() {
         {loading ? (
           <div className='p-6'><LoadingState /></div>
         ) : error ? (
-          <div className='p-6'><ErrorState message={error} onRetry={fetchBatches} /></div>
+          <div className='p-6'><ErrorState error={error} onRetry={fetchBatches} /></div>
         ) : batches.length === 0 ? (
           <div className='p-8 text-center text-sm text-zinc-400 dark:text-zinc-500'>No uploads yet. Upload a file above to get started.</div>
         ) : (
@@ -314,12 +314,12 @@ export default function AmazonDFInventory() {
             <table className={TABLE_CLASSES.table}>
               <thead>
                 <tr>
-                  <th className={TABLE_CLASSES.header}>Filename</th>
-                  <th className={TABLE_CLASSES.header}>Start Date</th>
-                  <th className={TABLE_CLASSES.header}>End Date</th>
-                  <th className={TABLE_CLASSES.header}>Uploaded At</th>
-                  <th className={TABLE_CLASSES.header + ' text-center'}>Rows</th>
-                  <th className={TABLE_CLASSES.header + ' text-center'}>Actions</th>
+                  <th className={TABLE_CLASSES.th}>Filename</th>
+                  <th className={TABLE_CLASSES.th}>Start Date</th>
+                  <th className={TABLE_CLASSES.th}>End Date</th>
+                  <th className={TABLE_CLASSES.th}>Uploaded At</th>
+                  <th className={TABLE_CLASSES.th + ' text-center'}>Rows</th>
+                  <th className={TABLE_CLASSES.th + ' text-center'}>Actions</th>
                 </tr>
               </thead>
               <tbody>
