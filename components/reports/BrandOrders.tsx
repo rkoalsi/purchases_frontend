@@ -1363,7 +1363,6 @@ export default function BrandOrders() {
                       ['ready_date', 'Order Ready Date'],
                       ['etd_date', 'ETD / Sailing Date'],
                       ['eta_port_date', 'Port / ETA Date'],
-                      ['duty_payment_date', 'Duty Payment Date'],
                       ['inward_date', 'Inward Date'],
                     ] as [keyof CreateFormState, string][]).map(([field, label]) => (
                       <div key={field}>
@@ -1391,25 +1390,25 @@ export default function BrandOrders() {
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
                     <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Custom Duty Due Date</label>
+                      <input type="date" value={createForm.custom_duty_due_date || ''} onChange={e => setCreateForm(p => ({ ...p, custom_duty_due_date: e.target.value }))}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div>
                       <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Custom Duty (INR)</label>
                       <input type="number" min="0" step="0.01" value={createForm.custom_duty || ''} onChange={e => setCreateForm(p => ({ ...p, custom_duty: e.target.value }))}
                         placeholder="0.00"
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Custom Duty Due Date</label>
-                      <input type="date" value={createForm.custom_duty_due_date || ''} onChange={e => setCreateForm(p => ({ ...p, custom_duty_due_date: e.target.value }))}
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Shipping Charges Due Date</label>
+                      <input type="date" value={createForm.shipping_charges_due_date || ''} onChange={e => setCreateForm(p => ({ ...p, shipping_charges_due_date: e.target.value }))}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Shipping Charges (INR)</label>
                       <input type="number" min="0" step="0.01" value={createForm.shipping_charges || ''} onChange={e => setCreateForm(p => ({ ...p, shipping_charges: e.target.value }))}
                         placeholder="0.00"
-                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Shipping Charges Due Date</label>
-                      <input type="date" value={createForm.shipping_charges_due_date || ''} onChange={e => setCreateForm(p => ({ ...p, shipping_charges_due_date: e.target.value }))}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
                   </div>
@@ -1608,7 +1607,6 @@ export default function BrandOrders() {
                                               ['ready_date', 'Order Ready Date (H)'],
                                               ['etd_date', 'ETD / Sailing Date (M)'],
                                               ['eta_port_date', 'Port / ETA Date (S)'],
-                                              ['duty_payment_date', 'Duty Payment Date (Y)'],
                                               ['inward_date', 'Inward / WH Date (U/Z)'],
                                             ] as [keyof CreateFormState, string][]).map(([field, label]) => (
                                               <div key={field}>
@@ -1626,11 +1624,16 @@ export default function BrandOrders() {
                                             <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Payment Dates and Details</span>
                                           </div>
                                           <div className="p-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">PO Due Date</label>
+                                              <input type="date" value={editForm.po_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, po_due_date: e.target.value }))}
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
                                             {(() => {
                                               const cur = orders.find(o => o._id === editingOrder);
-                                              if (!cur?.po_sub_total && !cur?.po_currency_code) return null;
+                                              if (!cur?.po_sub_total && !cur?.po_currency_code) return <div />;
                                               return (
-                                                <div className="sm:col-span-2">
+                                                <div>
                                                   <label className="block text-xs text-zinc-400 mb-0.5">PO Total Value</label>
                                                   <div className="px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/60 text-xs font-semibold text-amber-700 dark:text-amber-300">
                                                     {cur.po_currency_code && <span className="mr-1">{cur.po_currency_code}</span>}
@@ -1640,8 +1643,8 @@ export default function BrandOrders() {
                                               );
                                             })()}
                                             <div>
-                                              <label className="block text-xs text-zinc-400 mb-0.5">PO Due Date</label>
-                                              <input type="date" value={editForm.po_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, po_due_date: e.target.value }))}
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Custom Duty Due Date</label>
+                                              <input type="date" value={editForm.custom_duty_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, custom_duty_due_date: e.target.value }))}
                                                 className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                                             </div>
                                             <div>
@@ -1651,19 +1654,14 @@ export default function BrandOrders() {
                                                 className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                                             </div>
                                             <div>
-                                              <label className="block text-xs text-zinc-400 mb-0.5">Custom Duty Due Date</label>
-                                              <input type="date" value={editForm.custom_duty_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, custom_duty_due_date: e.target.value }))}
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Shipping Charges Due Date</label>
+                                              <input type="date" value={editForm.shipping_charges_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, shipping_charges_due_date: e.target.value }))}
                                                 className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                                             </div>
                                             <div>
                                               <label className="block text-xs text-zinc-400 mb-0.5">Shipping Charges (INR)</label>
                                               <input type="number" min="0" step="0.01" value={editForm.shipping_charges ?? ''} onChange={e => setEditForm(p => ({ ...p, shipping_charges: e.target.value }))}
                                                 placeholder="0.00"
-                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
-                                            </div>
-                                            <div>
-                                              <label className="block text-xs text-zinc-400 mb-0.5">Shipping Charges Due Date</label>
-                                              <input type="date" value={editForm.shipping_charges_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, shipping_charges_due_date: e.target.value }))}
                                                 className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                                             </div>
                                           </div>
