@@ -1241,7 +1241,7 @@ export default function DesignNewItemsPage() {
             {downloading ? <Loader2 className='w-3.5 h-3.5 animate-spin' /> : <Download className='w-3.5 h-3.5' />}
             Download Products XLSX
           </button>
-          <button onClick={downloadPisTemplate}
+          {/* <button onClick={downloadPisTemplate}
             className='flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'
             title='Download empty PIS template'>
             <FileSpreadsheet className='w-3.5 h-3.5' />
@@ -1252,7 +1252,7 @@ export default function DesignNewItemsPage() {
             title='Upload Product Information Sheet'>
             {pisUploading ? <Loader2 className='w-3.5 h-3.5 animate-spin' /> : <Upload className='w-3.5 h-3.5' />}
             Upload PIS
-          </button>
+          </button> */}
         </div>
       </div>
 

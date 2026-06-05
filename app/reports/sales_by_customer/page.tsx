@@ -49,10 +49,13 @@ const InvoiceReportGenerator = () => {
       const raw: { value: string; label: string }[] = data.brands || [];
       const hasDog = raw.some((b) => b.value.toLowerCase() === 'dogfest');
       const hasCat = raw.some((b) => b.value.toLowerCase() === 'catfest');
+      const hasBark = raw.some((b) => b.value.toLowerCase() === 'barkbutler');
+      const hasFofos = raw.some((b) => b.value.toLowerCase() === 'fofos');
       const merged = raw.filter(
-        (b) => b.value.toLowerCase() !== 'dogfest' && b.value.toLowerCase() !== 'catfest'
+        (b) => !['dogfest', 'catfest', 'barkbutler', 'fofos'].includes(b.value.toLowerCase())
       );
       if (hasDog || hasCat) merged.push({ value: 'Petfest', label: 'Petfest' });
+      if (hasBark || hasFofos) merged.push({ value: 'Barkbutler / FOFOS', label: 'Barkbutler / FOFOS' });
       merged.sort((a, b) => a.label.localeCompare(b.label));
       setBrands(merged as any);
     } catch (error) {

@@ -9,7 +9,7 @@ import {
   Plus, Upload, Trash2, Download, Pencil, X, Check, Loader2, RefreshCw,
   FileText, ChevronDown, ChevronRight, Package, Tag, AlertTriangle, Search,
   Archive, Eye, FolderOpen, ArrowLeft, ArrowRight, Link2, BarChart2,
-  Layers, Filter, Folder, FolderPlus, Calendar,
+  Layers, Filter, Folder, FolderPlus, Calendar, CreditCard,
 } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -75,6 +75,12 @@ interface BrandOrder {
   eta_port_date?: string;
   duty_payment_date?: string;
   inward_date?: string;
+  po_sub_total?: number | null;
+  po_due_date?: string;
+  custom_duty?: number | null;
+  custom_duty_due_date?: string;
+  shipping_charges?: number | null;
+  shipping_charges_due_date?: string;
 }
 interface CreateFormState {
   brand: string; vendor_id: string; name?: string; order_date: string; shipment_eta: string;
@@ -82,6 +88,11 @@ interface CreateFormState {
   initiation_date?: string; proforma_date?: string; ready_date?: string;
   etd_date?: string; eta_port_date?: string; duty_payment_date?: string;
   inward_date?: string;
+  po_due_date?: string;
+  custom_duty?: string;
+  custom_duty_due_date?: string;
+  shipping_charges?: string;
+  shipping_charges_due_date?: string;
 }
 interface PoResult { purchaseorder_number: string; order_status_formatted: string; vendor_id?: string; bill_date?: string; po_date?: string; }
 interface GlobalFileResult {
@@ -272,6 +283,7 @@ export default function BrandOrders() {
   const [zippingOrder, setZippingOrder] = useState<string | null>(null);
   const [downloadingItemZip, setDownloadingItemZip] = useState<string | null>(null);
   const [downloadingReport, setDownloadingReport] = useState(false);
+  const [downloadingPaymentReport, setDownloadingPaymentReport] = useState(false);
   const [downloadingLineItems, setDownloadingLineItems] = useState<string | null>(null);
 
   // categories
@@ -686,6 +698,11 @@ export default function BrandOrders() {
       if (createForm.eta_port_date) form.append('eta_port_date', createForm.eta_port_date);
       if (createForm.duty_payment_date) form.append('duty_payment_date', createForm.duty_payment_date);
       if (createForm.inward_date) form.append('inward_date', createForm.inward_date);
+      if (createForm.po_due_date) form.append('po_due_date', createForm.po_due_date);
+      if (createForm.custom_duty_due_date) form.append('custom_duty_due_date', createForm.custom_duty_due_date);
+      if (createForm.shipping_charges_due_date) form.append('shipping_charges_due_date', createForm.shipping_charges_due_date);
+      if (createForm.custom_duty) form.append('custom_duty', createForm.custom_duty);
+      if (createForm.shipping_charges) form.append('shipping_charges', createForm.shipping_charges);
       await axios.post(`${API_URL}/brand_orders/`, form);
       toast.success('Order created');
       setCreateForVendor(null);
@@ -707,6 +724,11 @@ export default function BrandOrders() {
       eta_port_date: order.eta_port_date ?? '',
       duty_payment_date: order.duty_payment_date ?? '',
       inward_date: order.inward_date ?? '',
+      po_due_date: order.po_due_date ?? '',
+      custom_duty: order.custom_duty != null ? String(order.custom_duty) : '',
+      custom_duty_due_date: order.custom_duty_due_date ?? '',
+      shipping_charges: order.shipping_charges != null ? String(order.shipping_charges) : '',
+      shipping_charges_due_date: order.shipping_charges_due_date ?? '',
     });
   };
   const cancelEdit = () => { setEditingOrder(null); setEditForm({}); };
@@ -725,6 +747,11 @@ export default function BrandOrders() {
       form.append('eta_port_date', editForm.eta_port_date ?? '');
       form.append('duty_payment_date', editForm.duty_payment_date ?? '');
       form.append('inward_date', editForm.inward_date ?? '');
+      form.append('po_due_date', editForm.po_due_date ?? '');
+      form.append('custom_duty_due_date', editForm.custom_duty_due_date ?? '');
+      form.append('shipping_charges_due_date', editForm.shipping_charges_due_date ?? '');
+      if (editForm.custom_duty !== undefined && editForm.custom_duty !== '') form.append('custom_duty', editForm.custom_duty);
+      if (editForm.shipping_charges !== undefined && editForm.shipping_charges !== '') form.append('shipping_charges', editForm.shipping_charges);
       await axios.patch(`${API_URL}/brand_orders/${orderId}`, form);
       toast.success('Order updated');
       setEditingOrder(null);
@@ -975,6 +1002,29 @@ export default function BrandOrders() {
     } finally { setDownloadingReport(false); }
   };
 
+  const handleDownloadPaymentReport = async (brand?: string) => {
+    if (!accessToken) { toast.error('Not authenticated'); return; }
+    setDownloadingPaymentReport(true);
+    try {
+      const params = brand ? { brand } : {};
+      const response = await axios.get(`${API_URL}/brand_orders/payment-report`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        params,
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `Payment_Report_${date}.xlsx`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      const detail = err?.response?.data ? 'Access denied or server error' : 'Failed to download report';
+      toast.error(detail);
+    } finally { setDownloadingPaymentReport(false); }
+  };
+
   const handleDownloadLineItems = useCallback(async (orderId: string, poNumber: string) => {
     setDownloadingLineItems(orderId);
     try {
@@ -1047,7 +1097,16 @@ export default function BrandOrders() {
                 className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
               >
                 {downloadingReport ? <Loader2 size={14} className="animate-spin" /> : <BarChart2 size={14} />}
-                Lead Time Report 
+                Lead Time Report
+              </button>
+              <button
+                onClick={() => handleDownloadPaymentReport(reportBrand || undefined)}
+                disabled={downloadingPaymentReport}
+                title="Download Payment Report"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+              >
+                {downloadingPaymentReport ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+                Payment Report
               </button>
             </div>
           )}
@@ -1292,27 +1351,68 @@ export default function BrandOrders() {
                   )}
                 </div>
 
-                {/* Manual dates */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {([
-                    ['initiation_date', 'Date of Initiation'],
-                    ['proforma_date', 'Date of Proforma Invoice'],
-                    ['ready_date', 'Order Ready Date'],
-                    ['etd_date', 'ETD / Sailing Date'],
-                    ['eta_port_date', 'Port / ETA Date'],
-                    ['duty_payment_date', 'Duty Payment Date'],
-                    ['inward_date', 'Inward Date'],
-                  ] as [keyof CreateFormState, string][]).map(([field, label]) => (
-                    <div key={field}>
-                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">{label}</label>
-                      <input
-                        type="date"
-                        value={(createForm[field] as string) || ''}
-                        onChange={e => setCreateForm(p => ({ ...p, [field]: e.target.value }))}
-                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                {/* Order Dates */}
+                <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                  <div className="px-3 py-2 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
+                    <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Order Dates</span>
+                  </div>
+                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {([
+                      ['initiation_date', 'Date of Initiation'],
+                      ['proforma_date', 'Date of Proforma Invoice'],
+                      ['ready_date', 'Order Ready Date'],
+                      ['etd_date', 'ETD / Sailing Date'],
+                      ['eta_port_date', 'Port / ETA Date'],
+                      ['duty_payment_date', 'Duty Payment Date'],
+                      ['inward_date', 'Inward Date'],
+                    ] as [keyof CreateFormState, string][]).map(([field, label]) => (
+                      <div key={field}>
+                        <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">{label}</label>
+                        <input
+                          type="date"
+                          value={(createForm[field] as string) || ''}
+                          onChange={e => setCreateForm(p => ({ ...p, [field]: e.target.value }))}
+                          className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Payment Dates and Details */}
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800/60 overflow-hidden">
+                  <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/60">
+                    <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Payment Dates and Details</span>
+                  </div>
+                  <div className="p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">PO Due Date</label>
+                      <input type="date" value={createForm.po_due_date || ''} onChange={e => setCreateForm(p => ({ ...p, po_due_date: e.target.value }))}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
-                  ))}
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Custom Duty (INR)</label>
+                      <input type="number" min="0" step="0.01" value={createForm.custom_duty || ''} onChange={e => setCreateForm(p => ({ ...p, custom_duty: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Custom Duty Due Date</label>
+                      <input type="date" value={createForm.custom_duty_due_date || ''} onChange={e => setCreateForm(p => ({ ...p, custom_duty_due_date: e.target.value }))}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Shipping Charges (INR)</label>
+                      <input type="number" min="0" step="0.01" value={createForm.shipping_charges || ''} onChange={e => setCreateForm(p => ({ ...p, shipping_charges: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Shipping Charges Due Date</label>
+                      <input type="date" value={createForm.shipping_charges_due_date || ''} onChange={e => setCreateForm(p => ({ ...p, shipping_charges_due_date: e.target.value }))}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1496,23 +1596,77 @@ export default function BrandOrders() {
                                             {order.shipment_eta && <span><span className="font-medium text-zinc-400">Bill Date:</span> {fmtDate(order.shipment_eta)}</span>}
                                           </div>
                                         )}
-                                        {/* Manual date fields */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                          {([
-                                            ['initiation_date', 'Date of Initiation (E)'],
-                                            ['proforma_date', 'Proforma Invoice (F)'],
-                                            ['ready_date', 'Order Ready Date (H)'],
-                                            ['etd_date', 'ETD / Sailing Date (M)'],
-                                            ['eta_port_date', 'Port / ETA Date (S)'],
-                                            ['duty_payment_date', 'Duty Payment Date (Y)'],
-                                            ['inward_date', 'Inward / WH Date (U/Z)'],
-                                          ] as [keyof CreateFormState, string][]).map(([field, label]) => (
-                                            <div key={field}>
-                                              <label className="block text-xs text-zinc-400 mb-0.5">{label}</label>
-                                              <input type="date" value={(editForm[field] as string) ?? ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))}
-                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                        {/* Order Dates */}
+                                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                          <div className="px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
+                                            <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Order Dates</span>
+                                          </div>
+                                          <div className="p-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {([
+                                              ['initiation_date', 'Date of Initiation (E)'],
+                                              ['proforma_date', 'Proforma Invoice (F)'],
+                                              ['ready_date', 'Order Ready Date (H)'],
+                                              ['etd_date', 'ETD / Sailing Date (M)'],
+                                              ['eta_port_date', 'Port / ETA Date (S)'],
+                                              ['duty_payment_date', 'Duty Payment Date (Y)'],
+                                              ['inward_date', 'Inward / WH Date (U/Z)'],
+                                            ] as [keyof CreateFormState, string][]).map(([field, label]) => (
+                                              <div key={field}>
+                                                <label className="block text-xs text-zinc-400 mb-0.5">{label}</label>
+                                                <input type="date" value={(editForm[field] as string) ?? ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))}
+                                                  className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+
+                                        {/* Payment Dates and Details */}
+                                        <div className="rounded-lg border border-amber-200 dark:border-amber-800/60 overflow-hidden">
+                                          <div className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/60">
+                                            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Payment Dates and Details</span>
+                                          </div>
+                                          <div className="p-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {(() => {
+                                              const cur = orders.find(o => o._id === editingOrder);
+                                              if (!cur?.po_sub_total && !cur?.po_currency_code) return null;
+                                              return (
+                                                <div className="sm:col-span-2">
+                                                  <label className="block text-xs text-zinc-400 mb-0.5">PO Total Value</label>
+                                                  <div className="px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/60 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                                                    {cur.po_currency_code && <span className="mr-1">{cur.po_currency_code}</span>}
+                                                    {cur.po_sub_total != null ? cur.po_sub_total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                                                  </div>
+                                                </div>
+                                              );
+                                            })()}
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">PO Due Date</label>
+                                              <input type="date" value={editForm.po_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, po_due_date: e.target.value }))}
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                                             </div>
-                                          ))}
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Custom Duty (INR)</label>
+                                              <input type="number" min="0" step="0.01" value={editForm.custom_duty ?? ''} onChange={e => setEditForm(p => ({ ...p, custom_duty: e.target.value }))}
+                                                placeholder="0.00"
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Custom Duty Due Date</label>
+                                              <input type="date" value={editForm.custom_duty_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, custom_duty_due_date: e.target.value }))}
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Shipping Charges (INR)</label>
+                                              <input type="number" min="0" step="0.01" value={editForm.shipping_charges ?? ''} onChange={e => setEditForm(p => ({ ...p, shipping_charges: e.target.value }))}
+                                                placeholder="0.00"
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Shipping Charges Due Date</label>
+                                              <input type="date" value={editForm.shipping_charges_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, shipping_charges_due_date: e.target.value }))}
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                          </div>
                                         </div>
 
                                         {/* ── Lead Time Analytics ── */}

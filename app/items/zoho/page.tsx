@@ -1,19 +1,20 @@
 'use client';
 
 import { useAuth } from '@/components/context/AuthContext';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import {
   ChevronLeft, ChevronRight, BookOpen, Search, RefreshCw,
   ArrowDownUp, X, ZoomIn, Video, ExternalLink, Package,
   Upload, Download, CheckCircle, AlertCircle, Loader2, Plus,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/zoho`;
 const PAGE_SIZE = 10;
 
-type Tab = 'products' | 'composites';
+type Tab = 'products' | 'composites' | 'pis';
 
 // ─── Image helpers ─────────────────────────────────────────────────────────────
 
@@ -663,6 +664,177 @@ function ProductDetailDrawer({
   );
 }
 
+// ─── PIS Upload Modal ──────────────────────────────────────────────────────────
+
+type PisResult = {
+  summary: { total_rows: number; updated: number; not_found: number; skipped: number };
+  updated: { bb_code: string; product_name: string; sheet: string; fields_updated: string[]; fields_values: Record<string, any> }[];
+  not_found: { identifier: string; product_name: string | null; sheet: string }[];
+  skipped: { row: number; sheet: string; reason: string }[];
+  audit?: { uploaded_by: string; uploaded_at: string; s3_key: string | null };
+};
+
+function PisFieldTooltipBody({ field, value }: { field: string; value: any }) {
+  if (value === null || value === undefined) return <span className='text-zinc-400'>—</span>;
+  if (field === 'features' && Array.isArray(value)) {
+    return (
+      <ul className='mt-1 space-y-1'>
+        {value.map((f: string, i: number) => (
+          <li key={i} className='flex gap-2'><span className='text-zinc-500 shrink-0'>•</span><span>{f}</span></li>
+        ))}
+      </ul>
+    );
+  }
+  if (field === 'image_links' && Array.isArray(value)) return <span>{value.length} link{value.length !== 1 ? 's' : ''}</span>;
+  if (field === 'dimensions' && typeof value === 'object') {
+    const wp = value.with_packaging;
+    const wop = value.without_packaging;
+    return (
+      <div className='mt-1 space-y-2.5'>
+        {wp && <div><div className='text-zinc-400 text-[10px] uppercase tracking-wide mb-0.5'>With packaging</div>{(wp.length_cm || wp.breadth_cm || wp.height_cm) && <div>{wp.length_cm ?? '?'} × {wp.breadth_cm ?? '?'} × {wp.height_cm ?? '?'} cm</div>}{wp.gross_weight_g != null && <div>{wp.gross_weight_g} g</div>}</div>}
+        {wop && <div><div className='text-zinc-400 text-[10px] uppercase tracking-wide mb-0.5'>Without packaging</div>{(wop.length_cm || wop.breadth_cm || wop.height_cm) && <div>{wop.length_cm ?? '?'} × {wop.breadth_cm ?? '?'} × {wop.height_cm ?? '?'} cm</div>}{wop.net_weight_g != null && <div>{wop.net_weight_g} g</div>}</div>}
+      </div>
+    );
+  }
+  if (typeof value === 'boolean') return <span>{value ? 'Yes' : 'No'}</span>;
+  return <span>{String(value)}</span>;
+}
+
+function PisFieldChip({ field, value }: { field: string; value: any }) {
+  return (
+    <div className='relative group/chip'>
+      <span className='text-[10px] px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full cursor-default select-none'>{field}</span>
+      <div className='pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 hidden group-hover/chip:block'>
+        <div className='bg-gray-900 dark:bg-zinc-800 text-white text-[11px] rounded-xl px-3 py-2.5 min-w-[150px] max-w-[280px] shadow-2xl'>
+          <div className='font-semibold text-zinc-300 border-b border-zinc-700 pb-1 mb-1'>{field}</div>
+          <PisFieldTooltipBody field={field} value={value} />
+        </div>
+        <div className='absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-gray-900 dark:border-t-zinc-800' />
+      </div>
+    </div>
+  );
+}
+
+function PisModal({
+  result, mode, onClose, onConfirm, confirming,
+}: {
+  result: PisResult;
+  mode: 'preview' | 'result';
+  onClose: () => void;
+  onConfirm?: () => void;
+  confirming?: boolean;
+}) {
+  const [activeTab, setActiveTab] = useState<'updated' | 'not_found' | 'skipped'>('updated');
+  const { summary } = result;
+  const isPreview = mode === 'preview';
+
+  return (
+    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4'>
+      <div className='bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden'>
+        <div className='flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800'>
+          <div className='flex items-center gap-3'>
+            <FileSpreadsheet className='w-5 h-5 text-purple-600' />
+            <div>
+              <h2 className='text-base font-semibold text-gray-900 dark:text-zinc-100'>
+                {isPreview ? 'PIS Upload Preview' : 'PIS Upload Results'}
+              </h2>
+              {isPreview && <p className='text-xs text-amber-600 dark:text-amber-400 mt-0.5'>Review changes below, then confirm to apply</p>}
+              {!isPreview && result.audit && <p className='text-xs text-gray-400 dark:text-zinc-500 mt-0.5'>Uploaded by {result.audit.uploaded_by}</p>}
+            </div>
+          </div>
+          <button onClick={onClose} className='p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors'>
+            <X className='w-4 h-4' />
+          </button>
+        </div>
+
+        {/* Summary pills */}
+        <div className='flex flex-wrap gap-2 px-6 py-3 border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50'>
+          <span className='text-xs px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium'>{summary.total_rows} rows</span>
+          <span className='text-xs px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium'>{summary.updated} updated</span>
+          {summary.not_found > 0 && <span className='text-xs px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium'>{summary.not_found} not found</span>}
+          {summary.skipped > 0 && <span className='text-xs px-2.5 py-1 rounded-full bg-gray-200 dark:bg-zinc-700 text-gray-600 dark:text-zinc-400 font-medium'>{summary.skipped} skipped</span>}
+        </div>
+
+        {/* Tabs */}
+        <div className='flex gap-0 border-b border-gray-100 dark:border-zinc-800 px-6 shrink-0'>
+          {(['updated', 'not_found', 'skipped'] as const).map(t => (
+            <button key={t} onClick={() => setActiveTab(t)}
+              className={`px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors ${activeTab === t ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-700'}`}>
+              {t === 'updated' ? `Updated (${result.updated.length})` : t === 'not_found' ? `Not Found (${result.not_found.length})` : `Skipped (${result.skipped.length})`}
+            </button>
+          ))}
+        </div>
+
+        <div className='flex-1 overflow-y-auto min-h-0 px-6 py-4'>
+          {activeTab === 'updated' && (
+            result.updated.length === 0
+              ? <p className='text-sm text-gray-400 dark:text-zinc-500 text-center py-8'>No items would be updated</p>
+              : <div className='space-y-2'>
+                  {result.updated.map((item, i) => (
+                    <div key={i} className='border border-gray-100 dark:border-zinc-800 rounded-xl px-4 py-3'>
+                      <div className='flex items-start justify-between gap-3 mb-2'>
+                        <div>
+                          <span className='text-xs font-mono bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded'>{item.bb_code}</span>
+                          <span className='ml-2 text-sm font-medium text-gray-800 dark:text-zinc-200'>{item.product_name}</span>
+                        </div>
+                        <span className='text-[10px] text-gray-400 dark:text-zinc-500 shrink-0'>{item.sheet}</span>
+                      </div>
+                      <div className='flex flex-wrap gap-1.5'>
+                        {item.fields_updated.map(f => <PisFieldChip key={f} field={f} value={item.fields_values?.[f]} />)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+          )}
+          {activeTab === 'not_found' && (
+            result.not_found.length === 0
+              ? <p className='text-sm text-gray-400 dark:text-zinc-500 text-center py-8'>No unmatched items</p>
+              : <div className='space-y-1.5'>
+                  {result.not_found.map((item, i) => (
+                    <div key={i} className='flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30'>
+                      <AlertCircle className='w-3.5 h-3.5 text-amber-500 shrink-0' />
+                      <span className='text-xs font-mono text-amber-700 dark:text-amber-400'>{item.identifier}</span>
+                      {item.product_name && <span className='text-xs text-gray-500 dark:text-zinc-400'>({item.product_name})</span>}
+                      <span className='text-[10px] text-gray-400 dark:text-zinc-500 ml-auto'>{item.sheet}</span>
+                    </div>
+                  ))}
+                </div>
+          )}
+          {activeTab === 'skipped' && (
+            result.skipped.length === 0
+              ? <p className='text-sm text-gray-400 dark:text-zinc-500 text-center py-8'>No skipped rows</p>
+              : <div className='space-y-1.5'>
+                  {result.skipped.map((item, i) => (
+                    <div key={i} className='flex items-center gap-3 px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700'>
+                      <span className='text-xs text-gray-400 dark:text-zinc-500'>Row {item.row}</span>
+                      <span className='text-xs text-gray-600 dark:text-zinc-300'>{item.reason}</span>
+                      <span className='text-[10px] text-gray-400 dark:text-zinc-500 ml-auto'>{item.sheet}</span>
+                    </div>
+                  ))}
+                </div>
+          )}
+        </div>
+
+        {isPreview && (
+          <div className='px-6 py-4 border-t border-gray-100 dark:border-zinc-800 shrink-0 flex justify-end gap-3'>
+            <button onClick={onClose} className='px-4 py-2 rounded-xl text-sm text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors'>Cancel</button>
+            <button onClick={onConfirm} disabled={confirming || summary.updated === 0}
+              className='px-6 py-2 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2'>
+              {confirming && <Loader2 className='w-4 h-4 animate-spin' />}
+              Apply {summary.updated > 0 ? `${summary.updated} update${summary.updated !== 1 ? 's' : ''}` : '(nothing to update)'}
+            </button>
+          </div>
+        )}
+        {!isPreview && (
+          <div className='px-6 py-4 border-t border-gray-100 dark:border-zinc-800 shrink-0 flex justify-end'>
+            <button onClick={onClose} className='px-6 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors'>Done</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Bulk Upload Modal ─────────────────────────────────────────────────────────
 
 type UploadStep = 'idle' | 'validating' | 'validated' | 'creating' | 'done';
@@ -1095,6 +1267,16 @@ function BulkUploadModal({
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
+// Brands that should appear as a single combined entry in the PIS dropdown.
+// Key = display name / value used in the dropdown; value = real brand strings in DB.
+const PIS_BRAND_GROUPS: Record<string, string[]> = {
+  'Petfest': ['Catfest', 'Dogfest'],
+  'Barkbutler / FOFOS': ['Barkbutler', 'FOFOS'],
+};
+const _PIS_CONSTITUENTS = new Set(
+  Object.values(PIS_BRAND_GROUPS).flat().map(s => s.toLowerCase())
+);
+
 export default function ZohoItemsPage() {
   usePageTitle('Zoho Items');
   const { isLoading, accessToken } = useAuth();
@@ -1103,6 +1285,17 @@ export default function ZohoItemsPage() {
   // Brands
   const [brands, setBrands] = useState<{ value: string; label: string }[]>([]);
   const [prodBrand, setProdBrand] = useState('');
+
+  // PIS brand dropdown: constituent brands merged into group entries
+  const pisBrands = useMemo(() => {
+    const merged = brands.filter(b => !_PIS_CONSTITUENTS.has(b.value.toLowerCase()));
+    Object.entries(PIS_BRAND_GROUPS).forEach(([group, members]) => {
+      if (members.some(m => brands.some(b => b.value.toLowerCase() === m.toLowerCase()))) {
+        merged.push({ value: group, label: group });
+      }
+    });
+    return merged.sort((a, b) => a.label.localeCompare(b.label));
+  }, [brands]);
 
   // Products state
   const [products, setProducts] = useState<any[]>([]);
@@ -1113,7 +1306,7 @@ export default function ZohoItemsPage() {
   const [prodLoading, setProdLoading] = useState(false);
   const [prodZohoStatus, setProdZohoStatus] = useState('');
   const [prodPurchaseStatus, setProdPurchaseStatus] = useState('');
-  const [prodLatestFirst, setProdLatestFirst] = useState(false);
+  const [prodLatestFirst, setProdLatestFirst] = useState(true);
 
   // Drawer + carousel state
   const [drawerProduct, setDrawerProduct] = useState<any | null>(null);
@@ -1151,6 +1344,22 @@ export default function ZohoItemsPage() {
   const [compTotalPages, setCompTotalPages] = useState(1);
   const [compLoading, setCompLoading] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
+
+  // PIS state
+  const [pisUploading, setPisUploading] = useState(false);
+  const [pisConfirming, setPisConfirming] = useState(false);
+  const [pisFile, setPisFile] = useState<File | null>(null);
+  const [pisPreview, setPisPreview] = useState<PisResult | null>(null);
+  const [pisResult, setPisResult] = useState<PisResult | null>(null);
+  const pisInputRef = useRef<HTMLInputElement>(null);
+  const pisDragRef = useRef<HTMLDivElement>(null);
+  const [pisDragging, setPisDragging] = useState(false);
+
+  // PIS order selection
+  const [pisSelectedBrand, setPisSelectedBrand] = useState('');
+  const [pisOrders, setPisOrders] = useState<{ _id: string; name: string; brand: string }[]>([]);
+  const [pisOrdersLoading, setPisOrdersLoading] = useState(false);
+  const [pisSelectedOrderId, setPisSelectedOrderId] = useState('');
 
   // Fetch brands
   useEffect(() => {
@@ -1208,6 +1417,79 @@ export default function ZohoItemsPage() {
   // Reset to page 1 when filters change
   useEffect(() => { setProdPage(1); }, [prodSearch, prodZohoStatus, prodPurchaseStatus, prodBrand, prodLatestFirst]);
   useEffect(() => { setCompPage(1); }, [compSearch]);
+
+  // Fetch brand orders when PIS brand selection changes.
+  // For grouped brands (Petfest, Barkbutler/FOFOS) fan out to each constituent brand in parallel.
+  useEffect(() => {
+    if (!pisSelectedBrand || !accessToken) { setPisOrders([]); setPisSelectedOrderId(''); return; }
+    setPisOrdersLoading(true);
+    setPisSelectedOrderId('');
+    const constituents = PIS_BRAND_GROUPS[pisSelectedBrand] ?? [pisSelectedBrand];
+    Promise.all(
+      constituents.map(brand =>
+        axios
+          .get(`${process.env.NEXT_PUBLIC_API_URL}/brand_orders`, {
+            params: { brand },
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          .then(res => (res.data as any[]) || [])
+          .catch(() => [] as any[])
+      )
+    )
+      .then(results => setPisOrders(results.flat().sort((a: any, b: any) => a.name.localeCompare(b.name))))
+      .finally(() => setPisOrdersLoading(false));
+  }, [pisSelectedBrand, accessToken]);
+
+  const uploadPis = async (file: File) => {
+    if (!accessToken) return;
+    setPisUploading(true);
+    setPisFile(file);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await axios.post(`${API}/upload-pis`, form, {
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'multipart/form-data' },
+      });
+      setPisPreview(res.data);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Preview failed');
+      setPisFile(null);
+    } finally {
+      setPisUploading(false);
+      if (pisInputRef.current) pisInputRef.current.value = '';
+    }
+  };
+
+  const confirmPis = async () => {
+    if (!accessToken || !pisFile || !pisSelectedOrderId) return;
+    setPisConfirming(true);
+    try {
+      const form = new FormData();
+      form.append('file', pisFile);
+      form.append('order_id', pisSelectedOrderId);
+      const res = await axios.post(`${API}/confirm-pis`, form, {
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'multipart/form-data' },
+      });
+      setPisPreview(null);
+      setPisFile(null);
+      setPisResult(res.data);
+    } catch (err: any) {
+      alert(err?.response?.data?.detail || 'Apply failed');
+    } finally {
+      setPisConfirming(false);
+    }
+  };
+
+  const downloadPisTemplate = async () => {
+    if (!accessToken) return;
+    const res = await axios.get(`${API}/pis-template`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a'); a.href = url; a.download = 'PIS_Template.xlsx'; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
@@ -1276,7 +1558,7 @@ export default function ZohoItemsPage() {
       </div>
 
       {/* Tabs */}
-      <div className='flex gap-1 border-b border-gray-200 dark:border-zinc-800 overflow-x-auto flex-nowrap'>
+      <div className='flex gap-1 border-b border-gray-200 dark:border-zinc-800 overflow-x-auto overflow-y-hidden flex-nowrap'>
         {([['products', 'Products', prodTotal], ['composites', 'Composite Items', compTotal]] as const).map(([id, label, count]) => (
           <button
             key={id}
@@ -1297,6 +1579,17 @@ export default function ZohoItemsPage() {
             )}
           </button>
         ))}
+        <button
+          onClick={() => setTab('pis')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px flex items-center gap-1.5 ${
+            tab === 'pis'
+              ? 'border-purple-600 text-purple-600 dark:text-purple-400 dark:border-purple-400'
+              : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-zinc-200'
+          }`}
+        >
+          <FileSpreadsheet className='w-3.5 h-3.5' />
+          PIS Upload
+        </button>
       </div>
 
       {/* Products tab */}
@@ -1553,6 +1846,163 @@ export default function ZohoItemsPage() {
           )}
         </div>
       )}
+
+      {/* PIS tab */}
+      {tab === 'pis' && (
+        <>
+          {/* Hidden file input */}
+          <input
+            ref={pisInputRef}
+            type='file'
+            accept='.xlsx,.xls'
+            className='hidden'
+            onChange={e => { const f = e.target.files?.[0]; if (f) uploadPis(f); }}
+          />
+
+          {/* PIS modals */}
+          {pisPreview && (
+            <PisModal
+              result={pisPreview}
+              mode='preview'
+              onClose={() => { setPisPreview(null); setPisFile(null); }}
+              onConfirm={confirmPis}
+              confirming={pisConfirming}
+            />
+          )}
+          {pisResult && (
+            <PisModal
+              result={pisResult}
+              mode='result'
+              onClose={() => setPisResult(null)}
+            />
+          )}
+
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+
+            {/* Left: Template + Upload */}
+            <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden'>
+              <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800'>
+                <h2 className='text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider'>Product Information Sheet</h2>
+                <p className='text-xs text-gray-500 dark:text-zinc-400 mt-1'>Select an order on the right, then download the template, fill it in, and upload.</p>
+              </div>
+              <div className='p-6 space-y-5'>
+
+                {/* Step 1 — Download */}
+                <div className='flex items-center justify-between p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'>
+                  <div>
+                    <p className='text-sm font-medium text-blue-800 dark:text-blue-300'>Step 1 — Download Template</p>
+                    <p className='text-xs text-blue-600 dark:text-blue-400 mt-0.5'>5 sheets: Toys, Hygiene, Outdoor Gear, Treats, Grooming</p>
+                  </div>
+                  <button
+                    onClick={downloadPisTemplate}
+                    className='flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors shrink-0'
+                  >
+                    <Download className='w-4 h-4' /> Template
+                  </button>
+                </div>
+
+                {/* Step 2 — Upload */}
+                <div>
+                  <p className='text-sm font-medium text-gray-700 dark:text-zinc-300 mb-2'>Step 2 — Upload Filled PIS</p>
+                  <div
+                    ref={pisDragRef}
+                    onClick={() => { if (pisSelectedOrderId) pisInputRef.current?.click(); }}
+                    onDragOver={e => { if (pisSelectedOrderId) { e.preventDefault(); setPisDragging(true); } }}
+                    onDragLeave={() => setPisDragging(false)}
+                    onDrop={e => { e.preventDefault(); setPisDragging(false); if (pisSelectedOrderId) { const f = e.dataTransfer.files[0]; if (f) uploadPis(f); } }}
+                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                      !pisSelectedOrderId
+                        ? 'border-gray-200 dark:border-zinc-800 opacity-50 cursor-not-allowed'
+                        : pisDragging
+                        ? 'border-purple-400 bg-purple-50/50 dark:bg-purple-900/10 cursor-pointer'
+                        : 'border-gray-300 dark:border-zinc-700 hover:border-purple-400 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 cursor-pointer'
+                    }`}
+                  >
+                    {pisUploading ? (
+                      <div className='flex flex-col items-center gap-2 text-purple-600 dark:text-purple-400'>
+                        <Loader2 className='w-8 h-8 animate-spin' />
+                        <p className='text-sm font-medium'>Analysing…</p>
+                      </div>
+                    ) : !pisSelectedOrderId ? (
+                      <div className='flex flex-col items-center gap-2 text-gray-400 dark:text-zinc-500'>
+                        <FileSpreadsheet className='w-10 h-10 opacity-40' />
+                        <p className='text-sm'>Select a brand and order first</p>
+                      </div>
+                    ) : (
+                      <div className='flex flex-col items-center gap-2 text-gray-400 dark:text-zinc-500'>
+                        <FileSpreadsheet className='w-10 h-10 opacity-50' />
+                        <p className='text-sm'>Drop your filled PIS here or click to browse</p>
+                        <p className='text-xs'>.xlsx or .xls</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Right: Order Association */}
+            <div className='bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden'>
+              <div className='px-6 py-4 border-b border-gray-100 dark:border-zinc-800'>
+                <h2 className='text-sm font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider'>Attach to Order</h2>
+                <p className='text-xs text-gray-500 dark:text-zinc-400 mt-1'>Required. The PIS file will be saved under this order and appear in both Brand Orders and Design Orders pages.</p>
+              </div>
+              <div className='p-6 space-y-4'>
+
+                {/* Brand select */}
+                <div>
+                  <label className='block text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5'>Brand</label>
+                  <select
+                    value={pisSelectedBrand}
+                    onChange={e => setPisSelectedBrand(e.target.value)}
+                    className='w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer'
+                  >
+                    <option value=''>— no brand selected —</option>
+                    {pisBrands.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                  </select>
+                </div>
+
+                {/* Order select */}
+                <div>
+                  <label className='block text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5'>Order</label>
+                  {pisOrdersLoading ? (
+                    <div className='flex items-center gap-2 py-2 text-sm text-gray-400 dark:text-zinc-500'>
+                      <Loader2 className='w-4 h-4 animate-spin' /> Loading orders…
+                    </div>
+                  ) : (
+                    <select
+                      value={pisSelectedOrderId}
+                      onChange={e => setPisSelectedOrderId(e.target.value)}
+                      disabled={!pisSelectedBrand || pisOrders.length === 0}
+                      className='w-full pl-3 pr-8 py-2 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 text-gray-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                    >
+                      <option value=''>
+                        {!pisSelectedBrand ? '— select a brand first —' : pisOrders.length === 0 ? '— no orders found —' : '— select an order —'}
+                      </option>
+                      {pisOrders.map(o => <option key={o._id} value={o._id}>{o.name}</option>)}
+                    </select>
+                  )}
+                </div>
+
+                {pisSelectedOrderId ? (
+                  <div className='flex items-start gap-2 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 text-xs text-purple-700 dark:text-purple-300'>
+                    <CheckCircle className='w-3.5 h-3.5 shrink-0 mt-0.5' />
+                    Order selected — the PIS file will be saved here and visible in both Brand Orders and Design Orders. You can delete it from either page.
+                  </div>
+                ) : (
+                  <div className='flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-400'>
+                    <AlertCircle className='w-3.5 h-3.5 shrink-0 mt-0.5' />
+                    Select a brand and order above before uploading.
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+          </div>
+        </>
+      )}
+
     </div>
   );
 }
