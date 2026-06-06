@@ -77,6 +77,8 @@ interface BrandOrder {
   inward_date?: string;
   po_sub_total?: number | null;
   po_due_date?: string;
+  advance_payment_date?: string;
+  advance_payment_amount?: number | null;
   custom_duty?: number | null;
   custom_duty_due_date?: string;
   shipping_charges?: number | null;
@@ -89,6 +91,8 @@ interface CreateFormState {
   etd_date?: string; eta_port_date?: string; duty_payment_date?: string;
   inward_date?: string;
   po_due_date?: string;
+  advance_payment_date?: string;
+  advance_payment_amount?: string;
   custom_duty?: string;
   custom_duty_due_date?: string;
   shipping_charges?: string;
@@ -699,8 +703,10 @@ export default function BrandOrders() {
       if (createForm.duty_payment_date) form.append('duty_payment_date', createForm.duty_payment_date);
       if (createForm.inward_date) form.append('inward_date', createForm.inward_date);
       if (createForm.po_due_date) form.append('po_due_date', createForm.po_due_date);
+      if (createForm.advance_payment_date) form.append('advance_payment_date', createForm.advance_payment_date);
       if (createForm.custom_duty_due_date) form.append('custom_duty_due_date', createForm.custom_duty_due_date);
       if (createForm.shipping_charges_due_date) form.append('shipping_charges_due_date', createForm.shipping_charges_due_date);
+      if (createForm.advance_payment_amount) form.append('advance_payment_amount', createForm.advance_payment_amount);
       if (createForm.custom_duty) form.append('custom_duty', createForm.custom_duty);
       if (createForm.shipping_charges) form.append('shipping_charges', createForm.shipping_charges);
       await axios.post(`${API_URL}/brand_orders/`, form);
@@ -725,6 +731,8 @@ export default function BrandOrders() {
       duty_payment_date: order.duty_payment_date ?? '',
       inward_date: order.inward_date ?? '',
       po_due_date: order.po_due_date ?? '',
+      advance_payment_date: order.advance_payment_date ?? '',
+      advance_payment_amount: order.advance_payment_amount != null ? String(order.advance_payment_amount) : '',
       custom_duty: order.custom_duty != null ? String(order.custom_duty) : '',
       custom_duty_due_date: order.custom_duty_due_date ?? '',
       shipping_charges: order.shipping_charges != null ? String(order.shipping_charges) : '',
@@ -748,8 +756,10 @@ export default function BrandOrders() {
       form.append('duty_payment_date', editForm.duty_payment_date ?? '');
       form.append('inward_date', editForm.inward_date ?? '');
       form.append('po_due_date', editForm.po_due_date ?? '');
+      form.append('advance_payment_date', editForm.advance_payment_date ?? '');
       form.append('custom_duty_due_date', editForm.custom_duty_due_date ?? '');
       form.append('shipping_charges_due_date', editForm.shipping_charges_due_date ?? '');
+      if (editForm.advance_payment_amount !== undefined && editForm.advance_payment_amount !== '') form.append('advance_payment_amount', editForm.advance_payment_amount);
       if (editForm.custom_duty !== undefined && editForm.custom_duty !== '') form.append('custom_duty', editForm.custom_duty);
       if (editForm.shipping_charges !== undefined && editForm.shipping_charges !== '') form.append('shipping_charges', editForm.shipping_charges);
       await axios.patch(`${API_URL}/brand_orders/${orderId}`, form);
@@ -1390,6 +1400,17 @@ export default function BrandOrders() {
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
                     <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Advance Payment Date</label>
+                      <input type="date" value={createForm.advance_payment_date || ''} onChange={e => setCreateForm(p => ({ ...p, advance_payment_date: e.target.value }))}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Advance Payment Amount (INR)</label>
+                      <input type="number" min="0" step="0.01" value={createForm.advance_payment_amount || ''} onChange={e => setCreateForm(p => ({ ...p, advance_payment_amount: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div>
                       <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Custom Duty Due Date</label>
                       <input type="date" value={createForm.custom_duty_due_date || ''} onChange={e => setCreateForm(p => ({ ...p, custom_duty_due_date: e.target.value }))}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
@@ -1642,6 +1663,17 @@ export default function BrandOrders() {
                                                 </div>
                                               );
                                             })()}
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Advance Payment Date</label>
+                                              <input type="date" value={editForm.advance_payment_date ?? ''} onChange={e => setEditForm(p => ({ ...p, advance_payment_date: e.target.value }))}
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Advance Payment Amount (INR)</label>
+                                              <input type="number" min="0" step="0.01" value={editForm.advance_payment_amount ?? ''} onChange={e => setEditForm(p => ({ ...p, advance_payment_amount: e.target.value }))}
+                                                placeholder="0.00"
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
                                             <div>
                                               <label className="block text-xs text-zinc-400 mb-0.5">Custom Duty Due Date</label>
                                               <input type="date" value={editForm.custom_duty_due_date ?? ''} onChange={e => setEditForm(p => ({ ...p, custom_duty_due_date: e.target.value }))}
