@@ -94,6 +94,7 @@ const PERMISSION_REQUIREMENTS = {
   BRAND_ORDERS: { anyOf: ['vendors_brand_orders_view', 'vendors_brand_orders_edit'] },
   BRAND_LOGISTICS: { name: 'settings_brand_logistics' },
   PRODUCT_LOGISTICS: { name: 'settings_product_logistics' },
+  TASK_TRIGGERS: null,
   DESIGN_NEW_ITEMS: { name: 'design_new_items' },
   DESIGNER_ORDERS: { anyOf: ['design_orders_view', 'design_orders_edit'] },
   DESIGN_TASKS: { name: 'design_tasks' },
@@ -412,6 +413,13 @@ const navigation = [
         requiredPermission: PERMISSION_REQUIREMENTS.PRODUCT_LOGISTICS,
       },
       {
+        name: 'Task Triggers',
+        href: '/settings/task-triggers',
+        icon: Zap,
+        requiredPermission: PERMISSION_REQUIREMENTS.TASK_TRIGGERS,
+        adminOnly: true,
+      },
+      {
         name: 'Manage Users/Permissions',
         href: '/users',
         icon: User,
@@ -523,14 +531,15 @@ export default function Sidebar({
             if (filteredChildren.length === 0) return null;
             return { ...item, children: filteredChildren };
           }
-          // Leaf item: check permission
+          // Leaf item: check role + permission
+          if (item.adminOnly && user?.role !== 'admin') return null;
           return hasPermission(item.requiredPermission) ? item : null;
         })
         .filter(Boolean);
     };
 
     return filterItems(navigation);
-  }, [user?.permissions, availablePermissions, permissionsLoading]);
+  }, [user?.permissions, user?.role, availablePermissions, permissionsLoading]);
 
   // Check if a route is active
   const isActive = (href: string) => {
