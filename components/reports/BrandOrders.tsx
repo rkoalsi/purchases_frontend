@@ -14,6 +14,7 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const DOCS_PER_PAGE = 5;
+const ORDERS_PER_PAGE = 5;
 
 interface VendorInfo { contact_id: string; contact_name: string; currency_code?: string; }
 interface Brand { name: string; vendors: VendorInfo[]; }
@@ -271,6 +272,7 @@ export default function BrandOrders() {
   const [orderDocs, setOrderDocs] = useState<Record<string, Document[]>>({});
   const [docsLoading, setDocsLoading] = useState<Record<string, boolean>>({});
   const [docPage, setDocPage] = useState<Record<string, number>>({});
+  const [vendorOrderPage, setVendorOrderPage] = useState<Record<string, number>>({});
   const [docSearch, setDocSearch] = useState<Record<string, string>>({});
 
   const [globalFileSearch, setGlobalFileSearch] = useState('');
@@ -1486,6 +1488,9 @@ export default function BrandOrders() {
             const visibleOrders = getVisibleOrders(vendor.contact_id);
             const allOrders = ordersByVendor[vendor.contact_id] || [];
             const newVendorOrdersCount = allOrders.filter(o => !o.inward_date && !['closed', 'cancelled'].includes(o.po_status?.toLowerCase() ?? '')).length;
+            const orderPage = vendorOrderPage[vendor.contact_id] ?? 0;
+            const orderTotalPages = Math.ceil(visibleOrders.length / ORDERS_PER_PAGE);
+            const pagedOrders = visibleOrders.slice(orderPage * ORDERS_PER_PAGE, (orderPage + 1) * ORDERS_PER_PAGE);
 
             return (
               <div key={vendor.contact_id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm overflow-hidden">
@@ -1536,7 +1541,7 @@ export default function BrandOrders() {
                       </div>
                     ) : (
                       <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                        {visibleOrders.map(order => {
+                        {pagedOrders.map(order => {
                           const isExpanded = expandedOrder === order._id;
                           const isEditing = editingOrder === order._id;
                           const isPoEditing = poEditingOrder === order._id;
@@ -2626,6 +2631,29 @@ export default function BrandOrders() {
                             </div>
                           );
                         })}
+                      </div>
+                    )}
+                    {orderTotalPages > 1 && (
+                      <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
+                        <span className="text-xs text-zinc-400 tabular-nums">
+                          {orderPage * ORDERS_PER_PAGE + 1}–{Math.min((orderPage + 1) * ORDERS_PER_PAGE, visibleOrders.length)} of {visibleOrders.length}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => setVendorOrderPage(p => ({ ...p, [vendor.contact_id]: orderPage - 1 }))} disabled={orderPage === 0}
+                            className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
+                            <ArrowLeft size={12} />
+                          </button>
+                          {Array.from({ length: orderTotalPages }, (_, i) => (
+                            <button key={i} onClick={() => setVendorOrderPage(p => ({ ...p, [vendor.contact_id]: i }))}
+                              className={`w-6 h-6 text-xs rounded font-medium transition-colors ${i === orderPage ? 'bg-blue-600 text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>
+                              {i + 1}
+                            </button>
+                          ))}
+                          <button onClick={() => setVendorOrderPage(p => ({ ...p, [vendor.contact_id]: orderPage + 1 }))} disabled={orderPage === orderTotalPages - 1}
+                            className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
+                            <ArrowRight size={12} />
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
