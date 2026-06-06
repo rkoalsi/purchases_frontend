@@ -10,6 +10,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { BRAND_GROUPS, BRAND_CONSTITUENTS, mergeBrandOptions } from '@/util/brandGroups';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/zoho`;
 const PAGE_SIZE = 10;
@@ -1267,15 +1268,6 @@ function BulkUploadModal({
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
-// Brands that should appear as a single combined entry in the PIS dropdown.
-// Key = display name / value used in the dropdown; value = real brand strings in DB.
-const PIS_BRAND_GROUPS: Record<string, string[]> = {
-  'Petfest': ['Catfest', 'Dogfest'],
-  'Barkbutler / FOFOS': ['Barkbutler', 'FOFOS'],
-};
-const _PIS_CONSTITUENTS = new Set(
-  Object.values(PIS_BRAND_GROUPS).flat().map(s => s.toLowerCase())
-);
 
 export default function ZohoItemsPage() {
   usePageTitle('Zoho Items');
@@ -1287,15 +1279,7 @@ export default function ZohoItemsPage() {
   const [prodBrand, setProdBrand] = useState('');
 
   // PIS brand dropdown: constituent brands merged into group entries
-  const pisBrands = useMemo(() => {
-    const merged = brands.filter(b => !_PIS_CONSTITUENTS.has(b.value.toLowerCase()));
-    Object.entries(PIS_BRAND_GROUPS).forEach(([group, members]) => {
-      if (members.some(m => brands.some(b => b.value.toLowerCase() === m.toLowerCase()))) {
-        merged.push({ value: group, label: group });
-      }
-    });
-    return merged.sort((a, b) => a.label.localeCompare(b.label));
-  }, [brands]);
+  const pisBrands = useMemo(() => mergeBrandOptions(brands), [brands]);
 
   // Products state
   const [products, setProducts] = useState<any[]>([]);
@@ -1424,7 +1408,7 @@ export default function ZohoItemsPage() {
     if (!pisSelectedBrand || !accessToken) { setPisOrders([]); setPisSelectedOrderId(''); return; }
     setPisOrdersLoading(true);
     setPisSelectedOrderId('');
-    const constituents = PIS_BRAND_GROUPS[pisSelectedBrand] ?? [pisSelectedBrand];
+    const constituents = BRAND_GROUPS[pisSelectedBrand] ?? [pisSelectedBrand];
     Promise.all(
       constituents.map(brand =>
         axios

@@ -194,6 +194,16 @@ const fmt = (v: number | null | undefined, decimals = 2) =>
 const fmtInt = (v: number | null | undefined) =>
   v == null ? '—' : Math.round(v).toLocaleString('en-IN');
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  processing: 'Processing',
+  packed: 'Packed',
+  closed: 'Closed',
+  completed: 'Completed',
+  intransit: 'In Transit',
+  delivered: 'Delivered',
+};
+
 const statusBadge = (s: string) => {
   const map: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -206,7 +216,7 @@ const statusBadge = (s: string) => {
   };
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[s] ?? 'bg-zinc-100 text-zinc-600'}`}>
-      {s}
+      {STATUS_LABELS[s] ?? s}
     </span>
   );
 };
@@ -879,6 +889,12 @@ export default function VendorPOReport() {
   const [poSearch, setPoSearch] = useState('');
   const [jumpPage, setJumpPage] = useState('');
 
+  // status dropdown (per-row badge dropdown)
+  const [statusDropdownPO, setStatusDropdownPO] = useState<string | null>(null);
+
+  // collapsible info banner
+  const [bannerCollapsed, setBannerCollapsed] = useState(true);
+
   const filteredPoList = useMemo(
     () => poSearch.trim()
       ? poList.filter(p => p.po_number.toLowerCase().includes(poSearch.toLowerCase()))
@@ -905,6 +921,12 @@ export default function VendorPOReport() {
 
   React.useEffect(() => { fetchList(); }, [fetchList]);
   React.useEffect(() => { setPage(0); }, [poSearch]);
+  React.useEffect(() => {
+    if (!statusDropdownPO) return;
+    const handler = () => setStatusDropdownPO(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [statusDropdownPO]);
 
   // ─── fetch report ────────────────────────────────────────────────────────────
 
@@ -1722,13 +1744,54 @@ export default function VendorPOReport() {
       )}
 
       {/* ── Status behaviour info ── */}
-      <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10 px-4 py-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
-        <p className="font-semibold">Stock &amp; sales data freezes when status changes to <span className="underline">processing</span> (or any later status).</p>
-        <ul className="list-disc list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
-          <li><span className="font-medium">Zoho Stock</span> — taken on PO date. <span className="font-medium">Current Stock</span> — taken at T‑2 (2 days before PO date, Amazon lag).</li>
-          <li><span className="font-medium">Open PO</span> — sum of other POs for the same ASIN in statuses: <span className="font-medium">processing</span> (uses supply qty) and <span className="font-medium">packed / closed / intransit</span> (uses accepted qty). Delivered &amp; completed POs are excluded.</li>
-        </ul>
-        <p className="text-blue-600 dark:text-blue-500 pt-0.5">Pending POs always show live T‑2 data. Once set to processing or beyond, all figures are locked permanently.</p>
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-zinc-700 dark:text-zinc-300 shadow-sm">
+        <button
+          onClick={() => setBannerCollapsed(o => !o)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left"
+        >
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">How Vendor POs work</p>
+          {bannerCollapsed
+            ? <ChevronDown size={14} className="shrink-0 ml-2 text-zinc-400" />
+            : <ChevronUp size={14} className="shrink-0 ml-2 text-zinc-400" />}
+        </button>
+        {!bannerCollapsed && (
+          <div className="px-4 pb-4 space-y-4 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+            {/* Step-by-step flow */}
+            <div className="space-y-2">
+              <p className="font-medium text-zinc-800 dark:text-zinc-200">End-to-end workflow</p>
+              <ol className="space-y-2">
+                {[
+                  { step: '1', label: 'Upload PO', detail: 'Upload the Vendor Central PO Excel file. The system reads ASINs, requested quantities, and pricing. Status starts as Pending.' },
+                  { step: '2', label: 'Review & adjust', detail: 'Check DRR, coverage days, and target stock. Override lead time or coverage days per ASIN if needed. Final Supply FO is your recommended order quantity.' },
+                  { step: '3', label: 'Create Estimate → Sales Order', detail: 'Click "Create Estimate" to push Final Supply FO quantities into a Zoho Estimate. Once accepted, link the resulting Sales Order here. The SO drives packaging and fulfilment.' },
+                  { step: '4', label: 'Create Packages in Zoho', detail: 'In Zoho, create shipment packages against the SO. Add the package IDs here. Each package tracks dispatched quantity and cost.' },
+                  { step: '5', label: 'Set status → Processing', detail: 'Once packing begins, change status to Processing. All stock, DRR, and cost figures freeze permanently at this point — pending POs show live data, processing and beyond are locked.' },
+                  { step: '6', label: 'Transfer Order & Assembly', detail: 'If stock needs to move between warehouses, create a Transfer Order in Zoho and link it here. For bundled products, link the Assembly order IDs.' },
+                  { step: '7', label: 'Packed → In Transit → Delivered', detail: 'Update status as shipment progresses. Accepted Qty (vendor-confirmed) and Received Qty are entered here as goods arrive.' },
+                ].map(({ step, label, detail }) => (
+                  <li key={step} className="flex gap-3">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 flex items-center justify-center font-semibold text-[10px] mt-0.5">{step}</span>
+                    <div>
+                      <span className="font-medium text-zinc-800 dark:text-zinc-200">{label}</span>
+                      <span className="text-zinc-500 dark:text-zinc-400"> — {detail}</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {/* Key data notes */}
+            <div className="space-y-1.5 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+              <p className="font-medium text-zinc-800 dark:text-zinc-200">Key data points</p>
+              <ul className="list-disc list-inside space-y-1 text-zinc-500 dark:text-zinc-400">
+                <li><span className="font-medium text-zinc-700 dark:text-zinc-300">Zoho Stock</span> — snapshot taken on PO date.</li>
+                <li><span className="font-medium text-zinc-700 dark:text-zinc-300">Current Stock</span> — Amazon T‑2 figure (2-day reporting lag).</li>
+                <li><span className="font-medium text-zinc-700 dark:text-zinc-300">Open PO</span> — other open POs for the same ASIN: Processing uses supply qty; Packed / Closed / In Transit use accepted qty. Delivered &amp; Completed are excluded.</li>
+                <li><span className="font-medium text-zinc-700 dark:text-zinc-300">Data freeze</span> — Pending POs show live figures. Once moved to Processing or beyond, all quantities and costs lock permanently.</li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── PO List ── */}
@@ -1790,7 +1853,7 @@ export default function VendorPOReport() {
                           title={allSelected ? 'Deselect all' : `Select all ${poList.length} POs`}
                         />
                       </th>
-                      {['PO Number', 'Vendor', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Final Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost (Supply Qty)', 'Total cost w/o GST (Supply Qty)', 'Total Cost (Accepted Qty)', 'Total cost w/o GST (Accepted Qty)', 'Status', 'Uploaded At', 'Estimate', 'Sales Order', 'Packages', 'Transfer Order', 'Assembly', 'Order File', 'Actions'].map(h => (
+                      {['PO Number', 'PO Date', 'Items', 'Requested Qty', 'Supply Qty', 'Final Supply Qty', 'Accepted Qty', 'Received Qty', 'Total Cost (Supply Qty)', 'Total Cost + GST (Supply)', 'Total Cost (Accepted Qty)', 'Total Cost + GST (Accepted)', 'Status', 'Zoho Links', 'Workflow', 'Files', 'Actions'].map(h => (
                         <th key={h} className={TABLE_CLASSES.th}>{h}</th>
                       ))}
                     </tr>
@@ -1810,10 +1873,17 @@ export default function VendorPOReport() {
                           />
                         </td>
                         <td className={TABLE_CLASSES.td}>
-                          <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{po.po_number}</span>
+                          <div>
+                            <span className="font-mono text-sm font-semibold text-blue-700 dark:text-blue-400">{po.po_number}</span>
+                            {po.vendor && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{po.vendor}</p>}
+                          </div>
                         </td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.vendor || '—'}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.po_date}</span></td>
+                        <td className={TABLE_CLASSES.td}>
+                          <div>
+                            <span className={TABLE_CLASSES.tdText}>{po.po_date}</span>
+                            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{new Date(po.created_at).toLocaleDateString('en-IN')}</p>
+                          </div>
+                        </td>
                         <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{po.item_count}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_requested_qty)}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{fmtInt(po.total_supply_qty)}</span></td>
@@ -1832,70 +1902,74 @@ export default function VendorPOReport() {
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.accepted_total_cost != null ? `₹${fmt(po.accepted_total_cost)}` : '—'}</span></td>
                         <td className={TABLE_CLASSES.td}><span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{po.accepted_total_cost_gst != null ? `₹${fmt(po.accepted_total_cost_gst)}` : '—'}</span></td>
                         <td className={TABLE_CLASSES.td}>
-                          <select
-                            value={po.po_status}
-                            onChange={(e) => handleStatusChange(po.po_number, e.target.value, po.po_status)}
-                            className="text-xs border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="processing">Processing</option>
-                            <option value="packed">Packed</option>
-                            <option value="closed">Closed</option>
-                            <option value="intransit">Intransit</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="completed">Completed</option>
-                          </select>
-                        </td>
-                        <td className={TABLE_CLASSES.td}><span className="text-xs text-zinc-500">{new Date(po.created_at).toLocaleDateString('en-IN')}</span></td>
-                        <td className={TABLE_CLASSES.td}>
-                          {po.estimate_number ? (
-                            <div className="flex items-center gap-1 flex-wrap">
-                              <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono whitespace-nowrap">
-                                {po.estimate_number}
-                              </span>
-                              <button
-                                onClick={() => { setSelectedPO(po.po_number); openUpdateEstimateModal(); }}
-                                title="Update estimate with current PO data"
-                                className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap flex items-center gap-0.5"
-                              >
-                                <RefreshCw size={9} />
-                                Update
-                              </button>
-                            </div>
-                          ) : ['pending', 'processing'].includes(po.po_status) ? (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => { setSelectedPO(po.po_number); openCreateEstimateModal(); }}
-                                title="Create estimate"
-                                className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors whitespace-nowrap"
-                              >
-                                + Create
-                              </button>
-                              <button
-                                onClick={() => { setSelectedPO(po.po_number); setLinkEstimateOpen(true); setLinkEstimateNumber(''); }}
-                                title="Link existing estimate"
-                                className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
-                              >
-                                Link
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-zinc-400">—</span>
-                          )}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setStatusDropdownPO(statusDropdownPO === po.po_number ? null : po.po_number); }}
+                              className="flex items-center gap-1 group"
+                            >
+                              {statusBadge(po.po_status)}
+                              <ChevronDown size={10} className="text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors" />
+                            </button>
+                            {statusDropdownPO === po.po_number && (
+                              <div className="absolute left-0 top-full mt-1 z-20 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 min-w-[130px]">
+                                {(['pending', 'processing', 'packed', 'closed', 'intransit', 'delivered', 'completed'] as const).map(s => (
+                                  <button
+                                    key={s}
+                                    onClick={(e) => { e.stopPropagation(); handleStatusChange(po.po_number, s, po.po_status); setStatusDropdownPO(null); }}
+                                    className={`w-full text-left px-3 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors flex items-center ${po.po_status === s ? 'bg-zinc-50 dark:bg-zinc-800' : ''}`}
+                                  >
+                                    {statusBadge(s)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className={TABLE_CLASSES.td}>
-                          {(() => {
-                            const soNum = po.estimate_linked_so_number || po.sales_order_no;
-                            const isPendingOrProcessing = ['pending', 'processing'].includes(po.po_status);
-                            if (soNum) {
-                              return (
+                          <div className="flex flex-col gap-1.5">
+                            {/* Estimate */}
+                            {po.estimate_number ? (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono whitespace-nowrap">
+                                  {po.estimate_number}
+                                </span>
+                                <button
+                                  onClick={() => { setSelectedPO(po.po_number); openUpdateEstimateModal(); }}
+                                  title="Update estimate with current PO data"
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors whitespace-nowrap flex items-center gap-0.5"
+                                >
+                                  <RefreshCw size={9} />
+                                  Update
+                                </button>
+                              </div>
+                            ) : ['pending', 'processing'].includes(po.po_status) ? (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => { setSelectedPO(po.po_number); openCreateEstimateModal(); }}
+                                  title="Create estimate"
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors whitespace-nowrap"
+                                >
+                                  + Est
+                                </button>
+                                <button
+                                  onClick={() => { setSelectedPO(po.po_number); setLinkEstimateOpen(true); setLinkEstimateNumber(''); }}
+                                  title="Link existing estimate"
+                                  className="px-1.5 py-0.5 rounded text-[10px] font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors whitespace-nowrap"
+                                >
+                                  Link
+                                </button>
+                              </div>
+                            ) : null}
+                            {/* Sales Order */}
+                            {(() => {
+                              const soNum = po.estimate_linked_so_number || po.sales_order_no;
+                              const isPendingOrProcessing = ['pending', 'processing'].includes(po.po_status);
+                              if (soNum) return (
                                 <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-mono whitespace-nowrap">
                                   {soNum}
                                 </span>
                               );
-                            }
-                            if (isPendingOrProcessing) {
-                              return (
+                              if (isPendingOrProcessing) return (
                                 <button
                                   onClick={() => { setSelectedPO(po.po_number); setLinkSOOpen(true); setLinkSONumber(''); setSOSearchResults([]); }}
                                   title="Link sales order"
@@ -1904,57 +1978,50 @@ export default function VendorPOReport() {
                                   Link SO
                                 </button>
                               );
-                            }
-                            return <span className="text-xs text-zinc-400">—</span>;
-                          })()}
+                              return null;
+                            })()}
+                            {!po.estimate_number && !(po.estimate_linked_so_number || po.sales_order_no) && !['pending', 'processing'].includes(po.po_status) && (
+                              <span className="text-xs text-zinc-400">—</span>
+                            )}
+                          </div>
                         </td>
                         <td className={TABLE_CLASSES.td}>
-                          {po.so_packages === undefined || po.so_packages === null ? (
-                            <span className="text-xs text-zinc-400">—</span>
-                          ) : po.so_packages.length === 0 ? (
-                            <span className="text-xs text-zinc-400">—</span>
-                          ) : (
-                            <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-1">
+                            {(po.so_packages ?? []).length > 0 && (
                               <div className="flex flex-col gap-0.5">
-                                {po.so_packages.map((pkg, i) => (
+                                {(po.so_packages ?? []).map((pkg, i) => (
                                   <span key={i} className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono whitespace-nowrap">
                                     {pkg}
                                   </span>
                                 ))}
                               </div>
-                              {!po.transfer_order_number && (
-                                <button
-                                  onClick={() => { setSelectedPO(po.po_number); setToDate(''); openCreateTODialog(); }}
-                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-600 text-white hover:bg-violet-700 transition-colors whitespace-nowrap w-fit"
-                                >
-                                  <ExternalLink size={10} />
-                                  Create TO
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td className={TABLE_CLASSES.td}>
-                          {po.transfer_order_number ? (
-                            <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800 font-mono whitespace-nowrap">
-                              {po.transfer_order_number}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-zinc-400">—</span>
-                          )}
-                        </td>
-                        <td className={TABLE_CLASSES.td}>
-                          {(po.assembly_numbers ?? []).length > 0 ? (
-                            <div className="flex flex-col gap-0.5">
-                              {(po.assembly_numbers ?? []).map((an, i) => (
-                                <span key={i} className="px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-mono whitespace-nowrap">
-                                  {an}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-zinc-400">—</span>
-                          )}
+                            )}
+                            {po.transfer_order_number ? (
+                              <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800 font-mono whitespace-nowrap">
+                                {po.transfer_order_number}
+                              </span>
+                            ) : (po.so_packages ?? []).length > 0 ? (
+                              <button
+                                onClick={() => { setSelectedPO(po.po_number); setToDate(''); openCreateTODialog(); }}
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-600 text-white hover:bg-violet-700 transition-colors whitespace-nowrap w-fit"
+                              >
+                                <ExternalLink size={10} />
+                                Create TO
+                              </button>
+                            ) : null}
+                            {(po.assembly_numbers ?? []).length > 0 && (
+                              <div className="flex flex-col gap-0.5">
+                                {(po.assembly_numbers ?? []).map((an, i) => (
+                                  <span key={i} className="px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-mono whitespace-nowrap">
+                                    {an}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {!(po.so_packages ?? []).length && !po.transfer_order_number && !(po.assembly_numbers ?? []).length && (
+                              <span className="text-xs text-zinc-400">—</span>
+                            )}
+                          </div>
                         </td>
                         <td className={TABLE_CLASSES.td}>
                           <div className="flex flex-col gap-1">
@@ -2329,22 +2396,25 @@ export default function VendorPOReport() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => fetchReport(selectedPO)}
-                disabled={reportLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-              >
-                <RefreshCw size={13} className={reportLoading ? 'animate-spin' : ''} />
-                Refresh
-              </button>
-              <button
-                onClick={handleDownload}
-                disabled={downloading || !report}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                <Download size={13} />
-                {downloading ? 'Downloading…' : 'Download Excel'}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => fetchReport(selectedPO)}
+                  disabled={reportLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  <RefreshCw size={13} className={reportLoading ? 'animate-spin' : ''} />
+                  Refresh
+                </button>
+                <button
+                  onClick={handleDownload}
+                  disabled={downloading || !report}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  <Download size={13} />
+                  {downloading ? 'Downloading…' : 'Download Excel'}
+                </button>
+              </div>
+              <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
               {report && (report.estimate_number ? (
                 <div className="flex items-center gap-1.5">
                   <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 font-mono">
@@ -2386,6 +2456,7 @@ export default function VendorPOReport() {
                   </button>
                 </>
               ))}
+              <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-700" />
               {report?.estimate_linked_so && (
                 <span className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-mono">
                   {report.estimate_linked_so.salesorder_number}
