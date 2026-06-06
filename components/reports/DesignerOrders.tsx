@@ -12,6 +12,7 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const DOCS_PER_PAGE = 5;
+const ORDERS_PER_PAGE = 5;
 
 interface Document {
   doc_id: string;
@@ -167,6 +168,7 @@ export default function DesignerOrders() {
   const [canEdit, setCanEdit] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedBrands, setExpandedBrands] = useState<Set<string>>(new Set());
+  const [brandOrderPage, setBrandOrderPage] = useState<Record<string, number>>({});
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [docsMap, setDocsMap] = useState<Record<string, Document[]>>({});
   const [docsLoading, setDocsLoading] = useState<Record<string, boolean>>({});
@@ -930,6 +932,9 @@ export default function DesignerOrders() {
               const siblingBrands = vendorId
                 ? (vendorBrandNames[vendorId] || []).filter(b => b !== brand)
                 : [];
+              const orderPage = brandOrderPage[brand] ?? 0;
+              const orderTotalPages = Math.ceil(brandOrders.length / ORDERS_PER_PAGE);
+              const pagedBrandOrders = brandOrders.slice(orderPage * ORDERS_PER_PAGE, (orderPage + 1) * ORDERS_PER_PAGE);
               return (
                 <div key={brand} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
 
@@ -965,8 +970,9 @@ export default function DesignerOrders() {
 
                   {/* Orders list */}
                   {isExpanded && (
-                    <div className="border-t border-zinc-100 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                      {brandOrders.map((order: DesignerOrder) => {
+                    <div className="border-t border-zinc-100 dark:border-zinc-800">
+                      <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                      {pagedBrandOrders.map((order: DesignerOrder) => {
                         const isOrderExpanded = expandedOrders.has(order._id);
                         const isNewOrder = !order.inward_date && !['closed', 'cancelled'].includes(order.po_status?.toLowerCase() ?? '');
                         const docs = docsMap[order._id] ?? (order.designer_documents || []);
@@ -1890,6 +1896,30 @@ export default function DesignerOrders() {
                           </div>
                         );
                       })}
+                      </div>
+                      {orderTotalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
+                          <span className="text-xs text-zinc-400 tabular-nums">
+                            {orderPage * ORDERS_PER_PAGE + 1}–{Math.min((orderPage + 1) * ORDERS_PER_PAGE, brandOrders.length)} of {brandOrders.length}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setBrandOrderPage(p => ({ ...p, [brand]: orderPage - 1 }))} disabled={orderPage === 0}
+                              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
+                              <ArrowLeft size={12} />
+                            </button>
+                            {Array.from({ length: orderTotalPages }, (_, i) => (
+                              <button key={i} onClick={() => setBrandOrderPage(p => ({ ...p, [brand]: i }))}
+                                className={`w-6 h-6 text-xs rounded font-medium transition-colors ${i === orderPage ? 'bg-violet-600 text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>
+                                {i + 1}
+                              </button>
+                            ))}
+                            <button onClick={() => setBrandOrderPage(p => ({ ...p, [brand]: orderPage + 1 }))} disabled={orderPage === orderTotalPages - 1}
+                              className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
+                              <ArrowRight size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
