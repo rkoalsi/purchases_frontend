@@ -15,6 +15,7 @@ import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList,
 } from 'recharts';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { BRAND_GROUPS, BRAND_CONSTITUENTS } from '@/util/brandGroups';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -142,11 +143,13 @@ const fmtPct = (n: any) =>
 
 // ─── Petfest brand merge ───────────────────────────────────────────────────────
 
-const PETFEST_BRANDS = new Set(['dogfest', 'catfest']);
+const PETFEST_MEMBERS = new Set(
+  (BRAND_GROUPS['Petfest'] ?? []).map((s) => s.toLowerCase())
+);
 
 function mergePetfestBrands(brands: BrandKPI[]): BrandKPI[] {
-  const petfestGroup = brands.filter((b) => PETFEST_BRANDS.has(b.brand.toLowerCase()));
-  const rest = brands.filter((b) => !PETFEST_BRANDS.has(b.brand.toLowerCase()));
+  const petfestGroup = brands.filter((b) => PETFEST_MEMBERS.has(b.brand.toLowerCase()));
+  const rest = brands.filter((b) => !BRAND_CONSTITUENTS.has(b.brand.toLowerCase()));
   if (petfestGroup.length === 0) return brands;
 
   const sumField = (f: keyof BrandKPI) =>
