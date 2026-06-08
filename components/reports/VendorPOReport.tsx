@@ -84,6 +84,9 @@ interface POItem {
   hsn: string;
   diff: number | null;
   zoho_stock: number;
+  sit_1: number;
+  sit_2: number;
+  sit_3: number;
   purchase_status: string;
   current_stock: number;
   open_po: number;
@@ -1161,6 +1164,24 @@ export default function VendorPOReport() {
     if (failed > 0) toast.error(`${failed} file(s) failed to process`);
     toast.success(`Bulk update complete: ${totalUpdated} updated, ${totalSkipped} skipped, ${totalNotFound} not found`);
     setBulkUploading(false);
+  };
+
+  // ─── refresh zoho stock ───────────────────────────────────────────────────────
+
+  const [refreshingZoho, setRefreshingZoho] = useState(false);
+  const handleRefreshZohoStock = async () => {
+    if (!selectedPO) return;
+    setRefreshingZoho(true);
+    try {
+      await axios.post(`${API_URL}/vendor_po/${selectedPO}/refresh-zoho-stock`);
+      await fetchReport(selectedPO);
+      toast.success('Zoho Stock refreshed (Pupscribe WH)');
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.detail ?? err.message : 'Refresh failed';
+      toast.error(msg);
+    } finally {
+      setRefreshingZoho(false);
+    }
   };
 
   // ─── download single ─────────────────────────────────────────────────────────
@@ -2405,6 +2426,15 @@ export default function VendorPOReport() {
                   <RefreshCw size={13} className={reportLoading ? 'animate-spin' : ''} />
                   Refresh
                 </button>
+                {/* <button
+                  onClick={handleRefreshZohoStock}
+                  disabled={refreshingZoho || !report}
+                  title="Re-fetch Pupscribe WH stock from latest zoho_warehouse_stock and update stored values"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-amber-400 text-amber-700 dark:text-amber-400 rounded-md hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50 transition-colors"
+                >
+                  <RefreshCw size={13} className={refreshingZoho ? 'animate-spin' : ''} />
+                  {refreshingZoho ? 'Refreshing…' : 'Refresh Zoho Stock'}
+                </button> */}
                 <button
                   onClick={handleDownload}
                   disabled={downloading || !report}
@@ -2833,7 +2863,10 @@ export default function VendorPOReport() {
                       { label: 'HSN', yellow: true },
                       { label: 'Etrade Unit Cost', yellow: true },
                       { label: 'Diff', yellow: true },
-                      { label: `Zoho Stock (${zohoDateLabel})`, yellow: true },
+                      { label: `Zoho Stock — Pupscribe WH (${zohoDateLabel})`, yellow: true },
+                      { label: 'SIT 1', yellow: true },
+                      { label: 'SIT 2', yellow: true },
+                      { label: 'SIT 3', yellow: true },
                       { label: 'Status', yellow: true },
                       { label: `Current Stock (${invDateLabel})`, yellow: true },
                       { label: 'Open PO', yellow: true },
@@ -2920,6 +2953,9 @@ export default function VendorPOReport() {
                           {item.diff != null ? `₹${fmt(item.diff)}` : '—'}
                         </td>
                         <td className="px-3 py-2 text-center text-zinc-800 dark:text-zinc-200">{fmtInt(item.zoho_stock)}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.sit_1 ? fmtInt(item.sit_1) : '—'}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.sit_2 ? fmtInt(item.sit_2) : '—'}</td>
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{item.sit_3 ? fmtInt(item.sit_3) : '—'}</td>
                         <td className="px-3 py-2 text-center">
                           <span className={`px-1.5 py-0.5 rounded text-xs ${item.purchase_status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
                             {item.purchase_status || '—'}
