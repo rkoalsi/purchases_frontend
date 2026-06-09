@@ -142,6 +142,8 @@ const fmtPct = (n: any) =>
   `${safeNum(n).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 // ─── Petfest brand merge ───────────────────────────────────────────────────────
+// Only Catfest + Dogfest are merged into "Petfest". Barkbutler and FOFOS remain
+// as separate brands on this page despite being in BRAND_GROUPS.
 
 const PETFEST_MEMBERS = new Set(
   (BRAND_GROUPS['Petfest'] ?? []).map((s) => s.toLowerCase())
@@ -149,7 +151,7 @@ const PETFEST_MEMBERS = new Set(
 
 function mergePetfestBrands(brands: BrandKPI[]): BrandKPI[] {
   const petfestGroup = brands.filter((b) => PETFEST_MEMBERS.has(b.brand.toLowerCase()));
-  const rest = brands.filter((b) => !BRAND_CONSTITUENTS.has(b.brand.toLowerCase()));
+  const rest = brands.filter((b) => !PETFEST_MEMBERS.has(b.brand.toLowerCase()));
   if (petfestGroup.length === 0) return brands;
 
   const sumField = (f: keyof BrandKPI) =>
