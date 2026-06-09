@@ -134,15 +134,15 @@ function fmtSize(bytes: number) {
 type DateStage = 'neutral' | 'teal' | 'sky' | 'blue' | 'amber' | 'orange' | 'indigo' | 'purple' | 'emerald' | 'red';
 const DATE_CHIP_STYLES: Record<DateStage, { wrap: string; icon: string; label: string; value: string }> = {
   neutral: { wrap: 'bg-zinc-50 border-zinc-200 dark:bg-zinc-800/60 dark:border-zinc-700', icon: 'text-zinc-400 dark:text-zinc-500', label: 'text-zinc-400 dark:text-zinc-500', value: 'text-zinc-700 dark:text-zinc-300' },
-  teal:    { wrap: 'bg-teal-50 border-teal-200 dark:bg-teal-900/20 dark:border-teal-800', icon: 'text-teal-500 dark:text-teal-400', label: 'text-teal-600 dark:text-teal-500', value: 'text-teal-900 dark:text-teal-200' },
-  sky:     { wrap: 'bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800', icon: 'text-sky-400 dark:text-sky-400', label: 'text-sky-500 dark:text-sky-400', value: 'text-sky-800 dark:text-sky-200' },
-  blue:    { wrap: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800', icon: 'text-blue-400', label: 'text-blue-500 dark:text-blue-400', value: 'text-blue-800 dark:text-blue-200' },
-  amber:   { wrap: 'bg-amber-50 border-amber-300 dark:bg-amber-900/25 dark:border-amber-700', icon: 'text-amber-500 dark:text-amber-400', label: 'text-amber-600 dark:text-amber-500', value: 'text-amber-900 dark:text-amber-200' },
-  orange:  { wrap: 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700', icon: 'text-orange-400', label: 'text-orange-500 dark:text-orange-400', value: 'text-orange-800 dark:text-orange-200' },
-  indigo:  { wrap: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800', icon: 'text-indigo-400', label: 'text-indigo-500 dark:text-indigo-400', value: 'text-indigo-800 dark:text-indigo-200' },
-  purple:  { wrap: 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800', icon: 'text-purple-400', label: 'text-purple-500 dark:text-purple-400', value: 'text-purple-800 dark:text-purple-200' },
+  teal: { wrap: 'bg-teal-50 border-teal-200 dark:bg-teal-900/20 dark:border-teal-800', icon: 'text-teal-500 dark:text-teal-400', label: 'text-teal-600 dark:text-teal-500', value: 'text-teal-900 dark:text-teal-200' },
+  sky: { wrap: 'bg-sky-50 border-sky-200 dark:bg-sky-900/20 dark:border-sky-800', icon: 'text-sky-400 dark:text-sky-400', label: 'text-sky-500 dark:text-sky-400', value: 'text-sky-800 dark:text-sky-200' },
+  blue: { wrap: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800', icon: 'text-blue-400', label: 'text-blue-500 dark:text-blue-400', value: 'text-blue-800 dark:text-blue-200' },
+  amber: { wrap: 'bg-amber-50 border-amber-300 dark:bg-amber-900/25 dark:border-amber-700', icon: 'text-amber-500 dark:text-amber-400', label: 'text-amber-600 dark:text-amber-500', value: 'text-amber-900 dark:text-amber-200' },
+  orange: { wrap: 'bg-orange-50 border-orange-200 dark:bg-orange-900/20 dark:border-orange-700', icon: 'text-orange-400', label: 'text-orange-500 dark:text-orange-400', value: 'text-orange-800 dark:text-orange-200' },
+  indigo: { wrap: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800', icon: 'text-indigo-400', label: 'text-indigo-500 dark:text-indigo-400', value: 'text-indigo-800 dark:text-indigo-200' },
+  purple: { wrap: 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800', icon: 'text-purple-400', label: 'text-purple-500 dark:text-purple-400', value: 'text-purple-800 dark:text-purple-200' },
   emerald: { wrap: 'bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-700', icon: 'text-emerald-500 dark:text-emerald-400', label: 'text-emerald-600 dark:text-emerald-500', value: 'text-emerald-900 dark:text-emerald-200' },
-  red:     { wrap: 'bg-red-50 border-red-300 dark:bg-red-900/25 dark:border-red-700', icon: 'text-red-500 dark:text-red-400', label: 'text-red-500 dark:text-red-400', value: 'text-red-800 dark:text-red-200' },
+  red: { wrap: 'bg-red-50 border-red-300 dark:bg-red-900/25 dark:border-red-700', icon: 'text-red-500 dark:text-red-400', label: 'text-red-500 dark:text-red-400', value: 'text-red-800 dark:text-red-200' },
 };
 const LABEL_STAGE_MAP: Record<string, DateStage> = {
   'PO Date': 'teal', 'Initiated': 'sky', 'Proforma': 'blue',
@@ -1092,36 +1092,34 @@ export default function BrandOrders() {
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
-          {isAdmin && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <select
-                value={reportBrand}
-                onChange={e => setReportBrand(e.target.value)}
-                className="h-9 px-2.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="">All Brands</option>
-                {brands.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
-              </select>
-              <button
-                onClick={() => handleDownloadLeadTimeReport(reportBrand || undefined)}
-                disabled={downloadingReport}
-                title="Download Lead Time Report"
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
-              >
-                {downloadingReport ? <Loader2 size={14} className="animate-spin" /> : <BarChart2 size={14} />}
-                Lead Time Report
-              </button>
-              <button
-                onClick={() => handleDownloadPaymentReport(reportBrand || undefined)}
-                disabled={downloadingPaymentReport}
-                title="Download Payment Report"
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
-              >
-                {downloadingPaymentReport ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
-                Payment Report
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <select
+              value={reportBrand}
+              onChange={e => setReportBrand(e.target.value)}
+              className="h-9 px-2.5 text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">All Brands</option>
+              {brands.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+            </select>
+            <button
+              onClick={() => handleDownloadLeadTimeReport(reportBrand || undefined)}
+              disabled={downloadingReport}
+              title="Download Lead Time Report"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+            >
+              {downloadingReport ? <Loader2 size={14} className="animate-spin" /> : <BarChart2 size={14} />}
+              Lead Time Report
+            </button>
+            <button
+              onClick={() => handleDownloadPaymentReport(reportBrand || undefined)}
+              disabled={downloadingPaymentReport}
+              title="Download Payment Report"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+            >
+              {downloadingPaymentReport ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+              Payment Report
+            </button>
+          </div>
           {/* {canEdit && (
             <button
               onClick={() => setShowCreateBrand(true)}
@@ -1996,83 +1994,83 @@ export default function BrandOrders() {
                                             const toggleNew = () => setCollapsedNewSections(prev => { const s = new Set(prev); if (s.has(order._id)) s.delete(order._id); else s.add(order._id); return s; });
                                             const toggleExisting = () => setCollapsedExistingSections(prev => { const s = new Set(prev); if (s.has(order._id)) s.delete(order._id); else s.add(order._id); return s; });
                                             const renderItem = (item: LineItem) => {
-                                            const itemDocs = docs.filter(d => d.item_id === item.item_id);
-                                            const itemFileCount = itemDocs.length;
-                                            const isItemOpen = expandedItems.has(item.item_id);
-                                            return (
-                                              <div key={item.item_id}>
-                                                <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
-                                                  <button
-                                                    onClick={() => itemFileCount > 0 && toggleLineItem(order._id, item.item_id)}
-                                                    className={`flex-shrink-0 transition-colors ${itemFileCount > 0 ? 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer' : 'text-zinc-200 dark:text-zinc-700 cursor-default'}`}
-                                                  >
-                                                    {isItemOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                                                  </button>
-                                                  <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-1.5">
-                                                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
-                                                        {lineItemLabel(item)}
-                                                      </span>
-                                                      {item.is_new && (
-                                                        <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 leading-none">NEW</span>
-                                                      )}
+                                              const itemDocs = docs.filter(d => d.item_id === item.item_id);
+                                              const itemFileCount = itemDocs.length;
+                                              const isItemOpen = expandedItems.has(item.item_id);
+                                              return (
+                                                <div key={item.item_id}>
+                                                  <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
+                                                    <button
+                                                      onClick={() => itemFileCount > 0 && toggleLineItem(order._id, item.item_id)}
+                                                      className={`flex-shrink-0 transition-colors ${itemFileCount > 0 ? 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer' : 'text-zinc-200 dark:text-zinc-700 cursor-default'}`}
+                                                    >
+                                                      {isItemOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                                    </button>
+                                                    <div className="flex-1 min-w-0">
+                                                      <div className="flex items-center gap-1.5">
+                                                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+                                                          {lineItemLabel(item)}
+                                                        </span>
+                                                        {item.is_new && (
+                                                          <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 leading-none">NEW</span>
+                                                        )}
+                                                      </div>
+                                                      <span className="text-xs text-zinc-400">Qty: {item.quantity}</span>
                                                     </div>
-                                                    <span className="text-xs text-zinc-400">Qty: {item.quantity}</span>
+                                                    <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${itemFileCount > 0 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600'}`}>
+                                                      {itemFileCount} {itemFileCount === 1 ? 'file' : 'files'}
+                                                    </span>
+                                                    {itemFileCount > 0 && (
+                                                      <button
+                                                        onClick={() => handleDownloadItemZip(order._id, order.name, item.item_id, lineItemLabel(item))}
+                                                        disabled={downloadingItemZip === item.item_id}
+                                                        className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                        title="Download all files for this item as ZIP"
+                                                      >
+                                                        {downloadingItemZip === item.item_id ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} />}
+                                                      </button>
+                                                    )}
+                                                    {canEdit && itemFileCount > 0 && (
+                                                      <button
+                                                        onClick={() => handleDeleteItemDocs(order._id, item.item_id, lineItemLabel(item))}
+                                                        className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        title="Delete all files for this item"
+                                                      >
+                                                        <Trash2 size={12} />
+                                                      </button>
+                                                    )}
                                                   </div>
-                                                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${itemFileCount > 0 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600'}`}>
-                                                    {itemFileCount} {itemFileCount === 1 ? 'file' : 'files'}
-                                                  </span>
-                                                  {itemFileCount > 0 && (
-                                                    <button
-                                                      onClick={() => handleDownloadItemZip(order._id, order.name, item.item_id, lineItemLabel(item))}
-                                                      disabled={downloadingItemZip === item.item_id}
-                                                      className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                                      title="Download all files for this item as ZIP"
-                                                    >
-                                                      {downloadingItemZip === item.item_id ? <Loader2 size={12} className="animate-spin" /> : <Archive size={12} />}
-                                                    </button>
-                                                  )}
-                                                  {canEdit && itemFileCount > 0 && (
-                                                    <button
-                                                      onClick={() => handleDeleteItemDocs(order._id, item.item_id, lineItemLabel(item))}
-                                                      className="flex-shrink-0 p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                      title="Delete all files for this item"
-                                                    >
-                                                      <Trash2 size={12} />
-                                                    </button>
+                                                  {isItemOpen && itemDocs.length > 0 && (
+                                                    <div className="border-t border-blue-100 dark:border-blue-900/30 divide-y divide-blue-50 dark:divide-blue-900/20 bg-blue-50/40 dark:bg-blue-950/10">
+                                                      {itemDocs.map(doc => (
+                                                        <div key={doc.doc_id} className="flex items-center gap-3 pl-10 pr-4 py-2 group hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                                          <FileText size={12} className={`flex-shrink-0 ${fileIconColor(doc.content_type, doc.filename)}`} />
+                                                          <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200 truncate">{doc.filename}</p>
+                                                            <p className="text-xs text-zinc-400">{fmtSize(doc.size)} · {fmtDateTime(doc.uploaded_at)}</p>
+                                                          </div>
+                                                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                            <button onClick={() => handleViewDoc(order._id, doc.doc_id)} disabled={viewingDoc === doc.doc_id}
+                                                              className="p-1.5 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title="View">
+                                                              {viewingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
+                                                            </button>
+                                                            <button onClick={() => handleDownloadDoc(order._id, doc.doc_id, doc.filename)} disabled={downloadingDoc === doc.doc_id}
+                                                              className="p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Download">
+                                                              {downloadingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                                                            </button>
+                                                            {canEdit && (
+                                                              <button onClick={() => handleDeleteDoc(order._id, doc.doc_id)} disabled={deletingDoc === doc.doc_id}
+                                                                className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
+                                                                {deletingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                                              </button>
+                                                            )}
+                                                          </div>
+                                                        </div>
+                                                      ))}
+                                                    </div>
                                                   )}
                                                 </div>
-                                                {isItemOpen && itemDocs.length > 0 && (
-                                                  <div className="border-t border-blue-100 dark:border-blue-900/30 divide-y divide-blue-50 dark:divide-blue-900/20 bg-blue-50/40 dark:bg-blue-950/10">
-                                                    {itemDocs.map(doc => (
-                                                      <div key={doc.doc_id} className="flex items-center gap-3 pl-10 pr-4 py-2 group hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                                                        <FileText size={12} className={`flex-shrink-0 ${fileIconColor(doc.content_type, doc.filename)}`} />
-                                                        <div className="flex-1 min-w-0">
-                                                          <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200 truncate">{doc.filename}</p>
-                                                          <p className="text-xs text-zinc-400">{fmtSize(doc.size)} · {fmtDateTime(doc.uploaded_at)}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                          <button onClick={() => handleViewDoc(order._id, doc.doc_id)} disabled={viewingDoc === doc.doc_id}
-                                                            className="p-1.5 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title="View">
-                                                            {viewingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
-                                                          </button>
-                                                          <button onClick={() => handleDownloadDoc(order._id, doc.doc_id, doc.filename)} disabled={downloadingDoc === doc.doc_id}
-                                                            className="p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Download">
-                                                            {downloadingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                                                          </button>
-                                                          {canEdit && (
-                                                            <button onClick={() => handleDeleteDoc(order._id, doc.doc_id)} disabled={deletingDoc === doc.doc_id}
-                                                              className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
-                                                              {deletingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                                                            </button>
-                                                          )}
-                                                        </div>
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            );
+                                              );
                                             };
                                             return (
                                               <>
@@ -2127,503 +2125,502 @@ export default function BrandOrders() {
                                     }
 
                                     return (
-                                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                      <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 
-                                    {/* Upload toolbar */}
-                                    <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800">
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          <FileText size={12} className="text-zinc-400" />
-                                          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Files</span>
-                                          {docs.length > 0 && (
-                                            <span className="text-xs bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 px-1.5 py-0.5 rounded-full font-medium">
-                                              {hasActiveFilters && filteredDocs.length !== docs.length ? `${filteredDocs.length}/${docs.length}` : docs.length}
-                                            </span>
-                                          )}
-                                        </div>
-                                        {canEdit && (
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            {/* Category pill selector */}
-                                            <div className="flex items-center gap-1 flex-wrap">
-                                              <span className="text-xs text-zinc-400">Upload to:</span>
-                                              {addingCatForOrder === order._id ? (
-                                                <>
-                                                  <input
-                                                    autoFocus
-                                                    value={catInput}
-                                                    onChange={e => setCatInput(e.target.value)}
-                                                    onKeyDown={e => {
-                                                      if (e.key === 'Enter') handleAddCategory(order._id);
-                                                      if (e.key === 'Escape') { setAddingCatForOrder(null); setCatInput(''); }
-                                                    }}
-                                                    placeholder="New category…"
-                                                    className="w-28 text-xs px-2 py-0.5 bg-white dark:bg-zinc-800 border border-blue-300 dark:border-blue-700 rounded-full text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                  />
-                                                  <button
-                                                    onClick={() => handleAddCategory(order._id)}
-                                                    disabled={addingCat || !catInput.trim()}
-                                                    className="text-xs font-medium px-2 py-0.5 bg-blue-600 text-white rounded-full disabled:opacity-40 hover:bg-blue-700 transition-colors"
-                                                  >
-                                                    {addingCat ? <Loader2 size={10} className="animate-spin" /> : 'Save'}
-                                                  </button>
-                                                  <button
-                                                    onClick={() => { setAddingCatForOrder(null); setCatInput(''); }}
-                                                    className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-full"
-                                                  >
-                                                    <X size={11} />
-                                                  </button>
-                                                </>
-                                              ) : (
-                                                <>
-                                                  {categories.map(cat => (
-                                                    renamingCat === cat ? (
-                                                      <span key={cat} className="inline-flex items-center gap-0.5 text-xs rounded-full border border-blue-400 bg-white dark:bg-zinc-800 px-1 py-0.5">
-                                                        <input
-                                                          autoFocus
-                                                          value={renameCatInput}
-                                                          onChange={e => setRenameCatInput(e.target.value)}
-                                                          onKeyDown={e => {
-                                                            if (e.key === 'Enter') handleRenameCategory(cat, renameCatInput);
-                                                            if (e.key === 'Escape') { setRenamingCat(null); setRenameCatInput(''); }
-                                                          }}
-                                                          className="w-20 text-xs bg-transparent text-zinc-800 dark:text-zinc-200 focus:outline-none"
-                                                        />
-                                                        <button
-                                                          onClick={() => handleRenameCategory(cat, renameCatInput)}
-                                                          disabled={renamingCatLoading}
-                                                          className="p-0.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                                                          title="Save"
-                                                        >
-                                                          {renamingCatLoading ? <Loader2 size={9} className="animate-spin" /> : <Check size={9} />}
-                                                        </button>
-                                                        <button
-                                                          onClick={() => { setRenamingCat(null); setRenameCatInput(''); }}
-                                                          className="p-0.5 text-zinc-400 hover:text-zinc-600"
-                                                          title="Cancel"
-                                                        >
-                                                          <X size={9} />
-                                                        </button>
-                                                      </span>
-                                                    ) : (
-                                                    <span key={cat} className={`inline-flex items-center gap-0.5 text-xs rounded-full border font-medium transition-all ${
-                                                      selectedCategory === cat
-                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
-                                                        : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300'
-                                                    }`}>
-                                                      <button
-                                                        onClick={() => setOrderUploadCategory(prev => ({ ...prev, [order._id]: selectedCategory === cat ? '' : cat }))}
-                                                        className="pl-2.5 pr-0.5 py-0.5"
-                                                      >
-                                                        {cat}
-                                                      </button>
-                                                      <button
-                                                        onClick={() => { setRenamingCat(cat); setRenameCatInput(cat); }}
-                                                        className={`p-0.5 rounded-full transition-colors ${selectedCategory === cat ? 'hover:text-blue-200' : 'hover:text-blue-500 dark:hover:text-blue-400'}`}
-                                                        title={`Rename "${cat}"`}
-                                                      >
-                                                        <Pencil size={9} />
-                                                      </button>
-                                                      <button
-                                                        onClick={() => handleDeleteCategory(cat)}
-                                                        className={`pr-1 py-0.5 rounded-r-full transition-colors ${selectedCategory === cat ? 'hover:text-red-200' : 'hover:text-red-500 dark:hover:text-red-400'}`}
-                                                        title={`Delete category "${cat}"`}
-                                                      >
-                                                        <X size={9} />
-                                                      </button>
-                                                    </span>
-                                                    )
-                                                  ))}
-                                                  <button
-                                                    onClick={() => { setAddingCatForOrder(order._id); setCatInput(''); }}
-                                                    className="text-xs px-1.5 py-0.5 rounded-full border border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-400 hover:text-blue-600 hover:border-blue-400 dark:hover:border-blue-600 transition-all flex items-center gap-0.5"
-                                                    title="Add new category"
-                                                  >
-                                                    <Plus size={10} /> New
-                                                  </button>
-                                                </>
-                                              )}
-                                            </div>
-                                            {/* Upload buttons */}
-                                            <div className="flex items-center gap-1">
-                                              {!selectedCategory && (
-                                                <span className="text-xs text-amber-500 dark:text-amber-400 italic">↑ select a category</span>
-                                              )}
-                                              <label className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 border rounded-lg transition-all ${!selectedCategory || !!uploadingFor ? 'opacity-40 cursor-not-allowed text-blue-400 border-blue-200 dark:border-blue-800' : 'text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer border-blue-200 dark:border-blue-800'}`}
-                                                title={!selectedCategory ? 'Select a category first' : 'Upload files'}>
-                                                {uploadingFor === order._id ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
-                                                Files
-                                                <input
-                                                  ref={el => { fileInputRefs.current[order._id] = el; }}
-                                                  type="file" multiple className="hidden" disabled={!!uploadingFor || !selectedCategory}
-                                                  onChange={e => { if (e.target.files?.length) handleUploadDoc(order._id, Array.from(e.target.files).map(f => ({ file: f })), selectedCategory); }} />
-                                              </label>
-                                              <label className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 border rounded-lg transition-all ${!selectedCategory || !!uploadingFor ? 'opacity-40 cursor-not-allowed text-blue-400 border-blue-200 dark:border-blue-800' : 'text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer border-blue-200 dark:border-blue-800'}`}
-                                                title={!selectedCategory ? 'Select a category first' : 'Upload folder'}>
-                                                <FolderOpen size={11} />
-                                                Folder
-                                                <input
-                                                  ref={el => { folderInputRefs.current[order._id] = el; }}
-                                                  type="file" className="hidden" disabled={!!uploadingFor || !selectedCategory}
-                                                  // @ts-expect-error -- webkitdirectory is non-standard
-                                                  webkitdirectory=""
-                                                  onChange={e => { if (e.target.files?.length) handleUploadDoc(order._id, Array.from(e.target.files).map(f => ({ file: f, relativePath: (f as any).webkitRelativePath || undefined })), selectedCategory); }} />
-                                              </label>
-                                              {canEdit && (
-                                                creatingFolderFor === order._id ? (
-                                                  <div className="flex items-center gap-1">
-                                                    <input
-                                                      autoFocus
-                                                      value={newFolderName}
-                                                      onChange={e => setNewFolderName(e.target.value)}
-                                                      onKeyDown={e => {
-                                                        if (e.key === 'Enter') handleCreateFolder(order._id);
-                                                        if (e.key === 'Escape') { setCreatingFolderFor(null); setNewFolderName(''); }
-                                                      }}
-                                                      placeholder="Folder name…"
-                                                      className="w-32 text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                                                    />
-                                                    <button
-                                                      onClick={() => handleCreateFolder(order._id)}
-                                                      disabled={savingFolder || !newFolderName.trim()}
-                                                      className="text-xs font-medium px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-40 transition-colors"
-                                                    >
-                                                      {savingFolder ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-                                                    </button>
-                                                    <button
-                                                      onClick={() => { setCreatingFolderFor(null); setNewFolderName(''); }}
-                                                      className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg"
-                                                    >
-                                                      <X size={10} />
-                                                    </button>
-                                                  </div>
-                                                ) : (
-                                                  <button
-                                                    onClick={() => { setCreatingFolderFor(order._id); setNewFolderName(''); }}
-                                                    className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-white hover:bg-amber-500 dark:text-amber-400 dark:hover:text-white dark:hover:bg-amber-600 cursor-pointer px-2.5 py-1 border border-amber-200 dark:border-amber-800 rounded-lg transition-all"
-                                                    title="New folder"
-                                                  >
-                                                    <FolderPlus size={11} /> Folder
-                                                  </button>
-                                                )
-                                              )}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* ── Breadcrumb navigation ── */}
-                                    {(activeFolderPath || allFolders.length > 0) && (
-                                      <div className="flex items-center gap-1 px-4 py-2 bg-amber-50/60 dark:bg-amber-950/10 border-b border-amber-100 dark:border-amber-900/30 flex-wrap">
-                                        <Folder size={11} className="text-amber-500 flex-shrink-0" />
-                                        {breadcrumbs.map((crumb, i) => (
-                                          <React.Fragment key={crumb.path}>
-                                            {i > 0 && <span className="text-zinc-300 dark:text-zinc-700 text-xs">/</span>}
-                                            <button
-                                              onClick={() => setCurrentFolderPath(prev => ({ ...prev, [order._id]: crumb.path }))}
-                                              className={`text-xs font-medium transition-colors ${crumb.path === activeFolderPath ? 'text-amber-700 dark:text-amber-300 cursor-default' : 'text-zinc-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400'}`}
-                                            >
-                                              {crumb.label}
-                                            </button>
-                                          </React.Fragment>
-                                        ))}
-                                        {foldersLoading[order._id] && <Loader2 size={11} className="animate-spin text-amber-400 ml-1" />}
-                                      </div>
-                                    )}
-
-                                    {/* ── Sub-folder rows ── */}
-                                    {visibleFolders.length > 0 && (
-                                      <div className="bg-amber-50/30 dark:bg-amber-950/5 border-b border-zinc-100 dark:border-zinc-800/60 divide-y divide-zinc-100 dark:divide-zinc-800/40">
-                                        {visibleFolders.map(folder => (
-                                          <div key={folder.folder_id} className="flex items-center gap-3 px-4 py-2 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors group">
-                                            <Folder size={13} className="text-amber-500 flex-shrink-0" />
-                                            {renamingFolderId === folder.folder_id ? (
-                                              <div className="flex items-center gap-1 flex-1 min-w-0">
-                                                <input
-                                                  autoFocus
-                                                  value={renameFolderName}
-                                                  onChange={e => setRenameFolderName(e.target.value)}
-                                                  onKeyDown={e => {
-                                                    if (e.key === 'Enter') handleRenameFolder(order._id, folder.folder_id);
-                                                    if (e.key === 'Escape') { setRenamingFolderId(null); setRenameFolderName(''); }
-                                                  }}
-                                                  className="flex-1 min-w-0 text-xs px-2 py-0.5 bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                                                />
-                                                <button onClick={() => handleRenameFolder(order._id, folder.folder_id)} disabled={savingFolder}
-                                                  className="p-1 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded transition-colors">
-                                                  {savingFolder ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                                                </button>
-                                                <button onClick={() => { setRenamingFolderId(null); setRenameFolderName(''); }}
-                                                  className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded transition-colors">
-                                                  <X size={11} />
-                                                </button>
-                                              </div>
-                                            ) : (
-                                              <>
-                                                <button
-                                                  onClick={() => setCurrentFolderPath(prev => ({ ...prev, [order._id]: folder.path }))}
-                                                  className="flex-1 min-w-0 text-left text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:text-amber-700 dark:hover:text-amber-300 transition-colors truncate"
-                                                >
-                                                  {folder.name}
-                                                </button>
-                                                <span className="text-xs text-zinc-400 flex-shrink-0">
-                                                  {docs.filter(d => (d.folder || '') === folder.path || (d.folder || '').startsWith(folder.path + '/')).length} files
+                                        {/* Upload toolbar */}
+                                        <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800">
+                                          <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                              <FileText size={12} className="text-zinc-400" />
+                                              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Files</span>
+                                              {docs.length > 0 && (
+                                                <span className="text-xs bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 px-1.5 py-0.5 rounded-full font-medium">
+                                                  {hasActiveFilters && filteredDocs.length !== docs.length ? `${filteredDocs.length}/${docs.length}` : docs.length}
                                                 </span>
-                                              </>
-                                            )}
-                                            {canEdit && renamingFolderId !== folder.folder_id && (
-                                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                <button
-                                                  onClick={() => { setRenamingFolderId(folder.folder_id); setRenameFolderName(folder.name); }}
-                                                  className="p-1.5 text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
-                                                  title="Rename folder"
-                                                >
-                                                  <Pencil size={11} />
-                                                </button>
-                                                <button
-                                                  onClick={() => handleDeleteFolder(order._id, folder.folder_id, folder.name)}
-                                                  className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                                  title="Delete folder"
-                                                >
-                                                  <Trash2 size={11} />
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-
-                                    {/* Filter bar */}
-                                    {docs.length > 0 && (
-                                      <div className="px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/60 flex flex-wrap items-center gap-3">
-                                        <div className="relative flex-1 min-w-[160px]">
-                                          <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-                                          <input
-                                            type="text"
-                                            value={docSearch[order._id] || ''}
-                                            onChange={e => { setDocSearch(prev => ({ ...prev, [order._id]: e.target.value })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
-                                            placeholder="Search files, products, categories…"
-                                            className="w-full pl-7 pr-6 py-1 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                          />
-                                          {docSearch[order._id] && (
-                                            <button onClick={() => { setDocSearch(prev => ({ ...prev, [order._id]: '' })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
-                                              className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
-                                              <X size={10} />
-                                            </button>
-                                          )}
-                                        </div>
-                                        {docCatKeys.length > 1 && (
-                                          <div className="flex items-center gap-1 flex-wrap">
-                                            <Filter size={10} className="text-zinc-400 flex-shrink-0" />
-                                            <button
-                                              onClick={() => { setDocCatFilter(prev => ({ ...prev, [order._id]: '' })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
-                                              className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-all ${!catFilter ? 'bg-zinc-700 dark:bg-zinc-300 border-zinc-700 dark:border-zinc-300 text-white dark:text-zinc-900' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400'}`}
-                                            >All</button>
-                                            {docCatKeys.map(cat => (
-                                              <button key={cat}
-                                                onClick={() => { setDocCatFilter(prev => ({ ...prev, [order._id]: prev[order._id] === cat ? '' : cat })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
-                                                className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-all ${catFilter === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-blue-400 dark:hover:border-blue-600'}`}
-                                              >
-                                                {cat}<span className="ml-1 opacity-60">{catCounts[cat]}</span>
-                                              </button>
-                                            ))}
-                                          </div>
-                                        )}
-                                        {(categories.length > 0 || lineItems.length > 0) && (
-                                          <div className="flex items-center gap-1.5">
-                                            <Package size={10} className="text-zinc-400 flex-shrink-0" />
-                                            <select
-                                              value={itemFilter}
-                                              onChange={e => { setDocItemFilter(prev => ({ ...prev, [order._id]: e.target.value })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
-                                              className="text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[220px]"
-                                            >
-                                              <option value="">General</option>
-                                              {categories.map(cat => (
-                                                <option key={`__cat__${cat}`} value={`__cat__${cat}`}>{cat}</option>
-                                              ))}
-                                              {lineItems.filter(item => itemDocCounts[item.item_id]).map(item => (
-                                                <option key={item.item_id} value={item.item_id}>
-                                                  {lineItemLabel(item)} ({itemDocCounts[item.item_id]})
-                                                </option>
-                                              ))}
-                                              {hasUncategorizedFiles && (
-                                                <option value="__none__">Uncategorized ({docs.filter(d => !d.item_id).length})</option>
                                               )}
-                                            </select>
-                                          </div>
-                                        )}
-                                        {hasActiveFilters && (
-                                          <button
-                                            onClick={() => { setDocSearch(prev => ({ ...prev, [order._id]: '' })); setDocCatFilter(prev => ({ ...prev, [order._id]: '' })); setDocItemFilter(prev => ({ ...prev, [order._id]: '' })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
-                                            className="text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400 flex items-center gap-0.5 transition-colors"
-                                          >
-                                            <X size={10} /> Clear filters
-                                          </button>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* Upload progress bar */}
-                                    {progress && (
-                                      <div className="px-4 py-3 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/40">
-                                        <div className="flex items-center justify-between mb-1.5">
-                                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                                            Uploading {progress.done} of {progress.total} file{progress.total !== 1 ? 's' : ''}…
-                                          </span>
-                                          <span className="text-xs tabular-nums text-blue-500 dark:text-blue-400">
-                                            {Math.round((progress.done / progress.total) * 100)}%
-                                          </span>
-                                        </div>
-                                        <div className="w-full h-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-full overflow-hidden">
-                                          <div className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
-                                            style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }} />
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Doc rows */}
-                                    {docsLoading[order._id] ? (
-                                      <div className="flex items-center justify-center gap-2 text-zinc-400 text-sm py-8 bg-white dark:bg-zinc-900">
-                                        <Loader2 size={14} className="animate-spin" /> Loading…
-                                      </div>
-                                    ) : docs.length === 0 ? (
-                                      <div className="flex flex-col items-center justify-center py-10 text-zinc-400 bg-white dark:bg-zinc-900">
-                                        <FileText size={22} className="mb-2 opacity-30" />
-                                        <p className="text-sm">No files uploaded yet.</p>
-                                        {canEdit && <p className="text-xs mt-1 text-zinc-400">Use the buttons above to upload files or create a folder.</p>}
-                                      </div>
-                                    ) : folderFilteredDocs.length === 0 && visibleFolders.length === 0 ? (
-                                      <div className="flex flex-col items-center justify-center py-8 text-zinc-400 bg-white dark:bg-zinc-900">
-                                        <Filter size={18} className="mb-2 opacity-30" />
-                                        <p className="text-sm">{hasActiveFilters ? 'No files match the current filters.' : 'This folder is empty.'}</p>
-                                      </div>
-                                    ) : folderFilteredDocs.length > 0 ? (
-                                      <>
-                                        <div className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800/60">
-                                          {folderPagedDocs.map(doc => (
-                                            <div key={doc.doc_id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors group">
-                                              <FileText size={13} className={`flex-shrink-0 ${fileIconColor(doc.content_type, doc.filename)}`} />
-                                              <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1.5 flex-wrap">
-                                                  <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{doc.filename}</p>
-                                                  {doc.item_name && (
-                                                    <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
-                                                      {doc.item_name}
-                                                    </span>
-                                                  )}
-                                                  {canEdit ? (
-                                                    recatDoc === doc.doc_id ? (
-                                                      <select
+                                            </div>
+                                            {canEdit && (
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                {/* Category pill selector */}
+                                                <div className="flex items-center gap-1 flex-wrap">
+                                                  <span className="text-xs text-zinc-400">Upload to:</span>
+                                                  {addingCatForOrder === order._id ? (
+                                                    <>
+                                                      <input
                                                         autoFocus
-                                                        value={doc.category || categories[0] || ''}
-                                                        onChange={e => handleRecategorize(order._id, doc.doc_id, e.target.value)}
-                                                        onBlur={() => setRecatDoc(null)}
-                                                        disabled={recatLoading === doc.doc_id}
-                                                        className="text-xs px-1.5 py-0.5 rounded-full border border-blue-300 dark:border-blue-700 bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-shrink-0"
-                                                      >
-                                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                                                      </select>
-                                                    ) : (
+                                                        value={catInput}
+                                                        onChange={e => setCatInput(e.target.value)}
+                                                        onKeyDown={e => {
+                                                          if (e.key === 'Enter') handleAddCategory(order._id);
+                                                          if (e.key === 'Escape') { setAddingCatForOrder(null); setCatInput(''); }
+                                                        }}
+                                                        placeholder="New category…"
+                                                        className="w-28 text-xs px-2 py-0.5 bg-white dark:bg-zinc-800 border border-blue-300 dark:border-blue-700 rounded-full text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                      />
                                                       <button
-                                                        onClick={() => setRecatDoc(doc.doc_id)}
-                                                        className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                                                        title="Click to change category"
+                                                        onClick={() => handleAddCategory(order._id)}
+                                                        disabled={addingCat || !catInput.trim()}
+                                                        className="text-xs font-medium px-2 py-0.5 bg-blue-600 text-white rounded-full disabled:opacity-40 hover:bg-blue-700 transition-colors"
                                                       >
-                                                        {recatLoading === doc.doc_id ? <Loader2 size={10} className="animate-spin inline" /> : (doc.category || categories[0] || '—')}
+                                                        {addingCat ? <Loader2 size={10} className="animate-spin" /> : 'Save'}
                                                       </button>
-                                                    )
+                                                      <button
+                                                        onClick={() => { setAddingCatForOrder(null); setCatInput(''); }}
+                                                        className="p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-full"
+                                                      >
+                                                        <X size={11} />
+                                                      </button>
+                                                    </>
                                                   ) : (
-                                                    doc.category && (
-                                                      <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
-                                                        {doc.category}
-                                                      </span>
-                                                    )
+                                                    <>
+                                                      {categories.map(cat => (
+                                                        renamingCat === cat ? (
+                                                          <span key={cat} className="inline-flex items-center gap-0.5 text-xs rounded-full border border-blue-400 bg-white dark:bg-zinc-800 px-1 py-0.5">
+                                                            <input
+                                                              autoFocus
+                                                              value={renameCatInput}
+                                                              onChange={e => setRenameCatInput(e.target.value)}
+                                                              onKeyDown={e => {
+                                                                if (e.key === 'Enter') handleRenameCategory(cat, renameCatInput);
+                                                                if (e.key === 'Escape') { setRenamingCat(null); setRenameCatInput(''); }
+                                                              }}
+                                                              className="w-20 text-xs bg-transparent text-zinc-800 dark:text-zinc-200 focus:outline-none"
+                                                            />
+                                                            <button
+                                                              onClick={() => handleRenameCategory(cat, renameCatInput)}
+                                                              disabled={renamingCatLoading}
+                                                              className="p-0.5 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                                                              title="Save"
+                                                            >
+                                                              {renamingCatLoading ? <Loader2 size={9} className="animate-spin" /> : <Check size={9} />}
+                                                            </button>
+                                                            <button
+                                                              onClick={() => { setRenamingCat(null); setRenameCatInput(''); }}
+                                                              className="p-0.5 text-zinc-400 hover:text-zinc-600"
+                                                              title="Cancel"
+                                                            >
+                                                              <X size={9} />
+                                                            </button>
+                                                          </span>
+                                                        ) : (
+                                                          <span key={cat} className={`inline-flex items-center gap-0.5 text-xs rounded-full border font-medium transition-all ${selectedCategory === cat
+                                                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                                              : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300'
+                                                            }`}>
+                                                            <button
+                                                              onClick={() => setOrderUploadCategory(prev => ({ ...prev, [order._id]: selectedCategory === cat ? '' : cat }))}
+                                                              className="pl-2.5 pr-0.5 py-0.5"
+                                                            >
+                                                              {cat}
+                                                            </button>
+                                                            <button
+                                                              onClick={() => { setRenamingCat(cat); setRenameCatInput(cat); }}
+                                                              className={`p-0.5 rounded-full transition-colors ${selectedCategory === cat ? 'hover:text-blue-200' : 'hover:text-blue-500 dark:hover:text-blue-400'}`}
+                                                              title={`Rename "${cat}"`}
+                                                            >
+                                                              <Pencil size={9} />
+                                                            </button>
+                                                            <button
+                                                              onClick={() => handleDeleteCategory(cat)}
+                                                              className={`pr-1 py-0.5 rounded-r-full transition-colors ${selectedCategory === cat ? 'hover:text-red-200' : 'hover:text-red-500 dark:hover:text-red-400'}`}
+                                                              title={`Delete category "${cat}"`}
+                                                            >
+                                                              <X size={9} />
+                                                            </button>
+                                                          </span>
+                                                        )
+                                                      ))}
+                                                      <button
+                                                        onClick={() => { setAddingCatForOrder(order._id); setCatInput(''); }}
+                                                        className="text-xs px-1.5 py-0.5 rounded-full border border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-400 hover:text-blue-600 hover:border-blue-400 dark:hover:border-blue-600 transition-all flex items-center gap-0.5"
+                                                        title="Add new category"
+                                                      >
+                                                        <Plus size={10} /> New
+                                                      </button>
+                                                    </>
                                                   )}
                                                 </div>
-                                                <p className="text-xs text-zinc-400 mt-0.5">
-                                                  {fmtSize(doc.size)}
-                                                  <span className="mx-1.5 text-zinc-300 dark:text-zinc-700">·</span>
-                                                  {fmtDateTime(doc.uploaded_at)}
-                                                </p>
-                                              </div>
-                                              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                                {canEdit && allFolders.length > 0 && (
-                                                  <div className="relative">
-                                                    {movingDocId === doc.doc_id ? (
+                                                {/* Upload buttons */}
+                                                <div className="flex items-center gap-1">
+                                                  {!selectedCategory && (
+                                                    <span className="text-xs text-amber-500 dark:text-amber-400 italic">↑ select a category</span>
+                                                  )}
+                                                  <label className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 border rounded-lg transition-all ${!selectedCategory || !!uploadingFor ? 'opacity-40 cursor-not-allowed text-blue-400 border-blue-200 dark:border-blue-800' : 'text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer border-blue-200 dark:border-blue-800'}`}
+                                                    title={!selectedCategory ? 'Select a category first' : 'Upload files'}>
+                                                    {uploadingFor === order._id ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                                                    Files
+                                                    <input
+                                                      ref={el => { fileInputRefs.current[order._id] = el; }}
+                                                      type="file" multiple className="hidden" disabled={!!uploadingFor || !selectedCategory}
+                                                      onChange={e => { if (e.target.files?.length) handleUploadDoc(order._id, Array.from(e.target.files).map(f => ({ file: f })), selectedCategory); }} />
+                                                  </label>
+                                                  <label className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 border rounded-lg transition-all ${!selectedCategory || !!uploadingFor ? 'opacity-40 cursor-not-allowed text-blue-400 border-blue-200 dark:border-blue-800' : 'text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400 dark:hover:text-white dark:hover:bg-blue-600 cursor-pointer border-blue-200 dark:border-blue-800'}`}
+                                                    title={!selectedCategory ? 'Select a category first' : 'Upload folder'}>
+                                                    <FolderOpen size={11} />
+                                                    Folder
+                                                    <input
+                                                      ref={el => { folderInputRefs.current[order._id] = el; }}
+                                                      type="file" className="hidden" disabled={!!uploadingFor || !selectedCategory}
+                                                      // @ts-expect-error -- webkitdirectory is non-standard
+                                                      webkitdirectory=""
+                                                      onChange={e => { if (e.target.files?.length) handleUploadDoc(order._id, Array.from(e.target.files).map(f => ({ file: f, relativePath: (f as any).webkitRelativePath || undefined })), selectedCategory); }} />
+                                                  </label>
+                                                  {canEdit && (
+                                                    creatingFolderFor === order._id ? (
                                                       <div className="flex items-center gap-1">
-                                                        <select
+                                                        <input
                                                           autoFocus
-                                                          defaultValue={doc.folder || ''}
-                                                          onChange={e => handleMoveDoc(order._id, doc.doc_id, e.target.value)}
-                                                          onBlur={() => setMovingDocId(null)}
-                                                          className="text-xs px-1.5 py-0.5 border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 rounded-lg text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                                          value={newFolderName}
+                                                          onChange={e => setNewFolderName(e.target.value)}
+                                                          onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleCreateFolder(order._id);
+                                                            if (e.key === 'Escape') { setCreatingFolderFor(null); setNewFolderName(''); }
+                                                          }}
+                                                          placeholder="Folder name…"
+                                                          className="w-32 text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                                        />
+                                                        <button
+                                                          onClick={() => handleCreateFolder(order._id)}
+                                                          disabled={savingFolder || !newFolderName.trim()}
+                                                          className="text-xs font-medium px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-40 transition-colors"
                                                         >
-                                                          <option value="">Root</option>
-                                                          {allFolders.map(f => (
-                                                            <option key={f.folder_id} value={f.path}>{f.path.split('/').join(' / ')}</option>
-                                                          ))}
-                                                        </select>
-                                                        <button onClick={() => setMovingDocId(null)} className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded">
+                                                          {savingFolder ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                                                        </button>
+                                                        <button
+                                                          onClick={() => { setCreatingFolderFor(null); setNewFolderName(''); }}
+                                                          className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-lg"
+                                                        >
                                                           <X size={10} />
                                                         </button>
                                                       </div>
                                                     ) : (
                                                       <button
-                                                        onClick={() => setMovingDocId(doc.doc_id)}
-                                                        className="p-1.5 text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
-                                                        title="Move to folder"
+                                                        onClick={() => { setCreatingFolderFor(order._id); setNewFolderName(''); }}
+                                                        className="flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-white hover:bg-amber-500 dark:text-amber-400 dark:hover:text-white dark:hover:bg-amber-600 cursor-pointer px-2.5 py-1 border border-amber-200 dark:border-amber-800 rounded-lg transition-all"
+                                                        title="New folder"
                                                       >
-                                                        <Folder size={12} />
+                                                        <FolderPlus size={11} /> Folder
                                                       </button>
-                                                    )}
+                                                    )
+                                                  )}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* ── Breadcrumb navigation ── */}
+                                        {(activeFolderPath || allFolders.length > 0) && (
+                                          <div className="flex items-center gap-1 px-4 py-2 bg-amber-50/60 dark:bg-amber-950/10 border-b border-amber-100 dark:border-amber-900/30 flex-wrap">
+                                            <Folder size={11} className="text-amber-500 flex-shrink-0" />
+                                            {breadcrumbs.map((crumb, i) => (
+                                              <React.Fragment key={crumb.path}>
+                                                {i > 0 && <span className="text-zinc-300 dark:text-zinc-700 text-xs">/</span>}
+                                                <button
+                                                  onClick={() => setCurrentFolderPath(prev => ({ ...prev, [order._id]: crumb.path }))}
+                                                  className={`text-xs font-medium transition-colors ${crumb.path === activeFolderPath ? 'text-amber-700 dark:text-amber-300 cursor-default' : 'text-zinc-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400'}`}
+                                                >
+                                                  {crumb.label}
+                                                </button>
+                                              </React.Fragment>
+                                            ))}
+                                            {foldersLoading[order._id] && <Loader2 size={11} className="animate-spin text-amber-400 ml-1" />}
+                                          </div>
+                                        )}
+
+                                        {/* ── Sub-folder rows ── */}
+                                        {visibleFolders.length > 0 && (
+                                          <div className="bg-amber-50/30 dark:bg-amber-950/5 border-b border-zinc-100 dark:border-zinc-800/60 divide-y divide-zinc-100 dark:divide-zinc-800/40">
+                                            {visibleFolders.map(folder => (
+                                              <div key={folder.folder_id} className="flex items-center gap-3 px-4 py-2 hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors group">
+                                                <Folder size={13} className="text-amber-500 flex-shrink-0" />
+                                                {renamingFolderId === folder.folder_id ? (
+                                                  <div className="flex items-center gap-1 flex-1 min-w-0">
+                                                    <input
+                                                      autoFocus
+                                                      value={renameFolderName}
+                                                      onChange={e => setRenameFolderName(e.target.value)}
+                                                      onKeyDown={e => {
+                                                        if (e.key === 'Enter') handleRenameFolder(order._id, folder.folder_id);
+                                                        if (e.key === 'Escape') { setRenamingFolderId(null); setRenameFolderName(''); }
+                                                      }}
+                                                      className="flex-1 min-w-0 text-xs px-2 py-0.5 bg-white dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 rounded-lg text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                                    />
+                                                    <button onClick={() => handleRenameFolder(order._id, folder.folder_id)} disabled={savingFolder}
+                                                      className="p-1 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded transition-colors">
+                                                      {savingFolder ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                                                    </button>
+                                                    <button onClick={() => { setRenamingFolderId(null); setRenameFolderName(''); }}
+                                                      className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded transition-colors">
+                                                      <X size={11} />
+                                                    </button>
+                                                  </div>
+                                                ) : (
+                                                  <>
+                                                    <button
+                                                      onClick={() => setCurrentFolderPath(prev => ({ ...prev, [order._id]: folder.path }))}
+                                                      className="flex-1 min-w-0 text-left text-sm font-medium text-zinc-700 dark:text-zinc-200 hover:text-amber-700 dark:hover:text-amber-300 transition-colors truncate"
+                                                    >
+                                                      {folder.name}
+                                                    </button>
+                                                    <span className="text-xs text-zinc-400 flex-shrink-0">
+                                                      {docs.filter(d => (d.folder || '') === folder.path || (d.folder || '').startsWith(folder.path + '/')).length} files
+                                                    </span>
+                                                  </>
+                                                )}
+                                                {canEdit && renamingFolderId !== folder.folder_id && (
+                                                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                    <button
+                                                      onClick={() => { setRenamingFolderId(folder.folder_id); setRenameFolderName(folder.name); }}
+                                                      className="p-1.5 text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                                                      title="Rename folder"
+                                                    >
+                                                      <Pencil size={11} />
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleDeleteFolder(order._id, folder.folder_id, folder.name)}
+                                                      className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                      title="Delete folder"
+                                                    >
+                                                      <Trash2 size={11} />
+                                                    </button>
                                                   </div>
                                                 )}
-                                                <button onClick={() => handleViewDoc(order._id, doc.doc_id)} disabled={viewingDoc === doc.doc_id}
-                                                  className="p-1.5 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title="View">
-                                                  {viewingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
-                                                </button>
-                                                <button onClick={() => handleDownloadDoc(order._id, doc.doc_id, doc.filename)} disabled={downloadingDoc === doc.doc_id}
-                                                  className="p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Download">
-                                                  {downloadingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                                                </button>
-                                                {canEdit && (
-                                                  <button onClick={() => handleDeleteDoc(order._id, doc.doc_id)} disabled={deletingDoc === doc.doc_id}
-                                                    className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
-                                                    {deletingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                                                  </button>
-                                                )}
                                               </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                        {/* Pagination */}
-                                        {folderTotalPages > 1 && (
-                                          <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
-                                            <span className="text-xs text-zinc-400 tabular-nums">
-                                              {folderPage * DOCS_PER_PAGE + 1}–{Math.min((folderPage + 1) * DOCS_PER_PAGE, folderFilteredDocs.length)} of {folderFilteredDocs.length}
-                                            </span>
-                                            <div className="flex items-center gap-1">
-                                              <button onClick={() => setDocPage(prev => ({ ...prev, [order._id]: folderPage - 1 }))} disabled={folderPage === 0}
-                                                className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
-                                                <ArrowLeft size={12} />
-                                              </button>
-                                              {Array.from({ length: folderTotalPages }, (_, i) => (
-                                                <button key={i} onClick={() => setDocPage(prev => ({ ...prev, [order._id]: i }))}
-                                                  className={`w-6 h-6 text-xs rounded font-medium transition-colors ${i === folderPage ? 'bg-blue-600 text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>
-                                                  {i + 1}
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        {/* Filter bar */}
+                                        {docs.length > 0 && (
+                                          <div className="px-4 py-2.5 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/60 flex flex-wrap items-center gap-3">
+                                            <div className="relative flex-1 min-w-[160px]">
+                                              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                                              <input
+                                                type="text"
+                                                value={docSearch[order._id] || ''}
+                                                onChange={e => { setDocSearch(prev => ({ ...prev, [order._id]: e.target.value })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
+                                                placeholder="Search files, products, categories…"
+                                                className="w-full pl-7 pr-6 py-1 text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                              />
+                                              {docSearch[order._id] && (
+                                                <button onClick={() => { setDocSearch(prev => ({ ...prev, [order._id]: '' })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
+                                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                                                  <X size={10} />
                                                 </button>
-                                              ))}
-                                              <button onClick={() => setDocPage(prev => ({ ...prev, [order._id]: folderPage + 1 }))} disabled={folderPage === folderTotalPages - 1}
-                                                className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
-                                                <ArrowRight size={12} />
+                                              )}
+                                            </div>
+                                            {docCatKeys.length > 1 && (
+                                              <div className="flex items-center gap-1 flex-wrap">
+                                                <Filter size={10} className="text-zinc-400 flex-shrink-0" />
+                                                <button
+                                                  onClick={() => { setDocCatFilter(prev => ({ ...prev, [order._id]: '' })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
+                                                  className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-all ${!catFilter ? 'bg-zinc-700 dark:bg-zinc-300 border-zinc-700 dark:border-zinc-300 text-white dark:text-zinc-900' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-zinc-400'}`}
+                                                >All</button>
+                                                {docCatKeys.map(cat => (
+                                                  <button key={cat}
+                                                    onClick={() => { setDocCatFilter(prev => ({ ...prev, [order._id]: prev[order._id] === cat ? '' : cat })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
+                                                    className={`text-xs px-2 py-0.5 rounded-full border font-medium transition-all ${catFilter === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:border-blue-400 dark:hover:border-blue-600'}`}
+                                                  >
+                                                    {cat}<span className="ml-1 opacity-60">{catCounts[cat]}</span>
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            )}
+                                            {(categories.length > 0 || lineItems.length > 0) && (
+                                              <div className="flex items-center gap-1.5">
+                                                <Package size={10} className="text-zinc-400 flex-shrink-0" />
+                                                <select
+                                                  value={itemFilter}
+                                                  onChange={e => { setDocItemFilter(prev => ({ ...prev, [order._id]: e.target.value })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
+                                                  className="text-xs px-2 py-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-600 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500 max-w-[220px]"
+                                                >
+                                                  <option value="">General</option>
+                                                  {categories.map(cat => (
+                                                    <option key={`__cat__${cat}`} value={`__cat__${cat}`}>{cat}</option>
+                                                  ))}
+                                                  {lineItems.filter(item => itemDocCounts[item.item_id]).map(item => (
+                                                    <option key={item.item_id} value={item.item_id}>
+                                                      {lineItemLabel(item)} ({itemDocCounts[item.item_id]})
+                                                    </option>
+                                                  ))}
+                                                  {hasUncategorizedFiles && (
+                                                    <option value="__none__">Uncategorized ({docs.filter(d => !d.item_id).length})</option>
+                                                  )}
+                                                </select>
+                                              </div>
+                                            )}
+                                            {hasActiveFilters && (
+                                              <button
+                                                onClick={() => { setDocSearch(prev => ({ ...prev, [order._id]: '' })); setDocCatFilter(prev => ({ ...prev, [order._id]: '' })); setDocItemFilter(prev => ({ ...prev, [order._id]: '' })); setDocPage(prev => ({ ...prev, [order._id]: 0 })); }}
+                                                className="text-xs text-zinc-400 hover:text-red-500 dark:hover:text-red-400 flex items-center gap-0.5 transition-colors"
+                                              >
+                                                <X size={10} /> Clear filters
                                               </button>
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* Upload progress bar */}
+                                        {progress && (
+                                          <div className="px-4 py-3 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-100 dark:border-blue-900/40">
+                                            <div className="flex items-center justify-between mb-1.5">
+                                              <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                                                Uploading {progress.done} of {progress.total} file{progress.total !== 1 ? 's' : ''}…
+                                              </span>
+                                              <span className="text-xs tabular-nums text-blue-500 dark:text-blue-400">
+                                                {Math.round((progress.done / progress.total) * 100)}%
+                                              </span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-full overflow-hidden">
+                                              <div className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                                                style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }} />
                                             </div>
                                           </div>
                                         )}
-                                      </>
-                                    ) : null}
-                                  </div>
+
+                                        {/* Doc rows */}
+                                        {docsLoading[order._id] ? (
+                                          <div className="flex items-center justify-center gap-2 text-zinc-400 text-sm py-8 bg-white dark:bg-zinc-900">
+                                            <Loader2 size={14} className="animate-spin" /> Loading…
+                                          </div>
+                                        ) : docs.length === 0 ? (
+                                          <div className="flex flex-col items-center justify-center py-10 text-zinc-400 bg-white dark:bg-zinc-900">
+                                            <FileText size={22} className="mb-2 opacity-30" />
+                                            <p className="text-sm">No files uploaded yet.</p>
+                                            {canEdit && <p className="text-xs mt-1 text-zinc-400">Use the buttons above to upload files or create a folder.</p>}
+                                          </div>
+                                        ) : folderFilteredDocs.length === 0 && visibleFolders.length === 0 ? (
+                                          <div className="flex flex-col items-center justify-center py-8 text-zinc-400 bg-white dark:bg-zinc-900">
+                                            <Filter size={18} className="mb-2 opacity-30" />
+                                            <p className="text-sm">{hasActiveFilters ? 'No files match the current filters.' : 'This folder is empty.'}</p>
+                                          </div>
+                                        ) : folderFilteredDocs.length > 0 ? (
+                                          <>
+                                            <div className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                                              {folderPagedDocs.map(doc => (
+                                                <div key={doc.doc_id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors group">
+                                                  <FileText size={13} className={`flex-shrink-0 ${fileIconColor(doc.content_type, doc.filename)}`} />
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{doc.filename}</p>
+                                                      {doc.item_name && (
+                                                        <span className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                                                          {doc.item_name}
+                                                        </span>
+                                                      )}
+                                                      {canEdit ? (
+                                                        recatDoc === doc.doc_id ? (
+                                                          <select
+                                                            autoFocus
+                                                            value={doc.category || categories[0] || ''}
+                                                            onChange={e => handleRecategorize(order._id, doc.doc_id, e.target.value)}
+                                                            onBlur={() => setRecatDoc(null)}
+                                                            disabled={recatLoading === doc.doc_id}
+                                                            className="text-xs px-1.5 py-0.5 rounded-full border border-blue-300 dark:border-blue-700 bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-shrink-0"
+                                                          >
+                                                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                                          </select>
+                                                        ) : (
+                                                          <button
+                                                            onClick={() => setRecatDoc(doc.doc_id)}
+                                                            className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                                            title="Click to change category"
+                                                          >
+                                                            {recatLoading === doc.doc_id ? <Loader2 size={10} className="animate-spin inline" /> : (doc.category || categories[0] || '—')}
+                                                          </button>
+                                                        )
+                                                      ) : (
+                                                        doc.category && (
+                                                          <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">
+                                                            {doc.category}
+                                                          </span>
+                                                        )
+                                                      )}
+                                                    </div>
+                                                    <p className="text-xs text-zinc-400 mt-0.5">
+                                                      {fmtSize(doc.size)}
+                                                      <span className="mx-1.5 text-zinc-300 dark:text-zinc-700">·</span>
+                                                      {fmtDateTime(doc.uploaded_at)}
+                                                    </p>
+                                                  </div>
+                                                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                                    {canEdit && allFolders.length > 0 && (
+                                                      <div className="relative">
+                                                        {movingDocId === doc.doc_id ? (
+                                                          <div className="flex items-center gap-1">
+                                                            <select
+                                                              autoFocus
+                                                              defaultValue={doc.folder || ''}
+                                                              onChange={e => handleMoveDoc(order._id, doc.doc_id, e.target.value)}
+                                                              onBlur={() => setMovingDocId(null)}
+                                                              className="text-xs px-1.5 py-0.5 border border-amber-300 dark:border-amber-700 bg-white dark:bg-zinc-800 rounded-lg text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                                                            >
+                                                              <option value="">Root</option>
+                                                              {allFolders.map(f => (
+                                                                <option key={f.folder_id} value={f.path}>{f.path.split('/').join(' / ')}</option>
+                                                              ))}
+                                                            </select>
+                                                            <button onClick={() => setMovingDocId(null)} className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded">
+                                                              <X size={10} />
+                                                            </button>
+                                                          </div>
+                                                        ) : (
+                                                          <button
+                                                            onClick={() => setMovingDocId(doc.doc_id)}
+                                                            className="p-1.5 text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                                                            title="Move to folder"
+                                                          >
+                                                            <Folder size={12} />
+                                                          </button>
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                    <button onClick={() => handleViewDoc(order._id, doc.doc_id)} disabled={viewingDoc === doc.doc_id}
+                                                      className="p-1.5 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" title="View">
+                                                      {viewingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Eye size={12} />}
+                                                    </button>
+                                                    <button onClick={() => handleDownloadDoc(order._id, doc.doc_id, doc.filename)} disabled={downloadingDoc === doc.doc_id}
+                                                      className="p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Download">
+                                                      {downloadingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                                                    </button>
+                                                    {canEdit && (
+                                                      <button onClick={() => handleDeleteDoc(order._id, doc.doc_id)} disabled={deletingDoc === doc.doc_id}
+                                                        className="p-1.5 text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
+                                                        {deletingDoc === doc.doc_id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                            {/* Pagination */}
+                                            {folderTotalPages > 1 && (
+                                              <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40">
+                                                <span className="text-xs text-zinc-400 tabular-nums">
+                                                  {folderPage * DOCS_PER_PAGE + 1}–{Math.min((folderPage + 1) * DOCS_PER_PAGE, folderFilteredDocs.length)} of {folderFilteredDocs.length}
+                                                </span>
+                                                <div className="flex items-center gap-1">
+                                                  <button onClick={() => setDocPage(prev => ({ ...prev, [order._id]: folderPage - 1 }))} disabled={folderPage === 0}
+                                                    className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
+                                                    <ArrowLeft size={12} />
+                                                  </button>
+                                                  {Array.from({ length: folderTotalPages }, (_, i) => (
+                                                    <button key={i} onClick={() => setDocPage(prev => ({ ...prev, [order._id]: i }))}
+                                                      className={`w-6 h-6 text-xs rounded font-medium transition-colors ${i === folderPage ? 'bg-blue-600 text-white' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}>
+                                                      {i + 1}
+                                                    </button>
+                                                  ))}
+                                                  <button onClick={() => setDocPage(prev => ({ ...prev, [order._id]: folderPage + 1 }))} disabled={folderPage === folderTotalPages - 1}
+                                                    className="p-1 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-colors">
+                                                    <ArrowRight size={12} />
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </>
+                                        ) : null}
+                                      </div>
                                     );
                                   })()}
                                 </div>
