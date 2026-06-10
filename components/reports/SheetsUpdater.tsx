@@ -64,12 +64,22 @@ interface VendorUpdateResult {
   tabs: VendorTabResult[];
 }
 
+interface AmazonComboResult {
+  success: boolean;
+  message: string;
+  updated: number;
+  skipped_no_sku: number;
+  skipped_no_product: number;
+  products_matched: number;
+}
+
 interface CombinedUpdateResult {
   success: boolean;
   message: string;
   stock_date: string;
   master: MasterUpdateResult;
   vendor: VendorUpdateResult;
+  amazon_combo: AmazonComboResult;
 }
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
@@ -288,12 +298,9 @@ function VendorResult({ result }: { result: VendorUpdateResult }) {
 
 function CombinedResult({ result }: { result: CombinedUpdateResult }) {
   const [masterOpen, setMasterOpen] = useState(true);
-  const [vendorOpen, setVendorOpen] = useState(true);
 
   const masterUpdated = result.master?.updated ?? 0;
-  const vendorTabs = result.vendor?.tabs ?? [];
-  const vendorUpdated = vendorTabs.reduce((s, t) => s + (t.updated ?? 0), 0);
-  const tabsOk = vendorTabs.filter((t) => t.success).length;
+  const comboUpdated  = result.amazon_combo?.updated ?? 0;
 
   return (
     <div className='space-y-3'>
@@ -303,10 +310,9 @@ function CombinedResult({ result }: { result: CombinedUpdateResult }) {
         <span className='text-sm font-medium'>{result.message}</span>
       </div>
 
-      <div className='grid grid-cols-1 sm:grid-cols-3 gap-2'>
-        <StatCard label='Masters rows updated' value={masterUpdated} color='green' />
-        <StatCard label='Vendor rows updated'  value={vendorUpdated} color='green' />
-        <StatCard label='Tabs updated'         value={`${tabsOk}/${vendorTabs.length}`} color='blue' />
+      <div className='grid grid-cols-1 sm:grid-cols-2 gap-2'>
+        <StatCard label='Masters rows updated'        value={masterUpdated} color='green' />
+        <StatCard label='Amazon Combo rows updated'   value={comboUpdated}  color='blue' />
       </div>
 
       {/* Masters accordion */}
@@ -332,7 +338,7 @@ function CombinedResult({ result }: { result: CombinedUpdateResult }) {
       </div>
 
       {/* Vendor accordion */}
-      <div className='rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden'>
+      {/* <div className='rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden'>
         <button
           onClick={() => setVendorOpen((v) => !v)}
           className='w-full flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700/60 transition-colors'
@@ -353,7 +359,7 @@ function CombinedResult({ result }: { result: CombinedUpdateResult }) {
             <VendorResult result={result.vendor} />
           </div>
         )}
-      </div>
+      </div> */}
     </div>
   );
 }
@@ -522,6 +528,10 @@ export default function SheetsUpdater() {
   const [vendorResult, setVendorResult]   = useState<VendorUpdateResult | null>(null);
   const [vendorError, setVendorError]     = useState<string | null>(null);
 
+  const [comboRunning, setComboRunning] = useState(false);
+  const [comboResult, setComboResult]   = useState<AmazonComboResult | null>(null);
+  const [comboError, setComboError]     = useState<string | null>(null);
+
   const [savedUrls, setSavedUrls] = useState<Record<string, string>>({});
 
   const headers = { Authorization: `Bearer ${accessToken}` };
@@ -552,7 +562,6 @@ export default function SheetsUpdater() {
 
     const body: Record<string, string> = {};
     if (resolvedMasterUrl) body.master_sheet_id = resolvedMasterUrl;
-    if (resolvedVendorUrl)  body.vendor_sheet_id  = resolvedVendorUrl;
 
     try {
       const res = await axios.post(
@@ -623,7 +632,31 @@ export default function SheetsUpdater() {
     }
   };
 
-  const anyRunning = combinedRunning || masterRunning || vendorRunning;
+  // ── Amazon ComboProducts run ────────────────────────────────────────────────
+  const handleRunAmazonCombo = async () => {
+    setComboRunning(true);
+    setComboResult(null);
+    setComboError(null);
+    try {
+      const res = await axios.post(
+        `${API_URL}/sheets/update-amazon-combo-status`,
+        {},
+        { headers, timeout: 120_000 },
+      );
+      setComboResult(res.data);
+      toast.success(res.data.message);
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.detail ?? err.message)
+        : String(err);
+      setComboError(msg);
+      toast.error(`Update failed: ${msg}`);
+    } finally {
+      setComboRunning(false);
+    }
+  };
+
+  const anyRunning = combinedRunning || masterRunning || vendorRunning || comboRunning;
 
   return (
     <div className='space-y-6 p-4 sm:p-6 max-w-6xl'>
@@ -655,7 +688,7 @@ export default function SheetsUpdater() {
                   </span>
                 </div>
                 <p className='mt-0.5 text-sm text-zinc-500 dark:text-zinc-400'>
-                  Fetches Zoho stock and runs the master report once, then writes both workbooks in parallel — faster than running them separately.
+                  Fetches Zoho stock and runs the master report once, then writes all sheets in parallel — faster than running them separately.
                 </p>
               </div>
             </div>
@@ -675,12 +708,12 @@ export default function SheetsUpdater() {
             <SheetUrlEditor
               jobId='master-stock'
               defaultUrl={MASTER_SHEET_URL}
-              label='Masters Workbook → Master sheet'
+              label='Masters Workbook → Master + Amazon ComboProducts'
               savedUrl={savedUrls['master-stock'] ?? ''}
               onSave={handleSaveUrl}
             />
           </div>
-          <div>
+          {/* <div>
             <p className='text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1'>Product Costing Workbook</p>
             <SheetUrlEditor
               jobId='vendor-sheets'
@@ -689,10 +722,10 @@ export default function SheetsUpdater() {
               savedUrl={savedUrls['vendor-sheets'] ?? ''}
               onSave={handleSaveUrl}
             />
-          </div>
+          </div> */}
         </div>
 
-        {/* Columns written — two columns */}
+        {/* Columns written */}
         <div className='px-5 py-3 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800'>
           <div>
             <p className='text-xs font-medium text-zinc-400 dark:text-zinc-500 mb-1.5'>Masters writes</p>
@@ -709,6 +742,17 @@ export default function SheetsUpdater() {
             </div>
           </div>
           <div>
+            <p className='text-xs font-medium text-zinc-400 dark:text-zinc-500 mb-1.5'>Amazon ComboProducts writes</p>
+            <div className='flex flex-wrap gap-1.5'>
+              {[{ name: 'Status', source: 'products.purchase_status' }].map((col) => (
+                <div key={col.name} className='rounded-md bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2.5 py-1'>
+                  <span className='text-xs font-semibold text-zinc-700 dark:text-zinc-300'>{col.name}</span>
+                  <span className='text-xs text-zinc-400 ml-1.5'>← {col.source}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* <div>
             <p className='text-xs font-medium text-zinc-400 dark:text-zinc-500 mb-1.5'>Product Costing writes</p>
             <div className='flex flex-wrap gap-1.5'>
               {[
@@ -723,7 +767,7 @@ export default function SheetsUpdater() {
                 </div>
               ))}
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Combined result */}
@@ -794,7 +838,12 @@ export default function SheetsUpdater() {
           )}
         </div>
 
-        {/* Vendor / Product Costing card */}
+        {/* Vendor / Product Costing card — hidden for now */}
+        {/* <div className='rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden'>
+          ...Product Costing Workbook card...
+        </div> */}
+
+        {/* Amazon ComboProducts card */}
         <div className='rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden'>
           <div className='p-4 border-b border-zinc-100 dark:border-zinc-800'>
             <div className='flex flex-wrap items-start justify-between gap-2 sm:gap-3'>
@@ -802,45 +851,37 @@ export default function SheetsUpdater() {
                 <FileSpreadsheet className='mt-0.5 h-5 w-5 text-green-600 flex-shrink-0' />
                 <div>
                   <h3 className='font-semibold text-sm text-zinc-900 dark:text-zinc-100'>
-                    Product Costing Workbook
+                    Amazon ComboProducts
                   </h3>
                   <p className='mt-0.5 text-xs text-zinc-500 dark:text-zinc-400'>
-                    Last 3 months sales, days in stock, and Zoho stock for all brand tabs.
+                    Masters Workbook → "Amazon ComboProducts" sheet. Writes purchase status per SKU.
                   </p>
-                  <div className='mt-1.5'>
-                    <SheetUrlEditor
-                      jobId='vendor-sheets'
-                      defaultUrl={VENDOR_SHEET_URL}
-                      label='Product Costing → all brand tabs'
-                      savedUrl={savedUrls['vendor-sheets'] ?? ''}
-                      onSave={handleSaveUrl}
-                    />
-                  </div>
                 </div>
               </div>
-              <RunButton running={vendorRunning} onClick={handleRunVendor} />
+              <RunButton running={comboRunning} onClick={handleRunAmazonCombo} />
             </div>
           </div>
 
           <div className='px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800 flex flex-wrap gap-1.5'>
-            {[
-              { name: 'Total Sales (3 mo)', source: 'Report' },
-              { name: 'Days in Stock', source: 'Report' },
-              { name: 'Zoho Stock', source: 'Live API' },
-              { name: 'Avg Sales/day', source: '=formula' },
-            ].map((col) => (
+            {[{ name: 'Status', source: 'products.purchase_status' }].map((col) => (
               <div key={col.name} className='rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2 py-1'>
                 <span className='text-xs font-semibold text-zinc-700 dark:text-zinc-300'>{col.name}</span>
                 <span className='text-xs text-zinc-400 ml-1'>← {col.source}</span>
               </div>
             ))}
-            <span className='ml-auto text-xs text-zinc-400 self-center'>~2–3 min</span>
+            <span className='ml-auto text-xs text-zinc-400 self-center'>~15 sec</span>
           </div>
 
-          {(vendorResult || vendorError) && (
+          {(comboResult || comboError) && (
             <div className='p-4'>
-              {vendorError  && <ErrorBanner message={vendorError} />}
-              {vendorResult && <VendorResult result={vendorResult} />}
+              {comboError && <ErrorBanner message={comboError} />}
+              {comboResult && (
+                <div className='flex flex-wrap gap-3'>
+                  <StatCard label='Updated' value={comboResult.updated} color='green' />
+                  <StatCard label='Skipped (no product)' value={comboResult.skipped_no_product} color={comboResult.skipped_no_product > 0 ? 'amber' : 'zinc'} />
+                  <StatCard label='Products matched' value={comboResult.products_matched} color='blue' />
+                </div>
+              )}
             </div>
           )}
         </div>
