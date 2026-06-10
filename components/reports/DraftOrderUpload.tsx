@@ -149,7 +149,7 @@ export default function DraftOrderUpload() {
   const [showMissingModal, setShowMissingModal] = useState(false);
   const [availableVendors, setAvailableVendors] = useState<DetectedVendor[]>([]);
   const [creatingZohoItems, setCreatingZohoItems] = useState(false);
-  const [zohoItemResults, setZohoItemResults] = useState<{ created: any[]; failed: any[] } | null>(null);
+  const [zohoItemResults, setZohoItemResults] = useState<{ created: any[]; failed: any[]; masters_sheet?: { inserted: number; error?: string | null } } | null>(null);
   const [itemEdits, setItemEdits] = useState<ItemEdits>({});
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -1208,7 +1208,8 @@ export default function DraftOrderUpload() {
                 )}
                 {zohoItemResults?.failed.length === 0 && (
                   <span className="flex items-center gap-1.5 text-sm text-green-700 dark:text-green-400 font-medium px-4 py-2">
-                    <CheckCircle className="w-4 h-4" /> All items created
+                    <CheckCircle className="w-4 h-4" />
+                    All items created
                   </span>
                 )}
                 {zohoItemResults && zohoItemResults.failed.length > 0 && (
