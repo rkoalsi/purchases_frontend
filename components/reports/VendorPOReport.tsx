@@ -1426,7 +1426,9 @@ export default function VendorPOReport() {
       if (data.skipped_inactive?.length) toast.warn(`Skipped ${data.skipped_inactive.length} inactive item(s)`);
       setInactiveEstimateItems([]);
       setCreateEstimateOpen(false);
-      setEstimateDiff(null); // invalidate cached diff
+      setEstimateDiff(null);
+      setReportTab('estimate_diff');
+      fetchEstimateDiff(selectedPO);
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const detail = err.response?.data?.detail;
