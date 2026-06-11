@@ -109,8 +109,8 @@ function RateInput({
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ProductCostingGenerator() {
-  const { token } = useAuth();
-  const headers = { Authorization: `Bearer ${token}` };
+  const { accessToken } = useAuth();
+  const headers = { Authorization: `Bearer ${accessToken}` };
 
   const [tabState, setTabState] = useState<Record<string, TabState>>(buildInitialState);
   const [includeLive, setIncludeLive]   = useState(true);
