@@ -8,9 +8,8 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   FileSpreadsheet,
+  Upload,
 } from 'lucide-react';
 import { useAuth } from '@/components/context/AuthContext';
 
@@ -112,11 +111,21 @@ export default function ProductCostingGenerator() {
   const { accessToken } = useAuth();
   const headers = { Authorization: `Bearer ${accessToken}` };
 
+  // ── brand generator state ──────────────────────────────────────────────────
   const [tabState, setTabState] = useState<Record<string, TabState>>(buildInitialState);
   const [includeLive, setIncludeLive]   = useState(true);
   const [running, setRunning]           = useState(false);
   const [error, setError]               = useState<string | null>(null);
   const [succeeded, setSucceeded]       = useState(false);
+
+  // ── upload state ──────────────────────────────────────────────────────────
+  const [uploadTabLabel,  setUploadTabLabel]  = useState('');
+  const [uploadCurrency,  setUploadCurrency]  = useState('USD');
+  const [uploadRates,     setUploadRates]     = useState<ExchangeRates>({ bank: 96.0, customs: 92.0, freight: 92.0 });
+  const [uploadFile,      setUploadFile]      = useState<File | null>(null);
+  const [uploadRunning,   setUploadRunning]   = useState(false);
+  const [uploadError,     setUploadError]     = useState<string | null>(null);
+  const [uploadSucceeded, setUploadSucceeded] = useState(false);
 
   function toggleTab(id: string) {
     setTabState((prev) => ({
@@ -136,6 +145,76 @@ export default function ProductCostingGenerator() {
   }
 
   const selectedCount = PRESET_TABS.filter((t) => tabState[t.id]?.selected).length;
+
+  async function handleDownloadTemplate() {
+    try {
+      const res = await axios.get(`${API_URL}/product-costing/template`, {
+        headers,
+        responseType: 'blob',
+      });
+      const url  = URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href     = url;
+      link.download = 'product_costing_template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download template.');
+    }
+  }
+
+  async function handleUpload() {
+    if (!uploadFile) { toast.error('Select a file first.'); return; }
+    if (!uploadTabLabel.trim()) { toast.error('Enter a tab label.'); return; }
+
+    setUploadRunning(true);
+    setUploadError(null);
+    setUploadSucceeded(false);
+
+    const form = new FormData();
+    form.append('file', uploadFile);
+    form.append('tab_label', uploadTabLabel.trim());
+    form.append('currency_label', uploadCurrency);
+    form.append('bank_rate',    String(uploadRates.bank));
+    form.append('customs_rate', String(uploadRates.customs));
+    form.append('freight_rate', String(uploadRates.freight));
+
+    try {
+      const res = await axios.post(`${API_URL}/product-costing/upload`, form, {
+        headers: { ...headers, 'Content-Type': 'multipart/form-data' },
+        responseType: 'blob',
+        timeout: 60_000,
+      });
+      const url  = URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      const cd   = res.headers['content-disposition'] ?? '';
+      const match = cd.match(/filename="?([^"]+)"?/);
+      link.href     = url;
+      link.download = match ? match[1] : 'product_costing.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setUploadSucceeded(true);
+      toast.success('Costing sheet downloaded.');
+    } catch (err: unknown) {
+      let msg = 'Upload failed.';
+      if (axios.isAxiosError(err)) {
+        if (err.response?.data instanceof Blob) {
+          const text = await err.response.data.text();
+          try { msg = JSON.parse(text)?.detail ?? msg; } catch { msg = text || msg; }
+        } else {
+          msg = err.response?.data?.detail ?? err.message;
+        }
+      }
+      setUploadError(msg);
+      toast.error(msg);
+    } finally {
+      setUploadRunning(false);
+    }
+  }
 
   async function handleGenerate() {
     const selectedTabs = PRESET_TABS.filter((t) => tabState[t.id]?.selected);
@@ -357,14 +436,132 @@ export default function ProductCostingGenerator() {
         )}
       </div>
 
-      {/* Part 2 placeholder */}
-      <div className='mx-5 mb-5 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/30 px-4 py-3'>
-        <p className='text-xs font-medium text-zinc-500 dark:text-zinc-400'>
-          Template Upload <span className='ml-1 rounded bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px]'>Coming soon</span>
-        </p>
-        <p className='text-xs text-zinc-400 dark:text-zinc-500 mt-0.5'>
-          Upload per-SKU costing data (FOB prices, CBM, quantities) to pre-fill the generated sheet.
-        </p>
+      {/* ── Upload section ─────────────────────────────────────────────── */}
+      <div className='border-t border-zinc-100 dark:border-zinc-800'>
+        {/* Upload header */}
+        <div className='flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
+          <div className='flex items-center gap-3'>
+            <div className='flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-900/30'>
+              <Upload className='h-4 w-4 text-violet-600 dark:text-violet-400' />
+            </div>
+            <div>
+              <h3 className='text-sm font-semibold text-zinc-800 dark:text-zinc-100'>
+                Upload Vendor Price List
+              </h3>
+              <p className='text-xs text-zinc-500 dark:text-zinc-400 mt-0.5'>
+                Fill in the template with vendor prices and generate a full costing sheet.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleDownloadTemplate}
+            className='flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors'
+          >
+            <Download className='h-3.5 w-3.5' />
+            Template
+          </button>
+        </div>
+
+        {/* Upload form */}
+        <div className='px-5 py-4 space-y-4'>
+          {/* Tab label + currency */}
+          <div className='flex flex-wrap gap-4'>
+            <label className='flex flex-col gap-0.5 flex-1 min-w-[160px]'>
+              <span className='text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide'>
+                Tab label <span className='text-red-400'>*</span>
+              </span>
+              <input
+                type='text'
+                placeholder='e.g. PETSHY, Fedem'
+                value={uploadTabLabel}
+                onChange={(e) => setUploadTabLabel(e.target.value)}
+                className='rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-violet-500'
+              />
+            </label>
+            <label className='flex flex-col gap-0.5'>
+              <span className='text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide'>
+                Currency
+              </span>
+              <select
+                value={uploadCurrency}
+                onChange={(e) => setUploadCurrency(e.target.value)}
+                className='rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-violet-500'
+              >
+                <option value='USD'>USD</option>
+                <option value='RMB'>RMB</option>
+              </select>
+            </label>
+          </div>
+
+          {/* Exchange rates */}
+          <div className='flex flex-wrap items-end gap-4'>
+            <span className='text-[11px] font-medium text-zinc-500 dark:text-zinc-400 self-end pb-1'>
+              Exchange rates:
+            </span>
+            <RateInput label='Bank rate'    value={uploadRates.bank}    onChange={(v) => setUploadRates((r) => ({ ...r, bank: v }))} />
+            <RateInput label='Customs rate' value={uploadRates.customs} onChange={(v) => setUploadRates((r) => ({ ...r, customs: v }))} />
+            <RateInput label='Freight rate' value={uploadRates.freight} onChange={(v) => setUploadRates((r) => ({ ...r, freight: v }))} />
+          </div>
+
+          {/* File picker */}
+          <div>
+            <span className='block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5'>
+              Price list file <span className='text-red-400'>*</span>
+            </span>
+            <label className='flex items-center gap-3 cursor-pointer rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-3 hover:border-violet-400 dark:hover:border-violet-600 transition-colors'>
+              <FileSpreadsheet className='h-5 w-5 text-zinc-400 dark:text-zinc-500 flex-shrink-0' />
+              <span className='text-xs text-zinc-500 dark:text-zinc-400 truncate'>
+                {uploadFile ? uploadFile.name : 'Click to choose .xlsx file'}
+              </span>
+              <input
+                type='file'
+                accept='.xlsx,.xls'
+                className='hidden'
+                onChange={(e) => {
+                  setUploadFile(e.target.files?.[0] ?? null);
+                  setUploadSucceeded(false);
+                  setUploadError(null);
+                }}
+              />
+            </label>
+          </div>
+
+          {/* Submit */}
+          <button
+            onClick={handleUpload}
+            disabled={uploadRunning || !uploadFile || !uploadTabLabel.trim()}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+              uploadRunning || !uploadFile || !uploadTabLabel.trim()
+                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
+                : 'bg-violet-600 hover:bg-violet-700 text-white shadow-sm'
+            }`}
+          >
+            {uploadRunning ? (
+              <>
+                <RefreshCw className='h-4 w-4 animate-spin' />
+                Generating…
+              </>
+            ) : (
+              <>
+                <Download className='h-4 w-4' />
+                Generate & Download
+              </>
+            )}
+          </button>
+
+          {uploadSucceeded && !uploadRunning && (
+            <div className='flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm'>
+              <CheckCircle2 className='h-4 w-4' />
+              File downloaded successfully.
+            </div>
+          )}
+          {uploadError && (
+            <div className='flex items-center gap-2 text-red-600 dark:text-red-400 text-sm'>
+              <AlertTriangle className='h-4 w-4 flex-shrink-0' />
+              {uploadError}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
