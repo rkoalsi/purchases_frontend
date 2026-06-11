@@ -482,7 +482,7 @@ Yellow / Orange rows (lookback):
                             <ColRow name="Movement" desc="Fast / Slow / Very Slow / No Movement — velocity classification based on DRR thresholds" />
                             <ColRow name="Safety Days" desc="Buffer days of stock to hold as safety (from product master)" />
                             <ColRow name="Lead Time" desc="Days from order to warehouse receipt (from product master)" />
-                            <ColRow name="Order Processing" desc="Internal processing time before an order can be placed (default 10 days)" />
+                            <ColRow name="Order Processing" desc="Internal processing time before an order can be placed (per-brand from Brand Logistics, default 10 days)" />
                             <ColRow name="Target Days" desc="Total coverage to target before reordering" formula="= Lead Time + Safety Days + Order Processing" />
                             <ColRow name="On-Hand Days Coverage" desc="How many days the current on-hand stock alone lasts" formula="= Total Stock (latest) ÷ DRR" />
                             <ColRow name="Stock in Transit 1 / 2 / 3" desc="Open PO line quantities, sorted by PO date ascending (Transit 1 = earliest open PO)" />
