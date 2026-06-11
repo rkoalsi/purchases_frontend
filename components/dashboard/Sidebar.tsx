@@ -89,6 +89,7 @@ const PERMISSION_REQUIREMENTS = {
   INVENTORY_AGING: { name: 'reports_inventory_aging' },
   BB_CODE_GENERATOR: { name: 'tools_bb_code_generator' },
   SHEETS_UPDATER: { name: 'tools_sheets_updater' },
+  PRODUCT_COSTING: { name: 'tools_product_costing' },
   VENDOR_BRAND_MAPPING: { name: 'vendors_brand_mapping' },
   DRAFT_ORDERS: { name: 'vendors_draft_orders' },
   BRAND_ORDERS: { anyOf: ['vendors_brand_orders_view', 'vendors_brand_orders_edit'] },
@@ -382,6 +383,12 @@ const navigation = [
       },
       {
         name: 'Product Costing',
+        href: '/tools/product-costing',
+        icon: FileText,
+        requiredPermission: PERMISSION_REQUIREMENTS.PRODUCT_COSTING,
+      },
+      {
+        name: 'Sheet Updater',
         href: '/tools/sheets_updater',
         icon: FileText,
         requiredPermission: PERMISSION_REQUIREMENTS.SHEETS_UPDATER,
