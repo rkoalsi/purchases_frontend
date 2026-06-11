@@ -454,7 +454,10 @@ function AssigneeView({ tasks, users, onTaskClick }: { tasks: Task[]; users: App
                     <div className='flex items-center gap-2 flex-shrink-0'>
                       <PriorityBadge priority={task.priority} />
                       <StatusBadge status={task.status} />
-                      {task.deadline && <span className={`text-xs font-medium ${overdue ? 'text-red-500' : 'text-zinc-400'}`}>{fmtDate(task.deadline)}</span>}
+                      {task.is_daily
+                        ? <span className='flex items-center gap-0.5 text-xs font-medium text-violet-500'><RefreshCw className='w-3 h-3' />Daily</span>
+                        : task.deadline && <span className={`text-xs font-medium ${overdue ? 'text-red-500' : 'text-zinc-400'}`}>{fmtDate(task.deadline)}</span>
+                      }
                       {task.comments.length > 0 && <span className='flex items-center gap-0.5 text-xs text-zinc-400'><MessageSquare className='w-3 h-3' />{task.comments.length}</span>}
                     </div>
                   </div>
@@ -607,7 +610,11 @@ function DepartmentView({ tasks, onTaskClick }: { tasks: Task[]; onTaskClick: (t
                                 {task.attachments.length > 0 && (
                                   <span className='flex items-center gap-0.5 text-[10px] text-zinc-400'><Paperclip className='w-3 h-3' />{task.attachments.length}</span>
                                 )}
-                                {task.deadline && (
+                                {task.is_daily ? (
+                                  <span className='flex items-center gap-0.5 text-[10px] font-medium text-violet-500'>
+                                    <RefreshCw className='w-3 h-3' />Daily
+                                  </span>
+                                ) : task.deadline && (
                                   <span className={`flex items-center gap-0.5 text-[10px] font-medium ${overdue ? 'text-red-500' : 'text-zinc-400'}`}>
                                     <Calendar className='w-3 h-3' />
                                     <span className='text-zinc-400 dark:text-zinc-500 mr-0.5'>Deadline:</span>{fmtDate(task.deadline)}
@@ -1407,22 +1414,31 @@ function TaskDrawer({ task: init, allUsers, currentUser, accessToken, onClose, o
                     </button>
                   </div>
                   {editingDeadline ? (
-                    <div className='flex items-center gap-2'>
+                    <div className='flex items-center gap-2 flex-wrap'>
                       <input type='date' defaultValue={task.deadline ? task.deadline.slice(0, 10) : ''}
                         autoFocus
                         onChange={async (e) => {
-                          try {
-                            await patch({ deadline: e.target.value || null });
-                          } catch { toast.error('Failed to update deadline'); }
+                          try { await patch({ deadline: e.target.value || null, is_daily: false }); }
+                          catch { toast.error('Failed to update deadline'); }
                         }}
                         className='px-3 py-1.5 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500' />
-                      {task.deadline && (
+                      <button onClick={async () => {
+                        try { await patch({ is_daily: true }); setEditingDeadline(false); }
+                        catch { toast.error('Failed to update'); }
+                      }} className={`flex items-center gap-1 px-2 py-1.5 text-[10px] font-semibold rounded-lg border transition-all ${task.is_daily ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 border-violet-300 dark:border-violet-700' : 'border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:border-zinc-300'}`}>
+                        <RefreshCw className='w-3 h-3' />Daily
+                      </button>
+                      {(task.deadline || task.is_daily) && (
                         <button onClick={async () => {
-                          try { await patch({ deadline: null }); }
+                          try { await patch({ deadline: null, is_daily: false }); }
                           catch { toast.error('Failed to clear deadline'); }
                         }} className='text-[10px] text-red-400 hover:text-red-600 font-semibold'>Clear</button>
                       )}
                     </div>
+                  ) : task.is_daily ? (
+                    <span className='inline-flex items-center gap-1.5 text-sm font-semibold text-violet-600 dark:text-violet-400'>
+                      <RefreshCw className='w-3.5 h-3.5' />Daily task
+                    </span>
                   ) : task.deadline ? (
                     <span className={`inline-flex items-center gap-1.5 text-sm font-semibold ${overdue ? 'text-red-500' : 'text-zinc-800 dark:text-zinc-100'}`}>
                       <Calendar className='w-3.5 h-3.5' />{fmtDate(task.deadline)}{overdue && <span className='text-xs text-red-500 ml-1'>(Overdue)</span>}
