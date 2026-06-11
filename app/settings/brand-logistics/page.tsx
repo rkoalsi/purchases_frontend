@@ -11,6 +11,7 @@ interface BrandLogistics {
     safety_days_fast: number;
     safety_days_medium: number;
     safety_days_slow: number;
+    order_processing: number;
 }
 
 function BrandLogisticsPage() {
@@ -29,6 +30,7 @@ function BrandLogisticsPage() {
         safety_days_fast: 40,
         safety_days_medium: 25,
         safety_days_slow: 15,
+        order_processing: 10,
     });
     const [showAddForm, setShowAddForm] = useState(false);
 
@@ -49,7 +51,11 @@ function BrandLogisticsPage() {
             const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/master/brand-logistics`, {
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
-            setBrands(response.data.data || []);
+            // Older docs predate the order_processing field — default to 10
+            setBrands((response.data.data || []).map((b: BrandLogistics) => ({
+                ...b,
+                order_processing: b.order_processing ?? 10,
+            })));
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to fetch brand logistics');
         } finally {
@@ -75,6 +81,7 @@ function BrandLogisticsPage() {
                     safety_days_fast: brand.safety_days_fast,
                     safety_days_medium: brand.safety_days_medium,
                     safety_days_slow: brand.safety_days_slow,
+                    order_processing: brand.order_processing,
                 },
                 headers: { Authorization: `Bearer ${accessToken}` },
             });
@@ -82,7 +89,7 @@ function BrandLogisticsPage() {
             setTimeout(() => setSuccess(null), 3000);
             await fetchBrands();
             setShowAddForm(false);
-            setNewBrand({ brand: '', lead_time: 60, safety_days_fast: 40, safety_days_medium: 25, safety_days_slow: 15 });
+            setNewBrand({ brand: '', lead_time: 60, safety_days_fast: 40, safety_days_medium: 25, safety_days_slow: 15, order_processing: 10 });
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to save brand logistics');
         } finally {
@@ -177,7 +184,7 @@ function BrandLogisticsPage() {
                 {showAddForm && (
                     <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-6 dark:bg-zinc-900 dark:border-zinc-800'>
                         <h3 className='text-lg font-medium text-gray-900 mb-4 dark:text-zinc-100'>Add New Brand</h3>
-                        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4'>
+                        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4'>
                             <div>
                                 <label className='block text-sm font-medium text-gray-700 mb-1 dark:text-zinc-400'>Brand Name</label>
                                 <select
@@ -230,6 +237,15 @@ function BrandLogisticsPage() {
                                     className='w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-blue-500 focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100'
                                 />
                             </div>
+                            <div>
+                                <label className='block text-sm font-medium text-gray-700 mb-1 dark:text-zinc-400'>Order Processing (days)</label>
+                                <input
+                                    type='number'
+                                    value={newBrand.order_processing}
+                                    onChange={(e) => setNewBrand({ ...newBrand, order_processing: parseFloat(e.target.value) || 0 })}
+                                    className='w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-blue-500 focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100'
+                                />
+                            </div>
                         </div>
                         <div className='mt-4 flex gap-2'>
                             <button
@@ -277,6 +293,7 @@ function BrandLogisticsPage() {
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-zinc-400'>Safety Days (Fast)</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-zinc-400'>Safety Days (Medium)</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-zinc-400'>Safety Days (Slow)</th>
+                                        <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-zinc-400'>Order Processing (days)</th>
                                         <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-zinc-400'>Actions</th>
                                     </tr>
                                 </thead>
@@ -319,6 +336,14 @@ function BrandLogisticsPage() {
                                                 />
                                             </td>
                                             <td className='px-6 py-4'>
+                                                <input
+                                                    type='number'
+                                                    value={brand.order_processing}
+                                                    onChange={(e) => handleInlineEdit(index, 'order_processing', e.target.value)}
+                                                    className='w-20 px-2 py-1 border border-gray-300 rounded text-sm text-black focus:ring-blue-500 focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100'
+                                                />
+                                            </td>
+                                            <td className='px-6 py-4'>
                                                 <div className='flex gap-2'>
                                                     <button
                                                         onClick={() => handleSaveBrand(brand)}
@@ -352,7 +377,7 @@ function BrandLogisticsPage() {
                         <li><span className='font-medium'>Fast Mover (Class 1):</span> Top 20% by volume OR revenue percentile. Uses "Safety Days (Fast)".</li>
                         <li><span className='font-medium'>Medium Mover (Class 2):</span> Top 50% by volume OR revenue percentile. Uses "Safety Days (Medium)".</li>
                         <li><span className='font-medium'>Slow Mover (Class 3):</span> Bottom 50%. Uses "Safety Days (Slow)".</li>
-                        <li><span className='font-medium'>Target Days = Lead Time + Safety Days + 10 (Review Days)</span></li>
+                        <li><span className='font-medium'>Target Days = Lead Time + Safety Days + Order Processing (default 10 days)</span></li>
                     </ul>
                 </div>
             </div>
