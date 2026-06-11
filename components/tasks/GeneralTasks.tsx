@@ -35,7 +35,7 @@ interface Task {
   status: 'todo' | 'in_progress' | 'review' | 'done';
   assigned_to: string[]; assigned_to_names: string[];
   assigned_to_departments: string[];
-  deadline?: string; tags: string[];
+  deadline?: string; is_daily?: boolean; tags: string[];
   created_by: string; created_by_name: string;
   creator_department?: string;
   is_hidden?: boolean;
@@ -267,7 +267,12 @@ function TaskCard({ task, onClick }: { task: Task; onClick: () => void }) {
         <div className='flex items-center gap-2.5 text-xs text-zinc-400'>
           {task.comments.length > 0 && <span className='flex items-center gap-0.5'><MessageSquare className='w-3 h-3' />{task.comments.length}</span>}
           {task.attachments.length > 0 && <span className='flex items-center gap-0.5'><Paperclip className='w-3 h-3' />{task.attachments.length}</span>}
-          {task.deadline && (
+          {task.is_daily && (
+            <span className='flex items-center gap-0.5 text-[10px] font-medium text-violet-500'>
+              <RefreshCw className='w-3 h-3' />Daily
+            </span>
+          )}
+          {!task.is_daily && task.deadline && (
             <span className={`flex items-center gap-0.5 text-[10px] font-medium ${overdue ? 'text-red-500' : 'text-zinc-400'}`}>
               <Calendar className='w-3 h-3' />{fmtDate(task.deadline)}
             </span>
@@ -352,7 +357,12 @@ function ListRow({ task, onClick }: { task: Task; onClick: () => void }) {
           </div>
         ) : <span className='text-xs text-zinc-300 dark:text-zinc-600 italic'>Unassigned</span>}
       </td>
-      <td className='px-4 py-3'><span className={`text-xs font-medium ${overdue ? 'text-red-500' : 'text-zinc-500 dark:text-zinc-400'}`}>{fmtDate(task.deadline) ?? '—'}</span></td>
+      <td className='px-4 py-3'>
+        {task.is_daily
+          ? <span className='flex items-center gap-1 text-xs font-medium text-violet-500'><RefreshCw className='w-3 h-3' />Daily</span>
+          : <span className={`text-xs font-medium ${overdue ? 'text-red-500' : 'text-zinc-500 dark:text-zinc-400'}`}>{fmtDate(task.deadline) ?? '—'}</span>
+        }
+      </td>
       <td className='px-4 py-3'><span className='text-xs text-zinc-400'>{fmtRelative(task.updated_at)}</span></td>
       <td className='px-4 py-3'>
         <div className='flex items-center gap-2 text-xs text-zinc-400'>
@@ -906,6 +916,7 @@ function TaskModal({ initial, allUsers, currentUser, onClose, onSave }: {
   const [assignedNames, setAssignedNames] = useState<string[]>(initial?.assigned_to_names ?? []);
   const [assignedDepts, setAssignedDepts] = useState<string[]>(initial?.assigned_to_departments ?? []);
   const [deadline, setDeadline]       = useState(initial?.deadline ? initial.deadline.slice(0, 10) : '');
+  const [isDaily, setIsDaily]         = useState(initial?.is_daily ?? false);
   const [tags, setTags]               = useState(initial?.tags?.join(', ') ?? '');
   const [saving, setSaving]           = useState(false);
 
@@ -930,7 +941,8 @@ function TaskModal({ initial, allUsers, currentUser, onClose, onSave }: {
         title: title.trim(), description, priority, status: taskStatus,
         assigned_to: assignedTo, assigned_to_names: assignedNames,
         assigned_to_departments: assignedDepts,
-        deadline: deadline || null,
+        deadline: isDaily ? null : (deadline || null),
+        is_daily: isDaily,
         tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
         creator_department: currentUser?.department ?? null,
       });
@@ -988,9 +1000,24 @@ function TaskModal({ initial, allUsers, currentUser, onClose, onSave }: {
             </div>
           </div>
           <div>
-            <label className='block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1'>Deadline</label>
-            <input type='date' value={deadline} onChange={(e) => setDeadline(e.target.value)}
-              className='w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500' />
+            <div className='flex items-center justify-between mb-1'>
+              <label className='text-xs font-semibold text-zinc-500 dark:text-zinc-400'>Deadline</label>
+              <button type='button' onClick={() => { setIsDaily((v) => !v); setDeadline(''); }}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                  isDaily ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 border-violet-300 dark:border-violet-700'
+                          : 'border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-600'
+                }`}>
+                <RefreshCw className='w-3 h-3' /> Daily task
+              </button>
+            </div>
+            {isDaily ? (
+              <p className='px-3 py-2 text-xs text-zinc-400 dark:text-zinc-500 italic rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700'>
+                No deadline — this task repeats daily
+              </p>
+            ) : (
+              <input type='date' value={deadline} onChange={(e) => setDeadline(e.target.value)}
+                className='w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500' />
+            )}
           </div>
           <div>
             <label className='block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1.5'>Assign to</label>
@@ -1752,6 +1779,7 @@ export default function GeneralTasks() {
   const [filterDept, setFilterDept]         = useState('');
   const [activeStatus, setActiveStatus]     = useState('');
   const [showHidden, setShowHidden]         = useState(false);
+  const [deptScope, setDeptScope]           = useState(false); // false = my tasks, true = department tasks
   const [search, setSearch]                 = useState('');
   const [sortBy, setSortBy]                 = useState<SortField>('created_at');
   const [sortDir, setSortDir]               = useState<SortDir>('desc');
@@ -1770,6 +1798,7 @@ export default function GeneralTasks() {
         sort_by: sortBy, sort_dir: sortDir,
         viewer_id: currentUser._id,
         viewer_role: currentUser.role,
+        ...(deptScope && currentUser.department ? { viewer_department: currentUser.department } : {}),
       };
       if (activeStatus)    params.status      = activeStatus;
       if (filterPriority)  params.priority    = filterPriority;
@@ -1780,7 +1809,7 @@ export default function GeneralTasks() {
       const { data } = await axios.get(`${API}/tasks`, { headers, params });
       setTasks(data);
     } catch { toast.error('Failed to load tasks'); }
-  }, [accessToken, activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir, showHidden]);
+  }, [accessToken, activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir, showHidden, deptScope]);
 
   const fetchUsers = useCallback(async () => {
     if (!accessToken) return;
@@ -1822,7 +1851,7 @@ export default function GeneralTasks() {
     }
   }, [loading]);
 
-  useEffect(() => { fetchTasks(); }, [activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir, showHidden]);
+  useEffect(() => { fetchTasks(); }, [activeStatus, filterPriority, filterAssignee, filterDept, search, sortBy, sortDir, showHidden, deptScope]);
 
   const handleCreate = async (data: any) => {
     try {
@@ -1878,10 +1907,22 @@ export default function GeneralTasks() {
         <div>
           <h1 className='text-xl font-black text-zinc-900 dark:text-zinc-100'>Tasks</h1>
           <p className='text-xs text-zinc-400 mt-0.5'>
-            {isAdminOrManager ? `All tasks · ${tasks.length} shown` : `Your tasks · ${tasks.length} shown`}
+            {isAdminOrManager ? `All tasks · ${tasks.length} shown` : `${deptScope ? "Department" : "My"} tasks · ${tasks.length} shown`}
           </p>
         </div>
         <div className='flex items-center gap-2'>
+          {!isAdminOrManager && currentUser?.department && (
+            <div className='flex items-center rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden text-xs font-semibold'>
+              <button onClick={() => setDeptScope(false)}
+                className={`px-3 py-2 transition-colors ${!deptScope ? 'bg-blue-600 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}>
+                My Tasks
+              </button>
+              <button onClick={() => setDeptScope(true)}
+                className={`px-3 py-2 transition-colors ${deptScope ? 'bg-blue-600 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}>
+                Department
+              </button>
+            </div>
+          )}
           <button onClick={() => { fetchTasks(); if (isAdminOrManager) fetchStats(); }}
             className='p-2 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors'>
             <RefreshCw className='w-4 h-4' />
