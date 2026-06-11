@@ -1722,11 +1722,14 @@ export default function ZohoItemsPage() {
                                 ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
                                 : p.purchase_status === 'discontinued until stock lasts'
                                 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
+                                : p.purchase_status === 'active - combo'
+                                ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400'
                                 : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500'
                             } disabled:opacity-60 disabled:cursor-not-allowed`}
                           >
                             <option value=''>— not set —</option>
                             <option value='active'>Active</option>
+                            <option value='active - combo'>Active - Combo</option>
                             <option value='inactive'>Inactive</option>
                             <option value='discontinued until stock lasts'>Discontinued until stock lasts</option>
                           </select>
