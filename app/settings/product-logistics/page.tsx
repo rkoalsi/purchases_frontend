@@ -20,7 +20,7 @@ interface ProductLogistics {
     stock_in_transit_3: number;
 }
 
-const STATUS_OPTIONS = ['active', 'inactive', 'discontinued until stock lasts'] as const;
+const STATUS_OPTIONS = ['active', 'active - combo', 'inactive', 'discontinued until stock lasts'] as const;
 
 const CURRENCY_OPTIONS = ['USD', 'CNY', 'EUR', 'GBP', 'INR', 'AED', 'SGD'] as const;
 
