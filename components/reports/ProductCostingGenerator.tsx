@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import {
@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   FileSpreadsheet,
   Upload,
+  ChevronDown,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/components/context/AuthContext';
 
@@ -119,13 +121,174 @@ function RateInput({
   );
 }
 
+// ── Existing Brands sub-component ────────────────────────────────────────────
+
+function ExistingBrandsTab({
+  allTabs, tabState, toggleTab, updateRate,
+  includeLive, setIncludeLive,
+  running, selectedCount, handleGenerate, succeeded, error,
+}: {
+  allTabs: PresetTab[];
+  tabState: Record<string, TabState>;
+  toggleTab: (id: string) => void;
+  updateRate: (id: string, key: keyof ExchangeRates, val: number) => void;
+  includeLive: boolean;
+  setIncludeLive: React.Dispatch<React.SetStateAction<boolean>>;
+  running: boolean;
+  selectedCount: number;
+  handleGenerate: () => void;
+  succeeded: boolean;
+  error: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selectedTabs = allTabs.filter((t) => tabState[t.id]?.selected);
+
+  return (
+    <>
+      <div className='px-5 py-4 space-y-4 border-b border-zinc-100 dark:border-zinc-800'>
+        {/* Multi-select dropdown */}
+        <div>
+          <p className='text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide mb-2'>
+            Select brands
+          </p>
+          <div ref={ref} className='rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden'>
+            {/* Trigger */}
+            <button
+              type='button'
+              onClick={() => setOpen((v) => !v)}
+              className='w-full flex items-center gap-2 bg-white dark:bg-zinc-900 px-3 py-2 text-left text-sm focus:outline-none'
+            >
+              {selectedTabs.length === 0 ? (
+                <span className='text-zinc-400 dark:text-zinc-500 flex-1'>Choose brands…</span>
+              ) : (
+                <span className='flex-1 flex flex-wrap gap-1.5'>
+                  {selectedTabs.map((t) => (
+                    <span
+                      key={t.id}
+                      className='inline-flex items-center gap-1 rounded-md bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs font-medium px-2 py-0.5'
+                    >
+                      {t.label}
+                      <button
+                        type='button'
+                        onMouseDown={(e) => { e.stopPropagation(); toggleTab(t.id); }}
+                        className='hover:text-emerald-600'
+                      >
+                        <X className='h-3 w-3' />
+                      </button>
+                    </span>
+                  ))}
+                </span>
+              )}
+              <ChevronDown className={`h-4 w-4 flex-shrink-0 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Inline checklist */}
+            {open && (
+              <div className='border-t border-zinc-200 dark:border-zinc-700'>
+                {allTabs.map((preset) => {
+                  const selected = tabState[preset.id]?.selected;
+                  return (
+                    <button
+                      key={preset.id}
+                      type='button'
+                      onClick={() => toggleTab(preset.id)}
+                      className='w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-0'
+                    >
+                      <div className={`h-4 w-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors ${
+                        selected ? 'border-emerald-500 bg-emerald-500' : 'border-zinc-300 dark:border-zinc-600'
+                      }`}>
+                        {selected && (
+                          <svg className='h-2.5 w-2.5 text-white' viewBox='0 0 10 10' fill='currentColor'>
+                            <path d='M1.5 5l2.5 2.5 4.5-4.5' stroke='currentColor' strokeWidth='2' fill='none' strokeLinecap='round' strokeLinejoin='round' />
+                          </svg>
+                        )}
+                      </div>
+                      <span className='flex-1 text-left text-zinc-800 dark:text-zinc-200'>{preset.label}</span>
+                      <span className='text-[10px] font-semibold text-zinc-400 dark:text-zinc-500'>{preset.currency}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Exchange rates per selected brand */}
+        {selectedTabs.length > 0 && (
+          <div className='space-y-2'>
+            {selectedTabs.map((preset) => {
+              const state = tabState[preset.id];
+              return (
+                <div key={preset.id} className='rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2.5'>
+                  <p className='text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2'>{preset.label}</p>
+                  <div className='flex flex-wrap gap-3'>
+                    <RateInput label='Bank rate'    value={state.exchangeRates.bank}    onChange={(v) => updateRate(preset.id, 'bank', v)} />
+                    <RateInput label='Customs rate' value={state.exchangeRates.customs} onChange={(v) => updateRate(preset.id, 'customs', v)} />
+                    <RateInput label='Freight rate' value={state.exchangeRates.freight} onChange={(v) => updateRate(preset.id, 'freight', v)} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Include live toggle */}
+        <label className='flex items-center gap-3 cursor-pointer'>
+          <div
+            onClick={() => setIncludeLive((v) => !v)}
+            className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${includeLive ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'}`}
+          >
+            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${includeLive ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
+          <div>
+            <p className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>Include live data</p>
+            <p className='text-xs text-zinc-500 dark:text-zinc-400'>Appends Zoho stock + 3-month sales columns. Adds ~30s to generation time.</p>
+          </div>
+        </label>
+      </div>
+
+      {/* Generate button */}
+      <div className='px-5 py-4'>
+        <button
+          onClick={handleGenerate}
+          disabled={running || selectedCount === 0}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+            running || selectedCount === 0
+              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+          }`}
+        >
+          {running ? (
+            <><RefreshCw className='h-4 w-4 animate-spin' />Generating{includeLive ? ' (fetching live data…)' : '…'}</>
+          ) : (
+            <><Download className='h-4 w-4' />{selectedCount === 0 ? 'Select brands above' : `Generate & Download (${selectedCount} tab${selectedCount > 1 ? 's' : ''})`}</>
+          )}
+        </button>
+        {succeeded && !running && (
+          <div className='mt-3 flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm'>
+            <CheckCircle2 className='h-4 w-4' />File downloaded successfully.
+          </div>
+        )}
+        {error && (
+          <div className='mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm'>
+            <AlertTriangle className='h-4 w-4 flex-shrink-0' />{error}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ProductCostingGenerator() {
   const { accessToken } = useAuth();
   const headers = { Authorization: `Bearer ${accessToken}` };
 
-  // ── brand generator state ──────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'existing' | 'new'>('existing');
+
+  // ── existing brands state ─────────────────────────────────────────────────
   const [allTabs, setAllTabs]           = useState<PresetTab[]>(PRESET_TABS);
   const [tabState, setTabState]         = useState<Record<string, TabState>>(() => buildInitialState(PRESET_TABS));
   const [includeLive, setIncludeLive]   = useState(true);
@@ -157,7 +320,7 @@ export default function ProductCostingGenerator() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
-  // ── upload state ──────────────────────────────────────────────────────────
+  // ── new brand upload state ────────────────────────────────────────────────
   const [uploadTabLabel,  setUploadTabLabel]  = useState('');
   const [uploadCurrency,  setUploadCurrency]  = useState('USD');
   const [uploadRates,     setUploadRates]     = useState<ExchangeRates>({ bank: 96.0, customs: 92.0, freight: 92.0 });
@@ -316,292 +479,161 @@ export default function ProductCostingGenerator() {
 
   return (
     <div className='rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden'>
-      {/* Header */}
-      <div className='flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
-        <div className='flex items-center gap-3'>
-          <div className='flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30'>
-            <FileSpreadsheet className='h-4 w-4 text-emerald-600 dark:text-emerald-400' />
-          </div>
-          <div>
-            <h3 className='text-sm font-semibold text-zinc-800 dark:text-zinc-100'>
-              Product Costing Sheet Generator
-            </h3>
-            <p className='text-xs text-zinc-500 dark:text-zinc-400 mt-0.5'>
-              Generate a costing workbook with one tab per brand, pre-filled from the products
-              database with formulas matching the vendor costing sheets.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Brand selection */}
-      <div className='px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
-        <p className='text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide mb-3'>
-          Select brands
-        </p>
-
-        <div className='space-y-2'>
-          {allTabs.map((preset) => {
-            const state    = tabState[preset.id];
-            const selected = state.selected;
-            return (
-              <div
-                key={preset.id}
-                className={`rounded-lg border transition-colors ${
-                  selected
-                    ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-900/10'
-                    : 'border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50'
-                }`}
-              >
-                {/* Brand row */}
-                <button
-                  type='button'
-                  onClick={() => toggleTab(preset.id)}
-                  className='w-full flex items-center gap-3 px-4 py-3 text-left'
-                >
-                  <div
-                    className={`h-4 w-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors ${
-                      selected
-                        ? 'border-emerald-500 bg-emerald-500'
-                        : 'border-zinc-300 dark:border-zinc-600'
-                    }`}
-                  >
-                    {selected && (
-                      <svg className='h-2.5 w-2.5 text-white' viewBox='0 0 10 10' fill='currentColor'>
-                        <path d='M1.5 5l2.5 2.5 4.5-4.5' stroke='currentColor' strokeWidth='2' fill='none' strokeLinecap='round' strokeLinejoin='round' />
-                      </svg>
-                    )}
-                  </div>
-                  <span className='text-sm font-medium text-zinc-800 dark:text-zinc-200'>
-                    {preset.label}
-                  </span>
-                  <span className='ml-auto rounded-full bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 dark:text-zinc-300'>
-                    {preset.currency}
-                  </span>
-                </button>
-
-                {/* Exchange rate inputs (only when selected) */}
-                {selected && (
-                  <div className='flex flex-wrap items-end gap-4 px-4 pb-3 pt-0 border-t border-emerald-100 dark:border-emerald-800/50'>
-                    <span className='text-[11px] font-medium text-zinc-500 dark:text-zinc-400 self-end pb-1 mr-1'>
-                      Exchange rates:
-                    </span>
-                    <RateInput
-                      label='Bank rate'
-                      value={state.exchangeRates.bank}
-                      onChange={(v) => updateRate(preset.id, 'bank', v)}
-                    />
-                    <RateInput
-                      label='Customs rate'
-                      value={state.exchangeRates.customs}
-                      onChange={(v) => updateRate(preset.id, 'customs', v)}
-                    />
-                    <RateInput
-                      label='Freight rate'
-                      value={state.exchangeRates.freight}
-                      onChange={(v) => updateRate(preset.id, 'freight', v)}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Options */}
-      <div className='px-5 py-3 border-b border-zinc-100 dark:border-zinc-800'>
-        <label className='flex items-center gap-3 cursor-pointer'>
-          <div
-            onClick={() => setIncludeLive((v) => !v)}
-            className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
-              includeLive ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                includeLive ? 'translate-x-4' : 'translate-x-0.5'
-              }`}
-            />
-          </div>
-          <div>
-            <p className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>
-              Include live data
-            </p>
-            <p className='text-xs text-zinc-500 dark:text-zinc-400'>
-              Appends Zoho stock + 3-month sales columns. Adds ~30s to generation time.
-            </p>
-          </div>
-        </label>
-      </div>
-
-      {/* Footer — generate button */}
-      <div className='px-5 py-4'>
+      {/* Tab bar */}
+      <div className='flex border-b border-zinc-200 dark:border-zinc-800'>
         <button
-          onClick={handleGenerate}
-          disabled={running || selectedCount === 0}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-            running || selectedCount === 0
-              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+          onClick={() => setActiveTab('existing')}
+          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'existing'
+              ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/10'
+              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
           }`}
         >
-          {running ? (
-            <>
-              <RefreshCw className='h-4 w-4 animate-spin' />
-              Generating{includeLive ? ' (fetching live data…)' : '…'}
-            </>
-          ) : (
-            <>
-              <Download className='h-4 w-4' />
-              {selectedCount === 0
-                ? 'Select brands above'
-                : `Generate & Download (${selectedCount} tab${selectedCount > 1 ? 's' : ''})`}
-            </>
-          )}
+          <FileSpreadsheet className='h-4 w-4' />
+          Existing Brands
         </button>
-
-        {succeeded && !running && (
-          <div className='mt-3 flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm'>
-            <CheckCircle2 className='h-4 w-4' />
-            File downloaded successfully.
-          </div>
-        )}
-        {error && (
-          <div className='mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm'>
-            <AlertTriangle className='h-4 w-4 flex-shrink-0' />
-            {error}
-          </div>
-        )}
+        <button
+          onClick={() => setActiveTab('new')}
+          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'new'
+              ? 'border-violet-500 text-violet-700 dark:text-violet-400 bg-violet-50/40 dark:bg-violet-900/10'
+              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          <Upload className='h-4 w-4' />
+          New Brands
+        </button>
       </div>
 
-      {/* ── Upload section ─────────────────────────────────────────────── */}
-      <div className='border-t border-zinc-100 dark:border-zinc-800'>
-        {/* Upload header */}
-        <div className='flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
-          <div className='flex items-center gap-3'>
-            <div className='flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-900/30'>
-              <Upload className='h-4 w-4 text-violet-600 dark:text-violet-400' />
-            </div>
+      {/* ── Existing Brands tab ───────────────────────────────────────── */}
+      {activeTab === 'existing' && (
+        <ExistingBrandsTab
+          allTabs={allTabs}
+          tabState={tabState}
+          toggleTab={toggleTab}
+          updateRate={updateRate}
+          includeLive={includeLive}
+          setIncludeLive={setIncludeLive}
+          running={running}
+          selectedCount={selectedCount}
+          handleGenerate={handleGenerate}
+          succeeded={succeeded}
+          error={error}
+        />
+      )}
+
+      {/* ── New Brands tab ────────────────────────────────────────────── */}
+      {activeTab === 'new' && (
+        <>
+          {/* Header row with template download */}
+          <div className='flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800'>
             <div>
-              <h3 className='text-sm font-semibold text-zinc-800 dark:text-zinc-100'>
-                Upload Vendor Price List
-              </h3>
+              <p className='text-sm font-semibold text-zinc-800 dark:text-zinc-100'>Upload Vendor Price List</p>
               <p className='text-xs text-zinc-500 dark:text-zinc-400 mt-0.5'>
                 Fill in the template with vendor prices and generate a full costing sheet.
               </p>
             </div>
+            <button
+              onClick={handleDownloadTemplate}
+              className='flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors'
+            >
+              <Download className='h-3.5 w-3.5' />
+              Template
+            </button>
           </div>
-          <button
-            onClick={handleDownloadTemplate}
-            className='flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors'
-          >
-            <Download className='h-3.5 w-3.5' />
-            Template
-          </button>
-        </div>
 
-        {/* Upload form */}
-        <div className='px-5 py-4 space-y-4'>
-          {/* Tab label + currency */}
-          <div className='flex flex-wrap gap-4'>
-            <label className='flex flex-col gap-0.5 flex-1 min-w-[160px]'>
-              <span className='text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide'>
-                Tab label <span className='text-red-400'>*</span>
+          {/* Upload form */}
+          <div className='px-5 py-4 space-y-4'>
+            {/* Brand name + currency */}
+            <div className='flex flex-wrap gap-4'>
+              <label className='flex flex-col gap-0.5 flex-1 min-w-[160px]'>
+                <span className='text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide'>
+                  Brand name <span className='text-red-400'>*</span>
+                </span>
+                <input
+                  type='text'
+                  placeholder='e.g. PETSHY, Fedem'
+                  value={uploadTabLabel}
+                  onChange={(e) => setUploadTabLabel(e.target.value)}
+                  className='rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-violet-500'
+                />
+              </label>
+              <label className='flex flex-col gap-0.5'>
+                <span className='text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide'>
+                  Currency
+                </span>
+                <select
+                  value={uploadCurrency}
+                  onChange={(e) => setUploadCurrency(e.target.value)}
+                  className='rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-violet-500'
+                >
+                  <option value='USD'>USD</option>
+                  <option value='RMB'>RMB</option>
+                </select>
+              </label>
+            </div>
+
+            {/* Exchange rates */}
+            <div className='flex flex-wrap items-end gap-4'>
+              <span className='text-[11px] font-medium text-zinc-500 dark:text-zinc-400 self-end pb-1'>Exchange rates:</span>
+              <RateInput label='Bank rate'    value={uploadRates.bank}    onChange={(v) => setUploadRates((r) => ({ ...r, bank: v }))} />
+              <RateInput label='Customs rate' value={uploadRates.customs} onChange={(v) => setUploadRates((r) => ({ ...r, customs: v }))} />
+              <RateInput label='Freight rate' value={uploadRates.freight} onChange={(v) => setUploadRates((r) => ({ ...r, freight: v }))} />
+            </div>
+
+            {/* File picker */}
+            <div>
+              <span className='block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5'>
+                Price list file <span className='text-red-400'>*</span>
               </span>
-              <input
-                type='text'
-                placeholder='e.g. PETSHY, Fedem'
-                value={uploadTabLabel}
-                onChange={(e) => setUploadTabLabel(e.target.value)}
-                className='rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-violet-500'
-              />
-            </label>
-            <label className='flex flex-col gap-0.5'>
-              <span className='text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide'>
-                Currency
-              </span>
-              <select
-                value={uploadCurrency}
-                onChange={(e) => setUploadCurrency(e.target.value)}
-                className='rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-violet-500'
-              >
-                <option value='USD'>USD</option>
-                <option value='RMB'>RMB</option>
-              </select>
-            </label>
-          </div>
+              <label className='flex items-center gap-3 cursor-pointer rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-3 hover:border-violet-400 dark:hover:border-violet-600 transition-colors'>
+                <FileSpreadsheet className='h-5 w-5 text-zinc-400 dark:text-zinc-500 flex-shrink-0' />
+                <span className='text-xs text-zinc-500 dark:text-zinc-400 truncate'>
+                  {uploadFile ? uploadFile.name : 'Click to choose .xlsx file'}
+                </span>
+                <input
+                  type='file'
+                  accept='.xlsx,.xls'
+                  className='hidden'
+                  onChange={(e) => {
+                    setUploadFile(e.target.files?.[0] ?? null);
+                    setUploadSucceeded(false);
+                    setUploadError(null);
+                  }}
+                />
+              </label>
+            </div>
 
-          {/* Exchange rates */}
-          <div className='flex flex-wrap items-end gap-4'>
-            <span className='text-[11px] font-medium text-zinc-500 dark:text-zinc-400 self-end pb-1'>
-              Exchange rates:
-            </span>
-            <RateInput label='Bank rate'    value={uploadRates.bank}    onChange={(v) => setUploadRates((r) => ({ ...r, bank: v }))} />
-            <RateInput label='Customs rate' value={uploadRates.customs} onChange={(v) => setUploadRates((r) => ({ ...r, customs: v }))} />
-            <RateInput label='Freight rate' value={uploadRates.freight} onChange={(v) => setUploadRates((r) => ({ ...r, freight: v }))} />
-          </div>
+            {/* Submit */}
+            <button
+              onClick={handleUpload}
+              disabled={uploadRunning || !uploadFile || !uploadTabLabel.trim()}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+                uploadRunning || !uploadFile || !uploadTabLabel.trim()
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
+                  : 'bg-violet-600 hover:bg-violet-700 text-white shadow-sm'
+              }`}
+            >
+              {uploadRunning ? (
+                <><RefreshCw className='h-4 w-4 animate-spin' />Generating…</>
+              ) : (
+                <><Download className='h-4 w-4' />Generate & Download</>
+              )}
+            </button>
 
-          {/* File picker */}
-          <div>
-            <span className='block text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5'>
-              Price list file <span className='text-red-400'>*</span>
-            </span>
-            <label className='flex items-center gap-3 cursor-pointer rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-3 hover:border-violet-400 dark:hover:border-violet-600 transition-colors'>
-              <FileSpreadsheet className='h-5 w-5 text-zinc-400 dark:text-zinc-500 flex-shrink-0' />
-              <span className='text-xs text-zinc-500 dark:text-zinc-400 truncate'>
-                {uploadFile ? uploadFile.name : 'Click to choose .xlsx file'}
-              </span>
-              <input
-                type='file'
-                accept='.xlsx,.xls'
-                className='hidden'
-                onChange={(e) => {
-                  setUploadFile(e.target.files?.[0] ?? null);
-                  setUploadSucceeded(false);
-                  setUploadError(null);
-                }}
-              />
-            </label>
-          </div>
-
-          {/* Submit */}
-          <button
-            onClick={handleUpload}
-            disabled={uploadRunning || !uploadFile || !uploadTabLabel.trim()}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-              uploadRunning || !uploadFile || !uploadTabLabel.trim()
-                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
-                : 'bg-violet-600 hover:bg-violet-700 text-white shadow-sm'
-            }`}
-          >
-            {uploadRunning ? (
-              <>
-                <RefreshCw className='h-4 w-4 animate-spin' />
-                Generating…
-              </>
-            ) : (
-              <>
-                <Download className='h-4 w-4' />
-                Generate & Download
-              </>
+            {uploadSucceeded && !uploadRunning && (
+              <div className='flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm'>
+                <CheckCircle2 className='h-4 w-4' />File downloaded successfully.
+              </div>
             )}
-          </button>
-
-          {uploadSucceeded && !uploadRunning && (
-            <div className='flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm'>
-              <CheckCircle2 className='h-4 w-4' />
-              File downloaded successfully.
-            </div>
-          )}
-          {uploadError && (
-            <div className='flex items-center gap-2 text-red-600 dark:text-red-400 text-sm'>
-              <AlertTriangle className='h-4 w-4 flex-shrink-0' />
-              {uploadError}
-            </div>
-          )}
-        </div>
-      </div>
+            {uploadError && (
+              <div className='flex items-center gap-2 text-red-600 dark:text-red-400 text-sm'>
+                <AlertTriangle className='h-4 w-4 flex-shrink-0' />{uploadError}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
