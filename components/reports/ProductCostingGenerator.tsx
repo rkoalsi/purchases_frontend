@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import {
@@ -72,9 +72,23 @@ const PRESET_TABS: PresetTab[] = [
   },
 ];
 
-function buildInitialState(): Record<string, TabState> {
+// Brand names already handled by presets (won't be duplicated from DB)
+const PRESET_COVERED = new Set(['FOFOS', 'Truelove', 'Zippy Paws', 'Joyser', 'Dogfest', 'Catfest']);
+
+function makeDynamicTab(brandName: string): PresetTab {
+  const id = `dynamic_${brandName.toLowerCase().replace(/\s+/g, '_')}`;
+  return {
+    id,
+    label: brandName,
+    currency: 'USD',
+    brandNames: [brandName],
+    defaultRates: { bank: 96.0, customs: 92.0, freight: 92.0 },
+  };
+}
+
+function buildInitialState(tabs: PresetTab[]): Record<string, TabState> {
   const s: Record<string, TabState> = {};
-  for (const t of PRESET_TABS) {
+  for (const t of tabs) {
     s[t.id] = { selected: false, exchangeRates: { ...t.defaultRates } };
   }
   return s;
@@ -112,11 +126,36 @@ export default function ProductCostingGenerator() {
   const headers = { Authorization: `Bearer ${accessToken}` };
 
   // ── brand generator state ──────────────────────────────────────────────────
-  const [tabState, setTabState] = useState<Record<string, TabState>>(buildInitialState);
+  const [allTabs, setAllTabs]           = useState<PresetTab[]>(PRESET_TABS);
+  const [tabState, setTabState]         = useState<Record<string, TabState>>(() => buildInitialState(PRESET_TABS));
   const [includeLive, setIncludeLive]   = useState(true);
   const [running, setRunning]           = useState(false);
   const [error, setError]               = useState<string | null>(null);
   const [succeeded, setSucceeded]       = useState(false);
+
+  // Fetch all brands from DB and merge with presets
+  useEffect(() => {
+    if (!accessToken) return;
+    axios.get(`${API_URL}/product-costing/brands`, { headers })
+      .then((res) => {
+        const dbBrands: string[] = res.data.brands ?? [];
+        const extra = dbBrands
+          .filter((b) => !PRESET_COVERED.has(b))
+          .map(makeDynamicTab);
+        if (extra.length === 0) return;
+        const merged = [...PRESET_TABS, ...extra];
+        setAllTabs(merged);
+        setTabState((prev) => {
+          const next = { ...prev };
+          for (const t of extra) {
+            if (!next[t.id]) next[t.id] = { selected: false, exchangeRates: { ...t.defaultRates } };
+          }
+          return next;
+        });
+      })
+      .catch(() => { /* silently keep presets */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
 
   // ── upload state ──────────────────────────────────────────────────────────
   const [uploadTabLabel,  setUploadTabLabel]  = useState('');
@@ -144,7 +183,7 @@ export default function ProductCostingGenerator() {
     }));
   }
 
-  const selectedCount = PRESET_TABS.filter((t) => tabState[t.id]?.selected).length;
+  const selectedCount = allTabs.filter((t) => tabState[t.id]?.selected).length;
 
   async function handleDownloadTemplate() {
     try {
@@ -217,7 +256,7 @@ export default function ProductCostingGenerator() {
   }
 
   async function handleGenerate() {
-    const selectedTabs = PRESET_TABS.filter((t) => tabState[t.id]?.selected);
+    const selectedTabs = allTabs.filter((t) => tabState[t.id]?.selected);
     if (!selectedTabs.length) {
       toast.error('Select at least one brand.');
       return;
@@ -302,7 +341,7 @@ export default function ProductCostingGenerator() {
         </p>
 
         <div className='space-y-2'>
-          {PRESET_TABS.map((preset) => {
+          {allTabs.map((preset) => {
             const state    = tabState[preset.id];
             const selected = state.selected;
             return (
