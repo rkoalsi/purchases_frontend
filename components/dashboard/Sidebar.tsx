@@ -95,6 +95,7 @@ const PERMISSION_REQUIREMENTS = {
   BRAND_ORDERS: { anyOf: ['vendors_brand_orders_view', 'vendors_brand_orders_edit'] },
   BRAND_LOGISTICS: { name: 'settings_brand_logistics' },
   PRODUCT_LOGISTICS: { name: 'settings_product_logistics' },
+  LOGISTICS: null,
   TASK_TRIGGERS: null,
   DESIGN_NEW_ITEMS: { name: 'design_new_items' },
   DESIGNER_ORDERS: { anyOf: ['design_orders_view', 'design_orders_edit'] },
@@ -370,6 +371,26 @@ const navigation = [
     ],
   },
   {
+    name: 'Logistics',
+    href: '/logistics',
+    icon: Truck,
+    requiredPermission: PERMISSION_REQUIREMENTS.LOGISTICS,
+    children: [
+      {
+        name: 'Brand Logistics',
+        href: '/settings/brand-logistics',
+        icon: Truck,
+        requiredPermission: PERMISSION_REQUIREMENTS.BRAND_LOGISTICS,
+      },
+      {
+        name: 'Product Logistics',
+        href: '/settings/product-logistics',
+        icon: Box,
+        requiredPermission: PERMISSION_REQUIREMENTS.PRODUCT_LOGISTICS,
+      },
+    ],
+  },
+  {
     name: 'Tools',
     href: '/tools',
     icon: Code2,
@@ -406,18 +427,6 @@ const navigation = [
         href: '/settings/account',
         icon: UserCircle,
         requiredPermission: null,
-      },
-      {
-        name: 'Brand Logistics',
-        href: '/settings/brand-logistics',
-        icon: Truck,
-        requiredPermission: PERMISSION_REQUIREMENTS.BRAND_LOGISTICS,
-      },
-      {
-        name: 'Product Logistics',
-        href: '/settings/product-logistics',
-        icon: Box,
-        requiredPermission: PERMISSION_REQUIREMENTS.PRODUCT_LOGISTICS,
       },
       {
         name: 'Task Triggers',

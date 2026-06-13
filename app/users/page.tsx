@@ -253,20 +253,61 @@ export default function UserManagementPage() {
     );
   };
 
-  // Group a permission list by category prefix (e.g. "reports_amazon" → "reports")
+  const getPermissionGroup = (name: string): string => {
+    // Verification reports checked first (some start with reports_amazon_)
+    if (
+      name === 'reports_amazon_listing_validation' ||
+      name.startsWith('reports_sales_') ||
+      name.startsWith('reports_pi_') ||
+      name === 'reports_missed_sales'
+    ) return 'reports_verification';
+    // Blinkit reports (including blinkit_shipment_* which lack the reports_ prefix)
+    if (name.startsWith('blinkit_') || name.startsWith('reports_blinkit')) return 'reports_blinkit';
+    // Amazon + Vendor Central reports
+    if (
+      name === 'reports_amazon' ||
+      name.startsWith('reports_amazon_') ||
+      name.startsWith('reports_vendor_') ||
+      name.startsWith('reports_vc_') ||
+      name.startsWith('reports_etrade_')
+    ) return 'reports_amazon';
+    // Retail / Zoho reports
+    if (
+      name === 'reports_zoho' ||
+      name === 'reports_master' ||
+      name === 'reports_seasonal' ||
+      name.startsWith('reports_estimates_') ||
+      name.startsWith('reports_inventory_')
+    ) return 'reports_retail';
+    // Any other reports_ prefix
+    if (name.startsWith('reports_')) return 'reports_other';
+    // Everything else grouped by first segment
+    return name.includes('_') ? name.split('_')[0] : 'general';
+  };
+
+  // Group a permission list by category
   const groupPermissionsByCategory = (permissions: any[]) => {
     const groups: Record<string, any[]> = {};
     permissions.forEach((p) => {
-      const prefix = p.name.includes('_') ? p.name.split('_')[0] : 'general';
-      if (!groups[prefix]) groups[prefix] = [];
-      groups[prefix].push(p);
+      const group = getPermissionGroup(p.name);
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(p);
     });
     return groups;
   };
 
   const CATEGORY_LABELS: Record<string, string> = {
-    reports: 'Reports',
+    reports_amazon: 'Amazon Reports',
+    reports_blinkit: 'Blinkit Reports',
+    reports_retail: 'Retail Reports',
+    reports_verification: 'Verification Reports',
+    reports_other: 'Other Reports',
     items: 'Items',
+    settings: 'Settings',
+    blinkit: 'Blinkit',
+    design: 'Design',
+    vendors: 'Vendors',
+    tools: 'Tools',
     general: 'General',
   };
 
