@@ -100,6 +100,7 @@ const PERMISSION_REQUIREMENTS = {
   DESIGN_NEW_ITEMS: { name: 'design_new_items' },
   DESIGNER_ORDERS: { anyOf: ['design_orders_view', 'design_orders_edit'] },
   DESIGN_TASKS: { name: 'design_tasks' },
+  DESIGN_CATALOGUES: { name: 'design_catalogues' },
 };
 
 // Navigation items with required permissions
@@ -367,6 +368,12 @@ const navigation = [
         href: '/design/orders',
         icon: Package,
         requiredPermission: PERMISSION_REQUIREMENTS.DESIGNER_ORDERS,
+      },
+      {
+        name: 'Catalogues',
+        href: '/design/catalogues',
+        icon: FileText,
+        requiredPermission: PERMISSION_REQUIREMENTS.DESIGN_CATALOGUES,
       },
     ],
   },
