@@ -9,8 +9,9 @@ import {
   Plus, Upload, Trash2, Download, Pencil, X, Check, Loader2, RefreshCw,
   FileText, ChevronDown, ChevronRight, Package, Tag, AlertTriangle, Search,
   Archive, Eye, FolderOpen, ArrowLeft, ArrowRight, Link2, BarChart2,
-  Layers, Filter, Folder, FolderPlus, Calendar, CreditCard,
+  Layers, Filter, Folder, FolderPlus, Calendar, CreditCard, LayoutList,
 } from 'lucide-react';
+import OrdersCalendar, { CalendarEvent, CalendarLegendItem } from '@/components/common/OrdersCalendar';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const DOCS_PER_PAGE = 5;
@@ -353,6 +354,8 @@ export default function BrandOrders() {
   const [renameFolderName, setRenameFolderName] = useState('');
   const [movingDocId, setMovingDocId] = useState<string | null>(null);
 
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+
   const ordersByVendor = useMemo(() => {
     const map: Record<string, BrandOrder[]> = {};
     for (const order of orders) {
@@ -401,6 +404,57 @@ export default function BrandOrders() {
     return orders.filter(o => !o.inward_date && !['closed', 'cancelled'].includes(o.po_status?.toLowerCase() ?? '')).length;
   }, [orders]);
 
+  const calendarEvents = useMemo<CalendarEvent[]>(() => {
+    const fields: Array<{ key: keyof BrandOrder; label: string; stage: CalendarEvent['stage'] }> = [
+      { key: 'order_date',                  label: 'PO Date',       stage: 'teal' },
+      { key: 'initiation_date',             label: 'Initiated',     stage: 'sky' },
+      { key: 'proforma_date',               label: 'Proforma',      stage: 'blue' },
+      { key: 'ready_date',                  label: 'Ready',         stage: 'amber' },
+      { key: 'etd_date',                    label: 'ETD',           stage: 'orange' },
+      { key: 'eta_port_date',               label: 'Port ETA',      stage: 'indigo' },
+      { key: 'duty_payment_date',           label: 'Duty Paid',     stage: 'purple' },
+      { key: 'inward_date',                 label: 'Inward',        stage: 'emerald' },
+      { key: 'po_due_date',                 label: 'PO Due',        stage: 'red' },
+      { key: 'advance_payment_date',        label: 'Advance Pmt',   stage: 'amber' },
+      { key: 'custom_duty_due_date',        label: 'Duty Due',      stage: 'orange' },
+      { key: 'shipping_charges_due_date',   label: 'Shipping Due',  stage: 'blue' },
+    ];
+    const evts: CalendarEvent[] = [];
+    for (const order of orders) {
+      for (const { key, label, stage } of fields) {
+        const val = order[key] as string | undefined | null;
+        if (val) {
+          evts.push({
+            date: val.slice(0, 10),
+            label,
+            brand: order.brand,
+            poNumber: order.purchaseorder_number,
+            orderName: order.name,
+            orderId: order._id,
+            stage,
+          });
+        }
+      }
+    }
+    return evts;
+  }, [orders]);
+
+  const calendarLegend: CalendarLegendItem[] = [
+    { label: 'PO Date',     stage: 'teal' },
+    { label: 'Initiated',   stage: 'sky' },
+    { label: 'Proforma',    stage: 'blue' },
+    { label: 'Ready',       stage: 'amber' },
+    { label: 'ETD',         stage: 'orange' },
+    { label: 'Port ETA',    stage: 'indigo' },
+    { label: 'Duty Paid',   stage: 'purple' },
+    { label: 'Inward',      stage: 'emerald' },
+    { label: 'PO Due',      stage: 'red' },
+    { label: 'Advance Pmt', stage: 'amber' },
+    { label: 'Duty Due',    stage: 'orange' },
+    { label: 'Shipping Due', stage: 'blue' },
+  ];
+
+  
   const getVisibleOrders = useCallback((vendorId: string) => {
     const vOrders = ordersByVendor[vendorId] || [];
     if (!searchQuery.trim()) return vOrders;
@@ -516,6 +570,21 @@ export default function BrandOrders() {
     } catch { /* silently ignore */ }
     finally { setFoldersLoading(prev => ({ ...prev, [orderId]: false })); }
   }, []);
+
+  const handleCalendarEventClick = useCallback((orderId: string) => {
+    setViewMode('list');
+    const order = orders.find(o => o._id === orderId);
+    if (!order) return;
+    const vendorId = order.vendor_id ?? '__unassigned__';
+    setExpandedBrands(prev => { const s = new Set(prev); s.add(vendorId); return s; });
+    setExpandedOrder(orderId);
+    fetchOrderDocs(orderId);
+    fetchOrderFolders(orderId);
+    setTimeout(() => {
+      document.getElementById(`order-${orderId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }, [orders, fetchOrderDocs, fetchOrderFolders]);
+
 
   const handleCreateFolder = useCallback(async (orderId: string) => {
     const name = newFolderName.trim();
@@ -1092,6 +1161,22 @@ export default function BrandOrders() {
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
           </button>
+          <div className="flex items-center rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden shadow-sm">
+            <button
+              onClick={() => setViewMode('list')}
+              title="List view"
+              className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${viewMode === 'list' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+            >
+              <LayoutList size={14} />
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              title="Calendar view"
+              className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors border-l border-zinc-200 dark:border-zinc-700 ${viewMode === 'calendar' ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+            >
+              <Calendar size={14} />
+            </button>
+          </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <select
               value={reportBrand}
@@ -1458,8 +1543,18 @@ export default function BrandOrders() {
         );
       })()}
 
+      {/* ── Calendar view ── */}
+      {viewMode === 'calendar' && (
+        <OrdersCalendar
+          events={calendarEvents}
+          legend={calendarLegend}
+          onEventClick={handleCalendarEventClick}
+          accentColor="emerald"
+        />
+      )}
+
       {/* ── Vendor list ── */}
-      {loading && vendorList.length === 0 ? (
+      {viewMode === 'list' && (loading && vendorList.length === 0 ? (
         <div className="flex items-center justify-center py-24 text-zinc-400">
           <Loader2 size={20} className="animate-spin mr-2.5" /> Loading…
         </div>
@@ -2659,7 +2754,7 @@ export default function BrandOrders() {
             );
           })}
         </div>
-      )}
+      ))}
     </div>
   );
 }
