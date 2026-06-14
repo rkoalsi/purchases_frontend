@@ -759,26 +759,45 @@ export default function DesignerOrders() {
 
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
+  // Map each order._id → all brand names in the vendor group joined with "/" (Dogfest/Catfest → Petfest)
+  const orderBrandNorm = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const [, groupOrders] of brandGroups) {
+      const seen = new Set<string>();
+      for (const o of groupOrders) {
+        if (!o.brand) continue;
+        const b = o.brand === 'Dogfest' || o.brand === 'Catfest' ? 'Petfest' : o.brand;
+        seen.add(b);
+      }
+      const display = [...seen].sort().join('/');
+      for (const o of groupOrders) map[o._id] = display;
+    }
+    return map;
+  }, [brandGroups]);
+
   const calendarEvents = useMemo<CalendarEvent[]>(() => {
     const fields: Array<{ key: keyof DesignerOrder; label: string; stage: CalendarEvent['stage'] }> = [
-      { key: 'order_date',       label: 'PO Date',   stage: 'teal' },
-      { key: 'initiation_date',  label: 'Initiated', stage: 'sky' },
-      { key: 'proforma_date',    label: 'Proforma',  stage: 'blue' },
-      { key: 'ready_date',       label: 'Ready',     stage: 'amber' },
-      { key: 'etd_date',         label: 'ETD',       stage: 'orange' },
-      { key: 'eta_port_date',    label: 'Port ETA',  stage: 'indigo' },
+      { key: 'order_date',        label: 'PO Date',   stage: 'teal' },
+      { key: 'initiation_date',   label: 'Initiated', stage: 'sky' },
+      { key: 'proforma_date',     label: 'Proforma',  stage: 'blue' },
+      { key: 'ready_date',        label: 'Ready',     stage: 'amber' },
+      { key: 'etd_date',          label: 'ETD',       stage: 'orange' },
+      { key: 'eta_port_date',     label: 'Port ETA',  stage: 'indigo' },
       { key: 'duty_payment_date', label: 'Duty Paid', stage: 'purple' },
-      { key: 'inward_date',      label: 'Inward',    stage: 'emerald' },
+      { key: 'inward_date',       label: 'Inward',    stage: 'emerald' },
     ];
     const evts: CalendarEvent[] = [];
     for (const order of orders) {
+      const raw = order.brand;
+      const brand = orderBrandNorm[order._id]
+        ?? (raw === 'Dogfest' || raw === 'Catfest' ? 'Petfest' : raw);  // fallback for orders not in brandGroups
       for (const { key, label, stage } of fields) {
         const val = order[key] as string | undefined | null;
         if (val) {
           evts.push({
             date: val.slice(0, 10),
             label,
-            brand: order.brand,
+            brand,
             poNumber: order.purchaseorder_number,
             orderName: order.name,
             orderId: order._id,
@@ -788,7 +807,7 @@ export default function DesignerOrders() {
       }
     }
     return evts;
-  }, [orders]);
+  }, [orders, orderBrandNorm]);
 
   const calendarLegend: CalendarLegendItem[] = [
     { label: 'PO Date',   stage: 'teal' },
