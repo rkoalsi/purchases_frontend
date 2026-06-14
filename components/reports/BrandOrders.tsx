@@ -404,6 +404,22 @@ export default function BrandOrders() {
     return orders.filter(o => !o.inward_date && !['closed', 'cancelled'].includes(o.po_status?.toLowerCase() ?? '')).length;
   }, [orders]);
 
+  // All brand names per vendor_id joined with "/" (Dogfest/Catfest → Petfest)
+  const vendorBrandLabel = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const vendor of vendorList) {
+      const vOrders = ordersByVendor[vendor.contact_id] || [];
+      const seen = new Set<string>();
+      for (const o of vOrders) {
+        if (!o.brand) continue;
+        const b = o.brand === 'Dogfest' || o.brand === 'Catfest' ? 'Petfest' : o.brand;
+        seen.add(b);
+      }
+      if (seen.size > 0) map[vendor.contact_id] = [...seen].sort().join('/');
+    }
+    return map;
+  }, [vendorList, ordersByVendor]);
+
   const calendarEvents = useMemo<CalendarEvent[]>(() => {
     const fields: Array<{ key: keyof BrandOrder; label: string; stage: CalendarEvent['stage'] }> = [
       { key: 'order_date',                  label: 'PO Date',       stage: 'teal' },
@@ -419,15 +435,23 @@ export default function BrandOrders() {
       { key: 'custom_duty_due_date',        label: 'Duty Due',      stage: 'orange' },
       { key: 'shipping_charges_due_date',   label: 'Shipping Due',  stage: 'blue' },
     ];
+    const normalizeBrand = (order: BrandOrder): string => {
+      if (order.vendor_id && vendorBrandLabel[order.vendor_id]) {
+        return vendorBrandLabel[order.vendor_id];
+      }
+      const raw = order.brand;
+      return raw === 'Dogfest' || raw === 'Catfest' ? 'Petfest' : raw;
+    };
     const evts: CalendarEvent[] = [];
     for (const order of orders) {
+      const brand = normalizeBrand(order);
       for (const { key, label, stage } of fields) {
         const val = order[key] as string | undefined | null;
         if (val) {
           evts.push({
             date: val.slice(0, 10),
             label,
-            brand: order.brand,
+            brand,
             poNumber: order.purchaseorder_number,
             orderName: order.name,
             orderId: order._id,
@@ -437,7 +461,7 @@ export default function BrandOrders() {
       }
     }
     return evts;
-  }, [orders]);
+  }, [orders, vendorBrandLabel]);
 
   const calendarLegend: CalendarLegendItem[] = [
     { label: 'PO Date',     stage: 'teal' },
