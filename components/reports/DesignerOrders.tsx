@@ -8,7 +8,9 @@ import {
   Upload, Trash2, Download, Loader2, RefreshCw, FileText, ChevronDown,
   ChevronRight, Tag, Search, Eye, FolderOpen, ArrowLeft, ArrowRight, X, Archive,
   Calendar, Package, Plus, Layers, Filter, Folder, FolderPlus, Pencil, Check, Link2,
+  LayoutList,
 } from 'lucide-react';
+import OrdersCalendar, { CalendarEvent, CalendarLegendItem } from '@/components/common/OrdersCalendar';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const DOCS_PER_PAGE = 5;
@@ -755,6 +757,68 @@ export default function DesignerOrders() {
     return orders.filter(o => !o.inward_date && !['closed', 'cancelled'].includes(o.po_status?.toLowerCase() ?? '')).length;
   }, [orders]);
 
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+
+  const calendarEvents = useMemo<CalendarEvent[]>(() => {
+    const fields: Array<{ key: keyof DesignerOrder; label: string; stage: CalendarEvent['stage'] }> = [
+      { key: 'order_date',       label: 'PO Date',   stage: 'teal' },
+      { key: 'initiation_date',  label: 'Initiated', stage: 'sky' },
+      { key: 'proforma_date',    label: 'Proforma',  stage: 'blue' },
+      { key: 'ready_date',       label: 'Ready',     stage: 'amber' },
+      { key: 'etd_date',         label: 'ETD',       stage: 'orange' },
+      { key: 'eta_port_date',    label: 'Port ETA',  stage: 'indigo' },
+      { key: 'duty_payment_date', label: 'Duty Paid', stage: 'purple' },
+      { key: 'inward_date',      label: 'Inward',    stage: 'emerald' },
+    ];
+    const evts: CalendarEvent[] = [];
+    for (const order of orders) {
+      for (const { key, label, stage } of fields) {
+        const val = order[key] as string | undefined | null;
+        if (val) {
+          evts.push({
+            date: val.slice(0, 10),
+            label,
+            brand: order.brand,
+            poNumber: order.purchaseorder_number,
+            orderName: order.name,
+            orderId: order._id,
+            stage,
+          });
+        }
+      }
+    }
+    return evts;
+  }, [orders]);
+
+  const calendarLegend: CalendarLegendItem[] = [
+    { label: 'PO Date',   stage: 'teal' },
+    { label: 'Initiated', stage: 'sky' },
+    { label: 'Proforma',  stage: 'blue' },
+    { label: 'Ready',     stage: 'amber' },
+    { label: 'ETD',       stage: 'orange' },
+    { label: 'Port ETA',  stage: 'indigo' },
+    { label: 'Duty Paid', stage: 'purple' },
+    { label: 'Inward',    stage: 'emerald' },
+  ];
+
+  const handleCalendarEventClick = useCallback((orderId: string) => {
+    setViewMode('list');
+    const order = orders.find(o => o._id === orderId);
+    if (!order) return;
+    setExpandedBrands(prev => new Set([...prev, order.brand]));
+    setExpandedOrders(prev => new Set([...prev, orderId]));
+    if (docsMap[orderId] === undefined) {
+      setDocsMap(prev => ({ ...prev, [orderId]: order.designer_documents || [] }));
+    }
+    if (order.purchaseorder_number && lineItemsMap[orderId] === undefined) {
+      fetchLineItemsForOrder(orderId);
+    }
+    fetchOrderFolders(orderId);
+    setTimeout(() => {
+      document.getElementById(`order-${orderId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  }, [orders, docsMap, lineItemsMap, fetchLineItemsForOrder, fetchOrderFolders]);
+
   // Reusable file action buttons
   const FileActions = useCallback(({ orderId, doc }: { orderId: string; doc: Document }) => (
     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -824,6 +888,22 @@ export default function DesignerOrders() {
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
               Refresh
             </button>
+            <div className="flex items-center rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden shadow-sm">
+              <button
+                onClick={() => setViewMode('list')}
+                title="List view"
+                className={`px-3 py-1.5 flex items-center transition-colors ${viewMode === 'list' ? 'bg-violet-600 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+              >
+                <LayoutList size={13} />
+              </button>
+              <button
+                onClick={() => setViewMode('calendar')}
+                title="Calendar view"
+                className={`px-3 py-1.5 flex items-center border-l border-zinc-200 dark:border-zinc-700 transition-colors ${viewMode === 'calendar' ? 'bg-violet-600 text-white' : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'}`}
+              >
+                <Calendar size={13} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -910,8 +990,18 @@ export default function DesignerOrders() {
           )}
         </div>
 
-        {/* Loading */}
-        {loading && orders.length === 0 ? (
+        {/* ── Calendar view ── */}
+        {viewMode === 'calendar' && (
+          <OrdersCalendar
+            events={calendarEvents}
+            legend={calendarLegend}
+            onEventClick={handleCalendarEventClick}
+            accentColor="violet"
+          />
+        )}
+
+        {/* Loading / brand list */}
+        {viewMode === 'list' && (loading && orders.length === 0 ? (
           <div className="flex items-center justify-center gap-2 text-zinc-400 text-sm py-20">
             <Loader2 size={16} className="animate-spin" />
             Loading orders…
@@ -1926,7 +2016,7 @@ export default function DesignerOrders() {
               );
             })}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
