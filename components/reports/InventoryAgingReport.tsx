@@ -56,7 +56,7 @@ export default function InventoryAgingReport() {
     <div className="p-4 sm:p-6 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-1 dark:text-white">Inventory Aging Report</h1>
       <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-        Generates an Excel file comparing slow movers and deadstock across two periods, plus brand-wise collection value.
+        Generates an Excel file comparing inventory across four aging buckets (60-day intervals) for two periods, plus brand-wise collection value.
       </p>
 
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 sm:p-5 shadow-sm space-y-5">
@@ -110,28 +110,46 @@ export default function InventoryAgingReport() {
         </button>
       </div>
 
-      <div className="mt-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 p-4 text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
-        <p className="font-medium text-zinc-700 dark:text-zinc-300">Report sheets:</p>
+      {/* Aging bucket legend */}
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {[
+          { label: 'Fast Mover', range: '0–60 days', bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', dot: 'bg-green-500' },
+          { label: 'Medium Mover', range: '60–120 days', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', dot: 'bg-blue-500' },
+          { label: 'Slow Mover', range: '120–180 days', bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', dot: 'bg-orange-500' },
+          { label: 'Dead Stock', range: '180+ days', bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400', dot: 'bg-purple-500' },
+        ].map(({ label, range, bg, text, dot }) => (
+          <div key={label} className={`rounded-lg px-3 py-2 ${bg} flex items-center gap-2`}>
+            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dot}`} />
+            <div>
+              <p className={`text-xs font-semibold ${text}`}>{label}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{range}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 p-4 text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
+        <p className="font-medium text-zinc-700 dark:text-zinc-300">Report sheets (13 total):</p>
         <ul className="list-disc list-inside space-y-1">
           <li>
-            <span className="font-medium text-red-600 dark:text-red-400">Summary – Slow Movers</span>
-            {' '}— period-over-period comparison with qty change and % change
+            <span className="font-medium text-green-600 dark:text-green-400">Fast Movers</span>
+            {' '}— items aged 0–60 days (summary + current + previous)
           </li>
           <li>
-            <span className="font-medium text-red-500 dark:text-red-300">Slow Movers (current & previous)</span>
-            {' '}— items with stock aged 181–270 days per period
+            <span className="font-medium text-blue-600 dark:text-blue-400">Medium Movers</span>
+            {' '}— items aged 60–120 days (summary + current + previous)
           </li>
           <li>
-            <span className="font-medium text-purple-600 dark:text-purple-400">Summary – Deadstock</span>
-            {' '}— period-over-period comparison with qty change and % change
+            <span className="font-medium text-orange-600 dark:text-orange-400">Slow Movers</span>
+            {' '}— items aged 120–180 days (summary + current + previous)
           </li>
           <li>
-            <span className="font-medium text-purple-500 dark:text-purple-300">Deadstock (current & previous)</span>
-            {' '}— items with stock aged &gt;270 days per period
+            <span className="font-medium text-purple-600 dark:text-purple-400">Deadstock</span>
+            {' '}— items aged 180+ days (summary + current + previous)
           </li>
           <li>
             <span className="font-medium text-blue-600 dark:text-blue-400">Brand wise collection value</span>
-            {' '}— total collection value (MRP/2) per brand
+            {' '}— total stock, slow movers and deadstock per brand
           </li>
         </ul>
       </div>
