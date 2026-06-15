@@ -777,14 +777,9 @@ export default function DesignerOrders() {
 
   const calendarEvents = useMemo<CalendarEvent[]>(() => {
     const fields: Array<{ key: keyof DesignerOrder; label: string; stage: CalendarEvent['stage'] }> = [
-      { key: 'order_date',        label: 'PO Date',   stage: 'teal' },
-      { key: 'initiation_date',   label: 'Initiated', stage: 'sky' },
-      { key: 'proforma_date',     label: 'Proforma',  stage: 'blue' },
-      { key: 'ready_date',        label: 'Ready',     stage: 'amber' },
-      { key: 'etd_date',          label: 'ETD',       stage: 'orange' },
-      { key: 'eta_port_date',     label: 'Port ETA',  stage: 'indigo' },
-      { key: 'duty_payment_date', label: 'Duty Paid', stage: 'purple' },
-      { key: 'inward_date',       label: 'Inward',    stage: 'emerald' },
+      { key: 'ready_date',  label: 'Ready',  stage: 'amber' },
+      { key: 'etd_date',    label: 'ETD',    stage: 'orange' },
+      { key: 'inward_date', label: 'Inward', stage: 'emerald' },
     ];
     const evts: CalendarEvent[] = [];
     for (const order of orders) {
@@ -810,14 +805,9 @@ export default function DesignerOrders() {
   }, [orders, orderBrandNorm]);
 
   const calendarLegend: CalendarLegendItem[] = [
-    { label: 'PO Date',   stage: 'teal' },
-    { label: 'Initiated', stage: 'sky' },
-    { label: 'Proforma',  stage: 'blue' },
-    { label: 'Ready',     stage: 'amber' },
-    { label: 'ETD',       stage: 'orange' },
-    { label: 'Port ETA',  stage: 'indigo' },
-    { label: 'Duty Paid', stage: 'purple' },
-    { label: 'Inward',    stage: 'emerald' },
+    { label: 'Ready',  stage: 'amber' },
+    { label: 'ETD',    stage: 'orange' },
+    { label: 'Inward', stage: 'emerald' },
   ];
 
   const handleCalendarEventClick = useCallback((orderId: string) => {
