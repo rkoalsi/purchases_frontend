@@ -8,6 +8,7 @@ import {
   Video, Pencil, Plus, Trash2, Check, Loader2, Download,
   LayoutList, AlignJustify, ExternalLink, Zap, Image,
   Upload, FileSpreadsheet, CheckCircle2, AlertCircle, SkipForward,
+  Star, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Package,
 } from 'lucide-react';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/design`;
@@ -523,6 +524,97 @@ function StatusBadge({ value, config }: { value?: string; config: Record<string,
   return <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full ${cfg.className}`}>{cfg.label}</span>;
 }
 
+// ─── Sheet image helpers ──────────────────────────────────────────────────────
+
+const SHEETS_API = `${process.env.NEXT_PUBLIC_API_URL}/sheets`;
+
+const SLOT_LABELS: Record<number, string> = {
+  1:  'Landing image with dog',
+  2:  'Landing image without dog',
+  3:  'Image URL 3',
+  4:  'Image URL 4',
+  5:  'Image URL 5',
+  6:  'Image URL 6',
+  7:  'Image URL 7',
+  8:  'Image URL 8',
+  9:  'Image URL 9',
+  10: 'Image URL 10',
+  11: 'Image URL 11',
+  12: 'Image URL 12',
+};
+
+function extractGDriveId(url: string): string | null {
+  const patterns = [/[?&]id=([A-Za-z0-9_-]+)/, /\/file\/d\/([A-Za-z0-9_-]+)/];
+  for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
+  return null;
+}
+
+function toDisplayUrl(url: string): string {
+  if (!url) return '';
+  if (isGDriveUrl(url)) {
+    const id = extractGDriveId(url);
+    if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w400`;
+  }
+  return url;
+}
+
+function SlotImageCard({
+  slot, url, isUploading, onUploadClick, onClear, label,
+}: {
+  slot: string; url: string; isUploading: boolean;
+  onUploadClick: () => void; onClear: () => void; label?: string;
+}) {
+  const displayUrl = toDisplayUrl(url);
+  const isDrive    = url ? isGDriveUrl(url) : false;
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => { setImgError(false); }, [url]);
+
+  return (
+    <div className='flex flex-col gap-1'>
+    {label && <p className='text-[9px] font-medium text-gray-500 dark:text-zinc-400 truncate' title={label}>{label}</p>}
+    <div className='relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700'>
+      {url ? (
+        <>
+          {!imgError ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={displayUrl} alt='' className='w-full h-full object-cover' onError={() => setImgError(true)} />
+          ) : (
+            <div className='absolute inset-0 flex flex-col items-center justify-center gap-1 p-2'>
+              <Package className='w-5 h-5 text-gray-300 dark:text-zinc-600' />
+              <a href={url} target='_blank' rel='noreferrer' className='text-[8px] text-purple-500 hover:underline text-center'>Open link</a>
+            </div>
+          )}
+          <button onClick={onClear}
+            className='absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:bg-red-600 transition-colors' title='Clear'>
+            <X className='w-3 h-3' />
+          </button>
+          <button onClick={onUploadClick}
+            className='absolute bottom-5 right-1 w-5 h-5 rounded-full bg-purple-500/90 text-white flex items-center justify-center hover:bg-purple-600 transition-colors' title='Replace'>
+            <Upload className='w-3 h-3' />
+          </button>
+          {isDrive && !imgError && (
+            <a href={url} target='_blank' rel='noreferrer'
+              className='absolute bottom-5 left-1 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors' title='Open in Drive'>
+              <ExternalLink className='w-2.5 h-2.5' />
+            </a>
+          )}
+        </>
+      ) : isUploading ? (
+        <div className='absolute inset-0 flex items-center justify-center'>
+          <Loader2 className='w-5 h-5 animate-spin text-purple-500' />
+        </div>
+      ) : (
+        <button onClick={onUploadClick}
+          className='absolute inset-0 flex items-center justify-center hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors' title='Upload image'>
+          <Upload className='w-4 h-4 text-gray-300 dark:text-zinc-600' />
+        </button>
+      )}
+      <span className='absolute bottom-1 left-1 text-[9px] font-bold bg-black/50 text-white px-1 py-px rounded leading-none'>{slot}</span>
+    </div>
+    </div>
+  );
+}
+
 // ─── Unified Edit Modal ───────────────────────────────────────────────────────
 
 
@@ -531,7 +623,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
   accessToken: string;
   onClose: () => void;
   onSaved: (updated: any) => void;
-  initialSection?: 'media' | 'details' | 'nutrition';
+  initialSection?: 'media' | 'details' | 'nutrition' | 'sheet_images';
   initialMediaTab?: 'images' | 'videos' | 'drive';
 }) {
   const cat = product.catalogue || {};
@@ -574,8 +666,85 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
     with_packaging:    parseDimRow(cat.dimensions?.with_packaging),
   });
 
-  const [activeSection, setActiveSection] = useState<'media' | 'details' | 'nutrition'>(initialSection);
+  const [activeSection, setActiveSection] = useState<'media' | 'details' | 'nutrition' | 'sheet_images'>(initialSection);
   const [mediaTab, setMediaTab] = useState<'images' | 'videos' | 'drive'>(initialMediaTab);
+
+  // Sheet images state
+  const [sheetLoading,      setSheetLoading]      = useState(false);
+  const [sheetSaving,       setSheetSaving]        = useState(false);
+  const [sheetSaved,        setSheetSaved]         = useState(false);
+  const [sheetError,        setSheetError]         = useState<string | null>(null);
+  const [sheetName,         setSheetName]          = useState('Master');
+  const [sheetImages,       setSheetImages]        = useState<Record<string, string>>(
+    () => Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), '']))
+  );
+  const [sheetUploadingSlot, setSheetUploadingSlot] = useState<string | null>(null);
+  const [sheetFetched,       setSheetFetched]       = useState(false);
+  const sheetFileInputRef = useRef<HTMLInputElement>(null);
+  const sheetPendingSlot  = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (activeSection !== 'sheet_images' || sheetFetched) return;
+    const sku = product.cf_sku_code || product.sku || '';
+    if (!sku) return;
+    setSheetLoading(true);
+    setSheetError(null);
+    axios.get(`${SHEETS_API}/product-images/${encodeURIComponent(sku)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then(r => { setSheetImages(r.data.images || {}); setSheetName(r.data.sheet || 'Master'); setSheetFetched(true); })
+      .catch(e => setSheetError(e.response?.data?.detail || e.message))
+      .finally(() => setSheetLoading(false));
+  }, [activeSection, sheetFetched, product, accessToken]);
+
+  const handleSheetUploadClick = (slot: string) => {
+    sheetPendingSlot.current = slot;
+    sheetFileInputRef.current?.click();
+  };
+
+  const handleSheetFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const slot = sheetPendingSlot.current;
+    e.target.value = '';
+    if (!file || !slot) return;
+    setSheetUploadingSlot(slot);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('item_id', product.item_id || product._id || '');
+      const r = await axios.post(`${SHEETS_API}/product-images/upload`, fd, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      setSheetImages(prev => ({ ...prev, [slot]: r.data.url }));
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Upload failed');
+    } finally {
+      setSheetUploadingSlot(null);
+    }
+  };
+
+  const handleSheetSave = async () => {
+    setSheetSaving(true);
+    const sku = product.cf_sku_code || product.sku || '';
+    try {
+      await axios.put(`${SHEETS_API}/product-images/${encodeURIComponent(sku)}`,
+        { sheet: sheetName, images: sheetImages },
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      setSheetSaved(true);
+      setTimeout(() => setSheetSaved(false), 2500);
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Save failed');
+    } finally {
+      setSheetSaving(false);
+    }
+  };
+
+  const handleSheetSwap = (slot: string, dir: -1 | 1) => {
+    const other = String(parseInt(slot) + dir);
+    if (parseInt(other) < 1 || parseInt(other) > 12) return;
+    setSheetImages(prev => { const n = { ...prev }; [n[slot], n[other]] = [n[other], n[slot]]; return n; });
+  };
   const [imgCarouselIdx, setImgCarouselIdx] = useState(0);
   const [vidCarouselIdx, setVidCarouselIdx] = useState(0);
   const [saving, setSaving]       = useState(false);
@@ -662,10 +831,11 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
   };
 
   const hasNutrition = !!(cat.ingredient_list || cat.nutritional_analysis);
-  const SECTIONS: { key: 'media' | 'details' | 'nutrition'; label: string }[] = [
-    { key: 'media',   label: 'Media' },
-    { key: 'details', label: 'Details' },
+  const SECTIONS: { key: 'media' | 'details' | 'nutrition' | 'sheet_images'; label: string }[] = [
+    { key: 'media',         label: 'Media' },
+    { key: 'details',       label: 'Details' },
     ...(hasNutrition ? [{ key: 'nutrition' as const, label: 'Nutrition' }] : []),
+    { key: 'sheet_images',  label: 'Sheet Images' },
   ];
 
   const MEDIA_TABS = [
@@ -773,13 +943,36 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={url} alt='' className='w-full h-full object-cover' />
                       </a>
-                      {i === 0 && <span className='text-[9px] font-semibold bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded shrink-0'>PRIMARY</span>}
+                      {i === 0
+                        ? <span className='text-[9px] font-semibold bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded shrink-0 flex items-center gap-0.5'><Star className='w-2.5 h-2.5' />PRIMARY</span>
+                        : <button
+                            onClick={() => setAllImages(prev => [prev[i], ...prev.filter((_, j) => j !== i)])}
+                            className='p-1 rounded text-gray-300 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors shrink-0'
+                            title='Make primary'>
+                            <Star className='w-3.5 h-3.5' />
+                          </button>
+                      }
                       <a href={url} target='_blank' rel='noreferrer'
                         className='flex-1 text-xs text-blue-600 dark:text-blue-400 truncate hover:underline'>{url}</a>
-                      <button onClick={() => setAllImages(prev => prev.filter((_, j) => j !== i))}
-                        className='p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0'>
-                        <Trash2 className='w-3.5 h-3.5' />
-                      </button>
+                      <div className='flex items-center gap-0.5 shrink-0'>
+                        <button onClick={() => setAllImages(prev => { const n = [...prev]; [n[i-1], n[i]] = [n[i], n[i-1]]; return n; })}
+                          disabled={i === 0}
+                          className='p-1 rounded text-gray-300 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-20 transition-colors'
+                          title='Move up'>
+                          <ArrowUp className='w-3.5 h-3.5' />
+                        </button>
+                        <button onClick={() => setAllImages(prev => { const n = [...prev]; [n[i], n[i+1]] = [n[i+1], n[i]]; return n; })}
+                          disabled={i === allImages.length - 1}
+                          className='p-1 rounded text-gray-300 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-20 transition-colors'
+                          title='Move down'>
+                          <ArrowDown className='w-3.5 h-3.5' />
+                        </button>
+                        <button onClick={() => setAllImages(prev => prev.filter((_, j) => j !== i))}
+                          className='p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors'
+                          title='Delete'>
+                          <Trash2 className='w-3.5 h-3.5' />
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {/* hidden file input */}
@@ -827,10 +1020,25 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                       <Video className='w-3.5 h-3.5 text-gray-400 shrink-0' />
                       <a href={url} target='_blank' rel='noreferrer'
                         className='flex-1 text-xs text-blue-600 dark:text-blue-400 truncate hover:underline'>{url}</a>
-                      <button onClick={() => setVideos(prev => prev.filter((_, j) => j !== i))}
-                        className='p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors shrink-0'>
-                        <Trash2 className='w-3.5 h-3.5' />
-                      </button>
+                      <div className='flex items-center gap-0.5 shrink-0'>
+                        <button onClick={() => setVideos(prev => { const n = [...prev]; [n[i-1], n[i]] = [n[i], n[i-1]]; return n; })}
+                          disabled={i === 0}
+                          className='p-1 rounded text-gray-300 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-20 transition-colors'
+                          title='Move up'>
+                          <ArrowUp className='w-3.5 h-3.5' />
+                        </button>
+                        <button onClick={() => setVideos(prev => { const n = [...prev]; [n[i], n[i+1]] = [n[i+1], n[i]]; return n; })}
+                          disabled={i === videos.length - 1}
+                          className='p-1 rounded text-gray-300 hover:text-gray-600 dark:hover:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-20 transition-colors'
+                          title='Move down'>
+                          <ArrowDown className='w-3.5 h-3.5' />
+                        </button>
+                        <button onClick={() => setVideos(prev => prev.filter((_, j) => j !== i))}
+                          className='p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors'
+                          title='Delete'>
+                          <Trash2 className='w-3.5 h-3.5' />
+                        </button>
+                      </div>
                     </div>
                   ))}
                   <input ref={vidInputRef} type='file' accept='video/mp4,video/quicktime,video/webm,video/x-msvideo'
@@ -968,6 +1176,73 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── Sheet Images section ── */}
+          {activeSection === 'sheet_images' && (
+            <div className='space-y-4'>
+              <input type='file' accept='image/*' ref={sheetFileInputRef} className='hidden' onChange={handleSheetFileChange} />
+              {/* header */}
+              <div className='flex items-center justify-between'>
+                <div>
+                  <p className='text-xs font-semibold text-gray-700 dark:text-zinc-200'>Master Sheet Images</p>
+                  {sheetLoading
+                    ? <p className='text-[10px] text-gray-400 mt-0.5'>Loading…</p>
+                    : <p className='text-[10px] text-gray-400 mt-0.5'>{sheetName}</p>
+                  }
+                </div>
+                <div className='flex items-center gap-2'>
+                  {sheetError && <span className='text-[10px] text-red-500'>{sheetError}</span>}
+                  {sheetSaved && <span className='text-[10px] text-green-600'>Saved!</span>}
+                  <button
+                    onClick={handleSheetSave}
+                    disabled={sheetSaving || sheetLoading}
+                    className='px-3 py-1.5 text-xs rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors'
+                  >
+                    {sheetSaving ? <Loader2 className='w-3 h-3 animate-spin' /> : <Check className='w-3 h-3' />}
+                    Save to Sheet
+                  </button>
+                </div>
+              </div>
+              {sheetLoading ? (
+                <div className='flex items-center justify-center py-12'>
+                  <Loader2 className='w-6 h-6 animate-spin text-purple-500' />
+                </div>
+              ) : (
+                <div className='grid grid-cols-3 gap-3'>
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(slot => (
+                    <div key={slot} className='flex flex-col gap-1'>
+                      <div className='flex items-center justify-between'>
+                        <button
+                          onClick={() => handleSheetSwap(slot, -1)}
+                          disabled={parseInt(slot) <= 1}
+                          className='p-0.5 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 disabled:opacity-20 transition-colors'
+                          title='Move left'
+                        >
+                          <ArrowLeft className='w-3 h-3 text-gray-500' />
+                        </button>
+                        <button
+                          onClick={() => handleSheetSwap(slot, 1)}
+                          disabled={parseInt(slot) >= 12}
+                          className='p-0.5 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 disabled:opacity-20 transition-colors'
+                          title='Move right'
+                        >
+                          <ArrowRight className='w-3 h-3 text-gray-500' />
+                        </button>
+                      </div>
+                      <SlotImageCard
+                        slot={slot}
+                        url={sheetImages[slot] || ''}
+                        isUploading={sheetUploadingSlot === slot}
+                        onUploadClick={() => handleSheetUploadClick(slot)}
+                        onClear={() => setSheetImages(prev => { const n = { ...prev }; delete n[slot]; return n; })}
+                        label={SLOT_LABELS[parseInt(slot)]}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
