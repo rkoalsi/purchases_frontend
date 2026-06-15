@@ -149,7 +149,7 @@ export default function InventoryAgingReport() {
           </li>
           <li>
             <span className="font-medium text-blue-600 dark:text-blue-400">Brand wise collection value</span>
-            {' '}— total stock, slow movers and deadstock per brand
+            {' '}— current stock + all four aging buckets per brand
           </li>
         </ul>
       </div>
