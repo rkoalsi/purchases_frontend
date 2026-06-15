@@ -252,16 +252,18 @@ function ProductThumbnail({ product, onOpenCarousel }: { product: any; onOpenCar
 
 // ─── Product Detail Drawer ─────────────────────────────────────────────────────
 
-type DrawerTab = 'media' | 'details' | 'catalogue' | 'nutrition';
+type DrawerTab = 'media' | 'details' | 'catalogue' | 'nutrition' | 'master_images';
 
 function ProductDetailDrawer({
   product,
   onClose,
   onOpenCarousel,
+  token,
 }: {
   product: any;
   onClose: () => void;
   onOpenCarousel: (idx: number) => void;
+  token: string;
 }) {
   const cat = product.catalogue || {};
   const images = getAllDisplayableImages(product);
@@ -275,10 +277,11 @@ function ProductDetailDrawer({
   const [activeTab, setActiveTab] = useState<DrawerTab>('media');
 
   const tabs: { key: DrawerTab; label: string }[] = [
-    { key: 'media',     label: 'Media' },
-    { key: 'details',   label: 'Details' },
-    { key: 'catalogue', label: 'Catalogue' },
+    { key: 'media',         label: 'Media' },
+    { key: 'details',       label: 'Details' },
+    { key: 'catalogue',     label: 'Catalogue' },
     ...(hasNutrition ? [{ key: 'nutrition' as DrawerTab, label: 'Nutrition' }] : []),
+    { key: 'master_images', label: 'Images' },
   ];
 
   useEffect(() => {
@@ -659,9 +662,321 @@ function ProductDetailDrawer({
             </div>
           )}
 
+          {/* ── Master Images tab ── */}
+          {activeTab === 'master_images' && (
+            <MasterImagesTab product={product} token={token} />
+          )}
+
         </div>
       </div>
     </>
+  );
+}
+
+// ─── Master Sheet Images Tab ───────────────────────────────────────────────────
+
+const SHEETS_API = `${process.env.NEXT_PUBLIC_API_URL}/sheets`;
+
+const SLOT_LABELS: Record<number, string> = {
+  1:  'Landing image with dog',
+  2:  'Landing image without dog',
+  3:  'Image URL 3',
+  4:  'Image URL 4',
+  5:  'Image URL 5',
+  6:  'Image URL 6',
+  7:  'Image URL 7',
+  8:  'Image URL 8',
+  9:  'Image URL 9',
+  10: 'Image URL 10',
+  11: 'Image URL 11',
+  12: 'Image URL 12',
+};
+
+function extractGDriveId(url: string): string | null {
+  // drive.google.com/open?id=ID  or  /file/d/ID/  or  uc?id=ID
+  const patterns = [
+    /[?&]id=([A-Za-z0-9_-]+)/,
+    /\/file\/d\/([A-Za-z0-9_-]+)/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function toDisplayUrl(url: string): string {
+  if (!url) return '';
+  if (isGDriveUrl(url)) {
+    const id = extractGDriveId(url);
+    if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w400`;
+  }
+  return url;
+}
+
+function SlotCard({
+  slot, url, displayUrl, isDrive, isUploading, onUploadClick, onClear, label,
+}: {
+  slot: string; url: string; displayUrl: string; isDrive: boolean;
+  isUploading: boolean; onUploadClick: () => void; onClear: () => void; label?: string;
+}) {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => { setImgError(false); }, [url]);
+
+  return (
+    <>
+    {label && <p className='text-[9px] font-medium text-gray-500 dark:text-zinc-400 truncate mb-0.5' title={label}>{label}</p>}
+    <div className='relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700'>
+      {url ? (
+        <>
+          {!imgError ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={displayUrl}
+              alt=''
+              className='w-full h-full object-cover'
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            /* Broken image fallback — show link icon + open button */
+            <div className='absolute inset-0 flex flex-col items-center justify-center gap-1 p-2'>
+              <Package className='w-5 h-5 text-gray-300 dark:text-zinc-600' />
+              <a
+                href={url}
+                target='_blank'
+                rel='noreferrer'
+                className='text-[8px] text-blue-500 hover:underline text-center leading-tight line-clamp-2 break-all'
+                title={url}
+              >
+                Open link
+              </a>
+            </div>
+          )}
+          <button
+            onClick={onClear}
+            className='absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:bg-red-600 transition-colors'
+            title='Clear'
+          >
+            <X className='w-3 h-3' />
+          </button>
+          <button
+            onClick={onUploadClick}
+            className='absolute bottom-5 right-1 w-5 h-5 rounded-full bg-blue-500/90 text-white flex items-center justify-center hover:bg-blue-600 transition-colors'
+            title={isDrive ? 'Replace with upload' : 'Replace'}
+          >
+            <Upload className='w-3 h-3' />
+          </button>
+          {isDrive && !imgError && (
+            <a
+              href={url}
+              target='_blank'
+              rel='noreferrer'
+              className='absolute bottom-5 left-1 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors'
+              title='Open in Drive'
+            >
+              <ExternalLink className='w-2.5 h-2.5' />
+            </a>
+          )}
+        </>
+      ) : isUploading ? (
+        <div className='absolute inset-0 flex items-center justify-center'>
+          <Loader2 className='w-5 h-5 animate-spin text-blue-500' />
+        </div>
+      ) : (
+        <button
+          onClick={onUploadClick}
+          className='absolute inset-0 flex items-center justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors'
+          title='Upload image'
+        >
+          <Upload className='w-4 h-4 text-gray-300 dark:text-zinc-600' />
+        </button>
+      )}
+      <span className='absolute bottom-1 left-1 text-[9px] font-bold bg-black/50 text-white px-1 py-px rounded leading-none'>
+        {slot}
+      </span>
+    </div>
+    </>
+  );
+}
+
+function MasterImagesTab({ product, token }: { product: any; token: string }) {
+  const sku    = product.cf_sku_code || product.sku || '';
+  const itemId = product.item_id || '';
+
+  const [loading,       setLoading]       = useState(true);
+  const [saving,        setSaving]        = useState(false);
+  const [saved,         setSaved]         = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [sheet,         setSheet]         = useState('Master');
+  const [images,        setImages]        = useState<Record<string, string>>(
+    () => Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), '']))
+  );
+  const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingSlot  = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sku) return;
+    setLoading(true);
+    setError(null);
+    axios.get(`${SHEETS_API}/product-images/${encodeURIComponent(sku)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => {
+        setImages(r.data.images || {});
+        setSheet(r.data.sheet  || 'Master');
+      })
+      .catch(e => setError(e.response?.data?.detail || e.message))
+      .finally(() => setLoading(false));
+  }, [sku, token]);
+
+  const handleUploadClick = (slot: string) => {
+    pendingSlot.current = slot;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const slot = pendingSlot.current;
+    e.target.value = '';
+    if (!file || !slot) return;
+    setUploadingSlot(slot);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('item_id', itemId);
+      const r = await axios.post(`${SHEETS_API}/product-images/upload`, fd, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setImages(prev => ({ ...prev, [slot]: r.data.url }));
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Upload failed');
+    } finally {
+      setUploadingSlot(null);
+    }
+  };
+
+  const handleClear = (slot: string) =>
+    setImages(prev => ({ ...prev, [slot]: '' }));
+
+  const handleSwap = (slot: string, dir: -1 | 1) => {
+    const other = String(parseInt(slot) + dir);
+    if (parseInt(other) < 1 || parseInt(other) > 12) return;
+    setImages(prev => {
+      const next = { ...prev };
+      [next[slot], next[other]] = [next[other], next[slot]];
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await axios.put(
+        `${SHEETS_API}/product-images/${encodeURIComponent(sku)}`,
+        { sheet, images },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return (
+    <div className='flex items-center justify-center py-16'>
+      <Loader2 className='w-6 h-6 animate-spin text-blue-500' />
+    </div>
+  );
+
+  if (error) return (
+    <div className='px-5 py-8 text-center'>
+      <p className='text-sm text-red-500'>{error}</p>
+    </div>
+  );
+
+  return (
+    <div className='px-5 py-4'>
+      {/* Header row */}
+      <div className='flex items-center justify-between mb-4'>
+        <p className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider'>
+          Sheet: <span className='text-blue-500 dark:text-blue-400'>{sheet}</span>
+        </p>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-60 ${
+            saved
+              ? 'bg-green-500 text-white'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}
+        >
+          {saving ? (
+            <Loader2 className='w-3.5 h-3.5 animate-spin' />
+          ) : saved ? (
+            <CheckCircle className='w-3.5 h-3.5' />
+          ) : (
+            <Upload className='w-3.5 h-3.5' />
+          )}
+          {saved ? 'Saved!' : 'Save to Sheet'}
+        </button>
+      </div>
+
+      <input
+        type='file'
+        accept='image/*'
+        ref={fileInputRef}
+        className='hidden'
+        onChange={handleFileChange}
+      />
+
+      {/* 3-column grid */}
+      <div className='grid grid-cols-3 gap-3'>
+        {Array.from({ length: 12 }, (_, i) => {
+          const slot        = String(i + 1);
+          const url         = images[slot] || '';
+          const displayUrl  = toDisplayUrl(url);
+          const isDrive     = url ? isGDriveUrl(url) : false;
+          const isUploading = uploadingSlot === slot;
+
+          return (
+            <div key={slot} className='flex flex-col gap-1'>
+              {/* Image card */}
+              <SlotCard
+                slot={slot}
+                url={url}
+                displayUrl={displayUrl}
+                isDrive={isDrive}
+                isUploading={isUploading}
+                onUploadClick={() => handleUploadClick(slot)}
+                onClear={() => handleClear(slot)}
+                label={SLOT_LABELS[parseInt(slot)]}
+              />
+
+              {/* Swap arrows */}
+              <div className='flex gap-1'>
+                <button
+                  onClick={() => handleSwap(slot, -1)}
+                  disabled={slot === '1' || !url}
+                  className='flex-1 h-5 rounded text-[9px] bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-25 transition-colors'
+                  title='Swap with previous'
+                >←</button>
+                <button
+                  onClick={() => handleSwap(slot, 1)}
+                  disabled={slot === '12' || !url}
+                  className='flex-1 h-5 rounded text-[9px] bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-25 transition-colors'
+                  title='Swap with next'
+                >→</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -1519,6 +1834,7 @@ export default function ZohoItemsPage() {
           product={drawerProduct}
           onClose={() => setDrawerProduct(null)}
           onOpenCarousel={idx => setCarousel({ product: drawerProduct, idx })}
+          token={accessToken || ''}
         />
       )}
 
