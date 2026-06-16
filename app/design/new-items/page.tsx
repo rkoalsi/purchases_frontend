@@ -530,17 +530,21 @@ const SHEETS_API = `${process.env.NEXT_PUBLIC_API_URL}/sheets`;
 
 const SLOT_LABELS: Record<number, string> = {
   1:  'Landing image with dog',
-  2:  'Landing image without dog',
-  3:  'Image URL 3',
-  4:  'Image URL 4',
-  5:  'Image URL 5',
-  6:  'Image URL 6',
-  7:  'Image URL 7',
-  8:  'Image URL 8',
-  9:  'Image URL 9',
-  10: 'Image URL 10',
-  11: 'Image URL 11',
-  12: 'Image URL 12',
+  2:  'Landing image without dog · OF #1',
+  3:  'Chewing Style · OF #8',
+  4:  'Features 1 · OF #3',
+  5:  'Features 2 · OF #4',
+  6:  'Features 3 · OF #5',
+  7:  'Features 4 · OF #6',
+  8:  'Features 5 · OF #7',
+  9:  'Why Chew / Plush / Teething etc Toys',
+  10: 'Safety First',
+  11: 'Customer Service',
+  12: 'Sizing image · OF #2',
+  13: 'Groupshot',
+  14: 'Lifestyle 2 (Dog & Cat)',
+  15: 'Image URL 15',
+  16: 'Image URL 16',
 };
 
 function extractGDriveId(url: string): string | null {
@@ -670,13 +674,14 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
   const [mediaTab, setMediaTab] = useState<'images' | 'videos' | 'drive'>(initialMediaTab);
 
   // Sheet images state
-  const [sheetLoading,      setSheetLoading]      = useState(false);
-  const [sheetSaving,       setSheetSaving]        = useState(false);
-  const [sheetSaved,        setSheetSaved]         = useState(false);
-  const [sheetError,        setSheetError]         = useState<string | null>(null);
-  const [sheetName,         setSheetName]          = useState('Master');
-  const [sheetImages,       setSheetImages]        = useState<Record<string, string>>(
-    () => Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), '']))
+  const [sheetLoading,        setSheetLoading]        = useState(false);
+  const [sheetSaving,         setSheetSaving]          = useState(false);
+  const [sheetSaved,          setSheetSaved]           = useState(false);
+  const [sheetOrderFormSynced, setSheetOrderFormSynced] = useState(false);
+  const [sheetError,          setSheetError]           = useState<string | null>(null);
+  const [sheetName,           setSheetName]            = useState('Master');
+  const [sheetImages,         setSheetImages]          = useState<Record<string, string>>(
+    () => Object.fromEntries(Array.from({ length: 16 }, (_, i) => [String(i + 1), '']))
   );
   const [sheetUploadingSlot, setSheetUploadingSlot] = useState<string | null>(null);
   const [sheetFetched,       setSheetFetched]       = useState(false);
@@ -696,6 +701,22 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
       .catch(e => setSheetError(e.response?.data?.detail || e.message))
       .finally(() => setSheetLoading(false));
   }, [activeSection, sheetFetched, product, accessToken]);
+
+  const prevSection = useRef<string>(initialSection);
+  useEffect(() => {
+    const leaving = prevSection.current;
+    prevSection.current = activeSection;
+    if (leaving !== 'sheet_images' || activeSection !== 'media') return;
+    // Re-fetch product images when switching from Sheet Images → Media
+    axios.get(`${API}/products/${product._id}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).then(r => {
+      const p = r.data;
+      const main  = p.image_url && !isGDriveUrl(p.image_url) ? [p.image_url as string] : [];
+      const rest  = (p.images || []).filter((u: string) => u && u !== p.image_url && !isGDriveUrl(u));
+      setAllImages([...main, ...rest]);
+    }).catch((err) => { console.error('[design/new-items] media re-fetch failed:', err?.response?.data || err?.message); });
+  }, [activeSection]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSheetUploadClick = (slot: string) => {
     sheetPendingSlot.current = slot;
@@ -727,12 +748,13 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
     setSheetSaving(true);
     const sku = product.cf_sku_code || product.sku || '';
     try {
-      await axios.put(`${SHEETS_API}/product-images/${encodeURIComponent(sku)}`,
+      const r = await axios.put(`${SHEETS_API}/product-images/${encodeURIComponent(sku)}`,
         { sheet: sheetName, images: sheetImages },
         { headers: { Authorization: `Bearer ${accessToken}` } },
       );
       setSheetSaved(true);
-      setTimeout(() => setSheetSaved(false), 2500);
+      if (r.data.order_form_synced) setSheetOrderFormSynced(true);
+      setTimeout(() => { setSheetSaved(false); setSheetOrderFormSynced(false); }, 3000);
     } catch (e: any) {
       alert(e.response?.data?.detail || 'Save failed');
     } finally {
@@ -742,7 +764,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
 
   const handleSheetSwap = (slot: string, dir: -1 | 1) => {
     const other = String(parseInt(slot) + dir);
-    if (parseInt(other) < 1 || parseInt(other) > 12) return;
+    if (parseInt(other) < 1 || parseInt(other) > 16) return;
     setSheetImages(prev => { const n = { ...prev }; [n[slot], n[other]] = [n[other], n[slot]]; return n; });
   };
   const [imgCarouselIdx, setImgCarouselIdx] = useState(0);
@@ -1192,17 +1214,22 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                     : <p className='text-[10px] text-gray-400 mt-0.5'>{sheetName}</p>
                   }
                 </div>
-                <div className='flex items-center gap-2'>
-                  {sheetError && <span className='text-[10px] text-red-500'>{sheetError}</span>}
-                  {sheetSaved && <span className='text-[10px] text-green-600'>Saved!</span>}
-                  <button
-                    onClick={handleSheetSave}
-                    disabled={sheetSaving || sheetLoading}
-                    className='px-3 py-1.5 text-xs rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors'
-                  >
-                    {sheetSaving ? <Loader2 className='w-3 h-3 animate-spin' /> : <Check className='w-3 h-3' />}
-                    Save to Sheet
-                  </button>
+                <div className='flex flex-col items-end gap-1'>
+                  <div className='flex items-center gap-2'>
+                    {sheetError && <span className='text-[10px] text-red-500'>{sheetError}</span>}
+                    {sheetSaved && <span className='text-[10px] text-green-600'>Saved!</span>}
+                    <button
+                      onClick={handleSheetSave}
+                      disabled={sheetSaving || sheetLoading}
+                      className='px-3 py-1.5 text-xs rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors'
+                    >
+                      {sheetSaving ? <Loader2 className='w-3 h-3 animate-spin' /> : <Check className='w-3 h-3' />}
+                      Save to Sheet
+                    </button>
+                  </div>
+                  {sheetOrderFormSynced && (
+                    <span className='text-[9px] text-green-600 dark:text-green-400'>✓ Order Form synced</span>
+                  )}
                 </div>
               </div>
               {sheetLoading ? (
@@ -1211,7 +1238,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                 </div>
               ) : (
                 <div className='grid grid-cols-3 gap-3'>
-                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(slot => (
+                  {Array.from({ length: 16 }, (_, i) => String(i + 1)).map(slot => (
                     <div key={slot} className='flex flex-col gap-1'>
                       <div className='flex items-center justify-between'>
                         <button
@@ -1224,7 +1251,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                         </button>
                         <button
                           onClick={() => handleSheetSwap(slot, 1)}
-                          disabled={parseInt(slot) >= 12}
+                          disabled={parseInt(slot) >= 16}
                           className='p-0.5 rounded hover:bg-gray-100 dark:hover:bg-zinc-700 disabled:opacity-20 transition-colors'
                           title='Move right'
                         >
@@ -1236,7 +1263,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                         url={sheetImages[slot] || ''}
                         isUploading={sheetUploadingSlot === slot}
                         onUploadClick={() => handleSheetUploadClick(slot)}
-                        onClear={() => setSheetImages(prev => { const n = { ...prev }; delete n[slot]; return n; })}
+                        onClear={() => setSheetImages(prev => ({ ...prev, [slot]: '' }))}
                         label={SLOT_LABELS[parseInt(slot)]}
                       />
                     </div>

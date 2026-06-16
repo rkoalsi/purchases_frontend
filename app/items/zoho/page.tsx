@@ -679,17 +679,21 @@ const SHEETS_API = `${process.env.NEXT_PUBLIC_API_URL}/sheets`;
 
 const SLOT_LABELS: Record<number, string> = {
   1:  'Landing image with dog',
-  2:  'Landing image without dog',
-  3:  'Image URL 3',
-  4:  'Image URL 4',
-  5:  'Image URL 5',
-  6:  'Image URL 6',
-  7:  'Image URL 7',
-  8:  'Image URL 8',
-  9:  'Image URL 9',
-  10: 'Image URL 10',
-  11: 'Image URL 11',
-  12: 'Image URL 12',
+  2:  'Landing image without dog · OF #1',
+  3:  'Chewing Style · OF #8',
+  4:  'Features 1 · OF #3',
+  5:  'Features 2 · OF #4',
+  6:  'Features 3 · OF #5',
+  7:  'Features 4 · OF #6',
+  8:  'Features 5 · OF #7',
+  9:  'Why Chew / Plush / Teething etc Toys',
+  10: 'Safety First',
+  11: 'Customer Service',
+  12: 'Sizing image · OF #2',
+  13: 'Groupshot',
+  14: 'Lifestyle 2 (Dog & Cat)',
+  15: 'Image URL 15',
+  16: 'Image URL 16',
 };
 
 function extractGDriveId(url: string): string | null {
@@ -807,10 +811,11 @@ function MasterImagesTab({ product, token }: { product: any; token: string }) {
   const [loading,       setLoading]       = useState(true);
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
+  const [orderFormSynced, setOrderFormSynced] = useState(false);
   const [error,         setError]         = useState<string | null>(null);
   const [sheet,         setSheet]         = useState('Master');
   const [images,        setImages]        = useState<Record<string, string>>(
-    () => Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), '']))
+    () => Object.fromEntries(Array.from({ length: 16 }, (_, i) => [String(i + 1), '']))
   );
   const [uploadingSlot, setUploadingSlot] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -862,7 +867,7 @@ function MasterImagesTab({ product, token }: { product: any; token: string }) {
 
   const handleSwap = (slot: string, dir: -1 | 1) => {
     const other = String(parseInt(slot) + dir);
-    if (parseInt(other) < 1 || parseInt(other) > 12) return;
+    if (parseInt(other) < 1 || parseInt(other) > 16) return;
     setImages(prev => {
       const next = { ...prev };
       [next[slot], next[other]] = [next[other], next[slot]];
@@ -873,13 +878,14 @@ function MasterImagesTab({ product, token }: { product: any; token: string }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await axios.put(
+      const r = await axios.put(
         `${SHEETS_API}/product-images/${encodeURIComponent(sku)}`,
         { sheet, images },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      if (r.data.order_form_synced) setOrderFormSynced(true);
+      setTimeout(() => { setSaved(false); setOrderFormSynced(false); }, 3000);
     } catch (e: any) {
       alert(e.response?.data?.detail || 'Save failed');
     } finally {
@@ -906,24 +912,29 @@ function MasterImagesTab({ product, token }: { product: any; token: string }) {
         <p className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider'>
           Sheet: <span className='text-blue-500 dark:text-blue-400'>{sheet}</span>
         </p>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-60 ${
-            saved
-              ? 'bg-green-500 text-white'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
-          }`}
-        >
-          {saving ? (
-            <Loader2 className='w-3.5 h-3.5 animate-spin' />
-          ) : saved ? (
-            <CheckCircle className='w-3.5 h-3.5' />
-          ) : (
-            <Upload className='w-3.5 h-3.5' />
+        <div className='flex flex-col items-end gap-1'>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-60 ${
+              saved
+                ? 'bg-green-500 text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            {saving ? (
+              <Loader2 className='w-3.5 h-3.5 animate-spin' />
+            ) : saved ? (
+              <CheckCircle className='w-3.5 h-3.5' />
+            ) : (
+              <Upload className='w-3.5 h-3.5' />
+            )}
+            {saved ? 'Saved!' : 'Save to Sheet'}
+          </button>
+          {orderFormSynced && (
+            <span className='text-[9px] text-green-600 dark:text-green-400'>✓ Order Form synced</span>
           )}
-          {saved ? 'Saved!' : 'Save to Sheet'}
-        </button>
+        </div>
       </div>
 
       <input
@@ -936,7 +947,7 @@ function MasterImagesTab({ product, token }: { product: any; token: string }) {
 
       {/* 3-column grid */}
       <div className='grid grid-cols-3 gap-3'>
-        {Array.from({ length: 12 }, (_, i) => {
+        {Array.from({ length: 16 }, (_, i) => {
           const slot        = String(i + 1);
           const url         = images[slot] || '';
           const displayUrl  = toDisplayUrl(url);
@@ -967,7 +978,7 @@ function MasterImagesTab({ product, token }: { product: any; token: string }) {
                 >←</button>
                 <button
                   onClick={() => handleSwap(slot, 1)}
-                  disabled={slot === '12' || !url}
+                  disabled={slot === '16' || !url}
                   className='flex-1 h-5 rounded text-[9px] bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-25 transition-colors'
                   title='Swap with next'
                 >→</button>
