@@ -547,7 +547,7 @@ export default function BrandOrders() {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get<BrandOrder[]>(`${API_URL}/brand_orders/`);
+      const { data } = await axios.get<BrandOrder[]>(`${API_URL}/brand_orders`);
       setOrders(data);
     } catch { toast.error('Failed to load orders'); }
     finally { setLoading(false); }
