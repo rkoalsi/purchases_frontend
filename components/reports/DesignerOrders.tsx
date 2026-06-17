@@ -455,7 +455,7 @@ export default function DesignerOrders() {
     });
     if (!isOpen) {
       const order = orders.find(o => o._id === orderId);
-      if (order && docsMap[orderId] === undefined) {
+      if (order) {
         setDocsMap(prev => ({ ...prev, [orderId]: order.designer_documents || [] }));
       }
       if (order?.purchaseorder_number && lineItemsMap[orderId] === undefined) {
