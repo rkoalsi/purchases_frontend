@@ -270,7 +270,9 @@ function ProductDetailDrawer({
   const videos = getProductVideos(product);
   const driveLinks: string[] = cat.image_links || [];
   const features: string[] = (cat.features || []).filter(Boolean);
-  const hasNutrition = !!(cat.ingredient_list || cat.nutritional_analysis);
+  const treatsAttrs = cat.treats_attributes || {};
+  const hasTreatsAttrs = Object.keys(treatsAttrs).length > 0;
+  const hasNutrition = !!(cat.ingredient_list || cat.nutritional_analysis || hasTreatsAttrs);
 
   const [activeImg, setActiveImg] = useState(0);
   const [imgError, setImgError] = useState(false);
@@ -656,7 +658,64 @@ function ProductDetailDrawer({
                   </div>
                 </div>
               )}
-              {!cat.ingredient_list && !cat.nutritional_analysis && (
+              {hasTreatsAttrs && (
+                <div className='space-y-3'>
+                  <p className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider'>Treats Info</p>
+                  {(() => {
+                    const boolFields: [string, string][] = [
+                      ['natural_ingredients', 'Natural Ingredients'],
+                      ['grain_free', 'Grain Free'],
+                      ['gluten_free', 'Gluten Free'],
+                      ['human_grade_ingredients', 'Human Grade'],
+                    ];
+                    const hasBools = boolFields.some(([k]) => treatsAttrs[k] != null);
+                    return hasBools ? (
+                      <div className='flex flex-wrap gap-1.5'>
+                        {boolFields.map(([k, label]) => treatsAttrs[k] != null ? (
+                          <span key={k} className={`text-xs px-2 py-0.5 rounded-full font-medium ${treatsAttrs[k] ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-gray-100 dark:bg-zinc-700 text-gray-500 dark:text-zinc-400 line-through'}`}>
+                            {label}
+                          </span>
+                        ) : null)}
+                      </div>
+                    ) : null;
+                  })()}
+                  <div className='grid grid-cols-2 gap-3'>
+                    {([
+                      ['functional_treat', 'Functional Treat'],
+                      ['main_animal_source', 'Main Animal Source'],
+                      ['form_used', 'Form Used'],
+                      ['source_of_ingredients', 'Source of Ingredients'],
+                      ['starch_source', 'Starch Source'],
+                      ['plant_protein_source', 'Plant Protein Source'],
+                      ['glycerin_type_source', 'Glycerin Type & Source'],
+                      ['other_animal_source', 'Other Animal Source'],
+                      ['shelf_life', 'Shelf Life'],
+                    ] as [string, string][]).map(([k, label]) => treatsAttrs[k] ? (
+                      <Field key={k} label={label} value={treatsAttrs[k]} />
+                    ) : null)}
+                  </div>
+                  {treatsAttrs.special_additives && (
+                    <div>
+                      <p className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1'>Special Additives</p>
+                      <div className='bg-gray-50 dark:bg-zinc-800 rounded-lg px-3 py-2'>
+                        <p className='text-sm text-gray-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed'>{treatsAttrs.special_additives}</p>
+                      </div>
+                    </div>
+                  )}
+                  {treatsAttrs.animal_body_parts_used && (
+                    <Field label='Animal Body Parts Used' value={treatsAttrs.animal_body_parts_used} />
+                  )}
+                  {treatsAttrs.feeding_guide && (
+                    <div>
+                      <p className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-1'>Feeding Guide</p>
+                      <div className='bg-gray-50 dark:bg-zinc-800 rounded-lg px-3 py-2'>
+                        <p className='text-sm text-gray-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed'>{treatsAttrs.feeding_guide}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!cat.ingredient_list && !cat.nutritional_analysis && !hasTreatsAttrs && (
                 <p className='text-sm text-gray-400 text-center py-8'>No nutrition information recorded</p>
               )}
             </div>
