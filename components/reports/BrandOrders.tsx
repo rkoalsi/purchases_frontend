@@ -364,7 +364,11 @@ export default function BrandOrders() {
       map[key].push(order);
     }
     for (const vendorOrders of Object.values(map)) {
-      vendorOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      vendorOrders.sort((a, b) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb !== ta ? tb - ta : b._id.localeCompare(a._id);
+      });
     }
     return map;
   }, [orders]);
@@ -381,8 +385,8 @@ export default function BrandOrders() {
     return Object.values(map).sort((a, b) => {
       const aOrders = ordersByVendor[a.contact_id] || [];
       const bOrders = ordersByVendor[b.contact_id] || [];
-      const aLatest = aOrders.length > 0 ? Math.max(...aOrders.map(o => new Date(o.created_at).getTime())) : 0;
-      const bLatest = bOrders.length > 0 ? Math.max(...bOrders.map(o => new Date(o.created_at).getTime())) : 0;
+      const aLatest = aOrders.length > 0 ? Math.max(...aOrders.map(o => o.created_at ? new Date(o.created_at).getTime() : 0)) : 0;
+      const bLatest = bOrders.length > 0 ? Math.max(...bOrders.map(o => o.created_at ? new Date(o.created_at).getTime() : 0)) : 0;
       if (bLatest !== aLatest) return bLatest - aLatest;
       return a.contact_name.localeCompare(b.contact_name);
     });

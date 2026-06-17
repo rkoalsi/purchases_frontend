@@ -1746,7 +1746,11 @@ export default function ZohoItemsPage() {
           .catch(() => [] as any[])
       )
     )
-      .then(results => setPisOrders(results.flat().sort((a: any, b: any) => a.name.localeCompare(b.name))))
+      .then(results => setPisOrders(results.flat().sort((a: any, b: any) => {
+        const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return tb !== ta ? tb - ta : b._id.localeCompare(a._id);
+      })))
       .finally(() => setPisOrdersLoading(false));
   }, [pisSelectedBrand, accessToken]);
 
