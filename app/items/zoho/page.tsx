@@ -13,6 +13,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { BRAND_GROUPS, BRAND_CONSTITUENTS, mergeBrandOptions } from '@/util/brandGroups';
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/zoho`;
+const DESIGN_API = `${process.env.NEXT_PUBLIC_API_URL}/design`;
 const PAGE_SIZE = 10;
 
 type Tab = 'products' | 'composites' | 'pis';
@@ -2065,7 +2066,12 @@ export default function ZohoItemsPage() {
                     {products.map((p: any, i) => (
                       <tr
                         key={p._id || i}
-                        onClick={() => setDrawerProduct(p)}
+                        onClick={() => {
+                          setDrawerProduct(p);
+                          axios.get(`${DESIGN_API}/products/${p._id}`, { headers: { Authorization: `Bearer ${accessToken}` } })
+                            .then(r => setDrawerProduct((d: any) => d?._id === p._id ? { ...d, catalogue: r.data.catalogue } : d))
+                            .catch(() => {});
+                        }}
                         className='hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer'
                       >
                         <td className='px-4 py-3 text-sm text-gray-400 dark:text-zinc-500'>{(prodPage - 1) * PAGE_SIZE + i + 1}</td>
