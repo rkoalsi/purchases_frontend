@@ -1111,35 +1111,75 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
           {/* ── Details section ── */}
           {activeSection === 'details' && (
             <div className='space-y-4'>
-              {/* Read-only product info */}
-              <div className='bg-gray-50 dark:bg-zinc-800 rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2'>
-                {product.rate != null && (
-                  <div>
-                    <p className={labelCls}>Price (MRP)</p>
-                    <p className='text-sm font-semibold text-gray-800 dark:text-zinc-200'>{fmt(product.rate)}</p>
-                  </div>
-                )}
-                {(product.series) && (
-                  <div>
-                    <p className={labelCls}>Series</p>
-                    <p className='text-sm text-gray-700 dark:text-zinc-300'>{product.series}</p>
-                  </div>
-                )}
-                {(cat.product_category || product.category) && (
-                  <div>
-                    <p className={labelCls}>Category</p>
-                    <p className='text-sm text-gray-700 dark:text-zinc-300'>{cat.product_category || product.category}</p>
-                  </div>
-                )}
-                {(cat.sub_category || product.sub_category) && (
-                  <div>
-                    <p className={labelCls}>Sub-category</p>
-                    <p className='text-sm text-gray-700 dark:text-zinc-300'>{cat.sub_category || product.sub_category}</p>
-                  </div>
+              {/* Status pills */}
+              <div className='flex flex-wrap gap-2'>
+                <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full border ${
+                  product.status === 'active' || product.is_active
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800'
+                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800'
+                }`}>
+                  Zoho: {product.status === 'active' || product.is_active ? 'Active' : 'Inactive'}
+                </span>
+                {product.purchase_status && (
+                  <span className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full border ${
+                    product.purchase_status === 'active'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800'
+                      : product.purchase_status === 'inactive'
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                  }`}>
+                    Purchase: {product.purchase_status === 'discontinued until stock lasts' ? 'Disc. until stock lasts' : product.purchase_status}
+                  </span>
                 )}
               </div>
+              {/* Key metrics */}
+              <div className='grid grid-cols-2 gap-4 bg-gray-50 dark:bg-zinc-800 rounded-xl px-4 py-3'>
+                <div>
+                  <p className={labelCls}>Price (MRP)</p>
+                  <p className='text-base font-bold text-gray-800 dark:text-zinc-100'>
+                    {product.rate != null ? fmt(product.rate) : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className={labelCls}>Stock</p>
+                  <p className='text-base font-bold text-gray-800 dark:text-zinc-100'>{product.stock ?? product.stock_on_hand ?? 0}</p>
+                </div>
+              </div>
+              {/* Read-only product info */}
+              <div className='grid grid-cols-2 gap-x-4 gap-y-3'>
+                {[
+                  ['Brand', product.brand],
+                  ['Category', cat.product_category || product.category_name || product.category],
+                  ['Sub-category', cat.sub_category || product.sub_category],
+                  ['Series', cat.series || product.series],
+                  ['Item Type', product.item_type],
+                  ['Unit', product.unit],
+                  ['HSN / SAC', product.hsn_or_sac],
+                  ['Tax Rate', product.tax_percentage != null ? `${product.tax_percentage}%` : null],
+                  ['Reorder Point', product.reorder_level],
+                  ['Item ID', product.item_id],
+                  ['BB Code', cat.bb_code || product.cf_sku_code],
+                ].map(([label, value]) => value != null && value !== '' ? (
+                  <div key={label as string}>
+                    <p className={labelCls}>{label}</p>
+                    <p className='text-sm text-gray-700 dark:text-zinc-300'>{value}</p>
+                  </div>
+                ) : null)}
+              </div>
+              {product.description && (
+                <div>
+                  <p className={labelCls}>Description</p>
+                  <p className='text-sm text-gray-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed'>{product.description}</p>
+                </div>
+              )}
+              {product.created_at && (
+                <div className='pt-2 border-t border-gray-100 dark:border-zinc-800'>
+                  <p className={labelCls}>Created</p>
+                  <p className='text-sm text-gray-700 dark:text-zinc-300'>{new Date(product.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                </div>
+              )}
               {/* Catalogue details */}
-              <div className='flex items-center gap-2'>
+              <div className='flex items-center gap-2 pt-2'>
                 <span className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider'>Catalogue Details</span>
                 <div className='flex-1 h-px bg-gray-100 dark:bg-zinc-800' />
               </div>
