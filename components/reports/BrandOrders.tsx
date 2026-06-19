@@ -121,8 +121,10 @@ function fmtDate(s: string) {
 function fmtDateTime(s: string) {
   if (!s) return '—';
   try {
-    return new Date(s).toLocaleString('en-IN', {
+    const ts = /[Z+\-]\d{2}:?\d{2}$|Z$/.test(s) ? s : s + 'Z';
+    return new Date(ts).toLocaleString('en-IN', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      timeZone: 'Asia/Kolkata',
     });
   } catch { return s; }
 }
