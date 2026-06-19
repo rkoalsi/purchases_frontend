@@ -22,7 +22,7 @@ import { useAuth } from '@/components/context/AuthContext';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const MASTER_SHEET_URL =
-  'https://docs.google.com/spreadsheets/d/1bQEqJxPR_m1Y-K7Bjh74kio2ZTEWENFLoFTl1POabMY/edit';
+  'https://docs.google.com/spreadsheets/d/1tn_Lj3KR0zXY8B-8ZUkSznZgE4YzyjtAkcpdHzBCgt4/edit';
 const VENDOR_SHEET_URL =
   'https://docs.google.com/spreadsheets/d/1EDPhQe3OwQacohdbVs194jQZU2L5MEJtA4jOswn8oW8/edit';
 
@@ -551,7 +551,7 @@ export default function SheetsUpdater() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
-  const resolvedMasterUrl = savedUrls['master-stock'] || '';
+  const resolvedMasterUrl = savedUrls['master-stock'] || MASTER_SHEET_URL;
   const resolvedVendorUrl = savedUrls['vendor-sheets'] || '';
 
   // ── Combined run ────────────────────────────────────────────────────────────
@@ -707,7 +707,7 @@ export default function SheetsUpdater() {
             <p className='text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1'>Masters Workbook</p>
             <SheetUrlEditor
               jobId='master-stock'
-              defaultUrl={MASTER_SHEET_URL}
+              defaultUrl={resolvedMasterUrl}
               label='Masters Workbook → Master + Amazon ComboProducts'
               savedUrl={savedUrls['master-stock'] ?? ''}
               onSave={handleSaveUrl}
@@ -805,7 +805,7 @@ export default function SheetsUpdater() {
                   <div className='mt-1.5'>
                     <SheetUrlEditor
                       jobId='master-stock'
-                      defaultUrl={MASTER_SHEET_URL}
+                      defaultUrl={resolvedMasterUrl}
                       label='Masters Workbook → Master sheet'
                       savedUrl={savedUrls['master-stock'] ?? ''}
                       onSave={handleSaveUrl}
