@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { RefreshCw, ChevronDown, ChevronRight, Package, Truck, Search } from 'lucide-react';
+import { RefreshCw, ChevronDown, ChevronRight, Package, Truck, Search, ArrowRight, Link2, Unlink, X } from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState, SearchBar } from './TableStyles';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -140,7 +140,11 @@ const ItemsTable = ({ items }: { items: ShipmentItem[] }) => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function AmazonFBAShipmentQueue() {
+interface AmazonFBAShipmentQueueProps {
+  onOpenProcessing?: (shipmentId: string, shipmentName: string) => void;
+}
+
+export default function AmazonFBAShipmentQueue({ onOpenProcessing }: AmazonFBAShipmentQueueProps = {}) {
   const [shipments, setShipments]       = useState<FBAShipment[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState('');
@@ -152,7 +156,14 @@ export default function AmazonFBAShipmentQueue() {
   const [totalPages, setTotalPages]     = useState(1);
   const [total, setTotal]               = useState(0);
   const [jumpInput, setJumpInput]       = useState('');
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 10;
+
+  // Estimate state
+  const [estimateByShipment, setEstimateByShipment] = useState<Record<string, string | null>>({});
+  const [linkInputFor, setLinkInputFor] = useState<string | null>(null);
+  const [linkInputVal, setLinkInputVal] = useState('');
+  const [linkingFor, setLinkingFor]     = useState<string | null>(null);
+  const requestedEstimatesRef = useRef<Set<string>>(new Set());
 
   // ── Fetch from DB ───────────────────────────────────────────────────────────
   const fetchShipments = useCallback(async (pg = 1, status = statusFilter) => {
@@ -225,6 +236,55 @@ export default function AmazonFBAShipmentQueue() {
   const lastSync = shipments[0]?.last_synced_at
     ? new Date(shipments[0].last_synced_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
     : null;
+
+  // ── Auto-load estimates for current page ────────────────────────────────────
+  useEffect(() => {
+    const toLoad = shipments
+      .map(s => s.ShipmentId)
+      .filter(sid => !requestedEstimatesRef.current.has(sid));
+    if (toLoad.length === 0) return;
+    toLoad.forEach(sid => {
+      requestedEstimatesRef.current.add(sid);
+      axios.get(`${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`)
+        .then(res => {
+          const num = res.data?.estimate_number ?? null;
+          setEstimateByShipment(prev => ({ ...prev, [sid]: num }));
+        })
+        .catch(() => setEstimateByShipment(prev => ({ ...prev, [sid]: null })));
+    });
+  }, [shipments]);
+
+  // ── Estimate link/unlink ────────────────────────────────────────────────────
+  const handleLinkEstimate = useCallback(async (sid: string) => {
+    const val = linkInputVal.trim();
+    if (!val) return;
+    setLinkingFor(sid);
+    try {
+      const res = await axios.put(
+        `${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`,
+        { estimate_number: val },
+      );
+      setEstimateByShipment(prev => ({ ...prev, [sid]: res.data.estimate_number }));
+      setLinkInputFor(null);
+      setLinkInputVal('');
+      toast.success(`Linked ${res.data.estimate_number}`);
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail ?? 'Failed to link estimate');
+    } finally {
+      setLinkingFor(null);
+    }
+  }, [linkInputVal]);
+
+  const handleUnlinkEstimate = useCallback(async (sid: string) => {
+    if (!confirm('Remove the estimate link from this shipment?')) return;
+    try {
+      await axios.delete(`${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`);
+      setEstimateByShipment(prev => ({ ...prev, [sid]: null }));
+      toast.success('Estimate unlinked');
+    } catch {
+      toast.error('Failed to unlink estimate');
+    }
+  }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -314,13 +374,15 @@ export default function AmazonFBAShipmentQueue() {
                   <th className={TABLE_CLASSES.th}>SKUs</th>
                   <th className={TABLE_CLASSES.th}>Inward Progress</th>
                   <th className={TABLE_CLASSES.th}>Linked</th>
+                  <th className={TABLE_CLASSES.th}>Estimate</th>
                   <th className={TABLE_CLASSES.th}>Synced</th>
+                  {onOpenProcessing && <th className={TABLE_CLASSES.th} />}
                 </tr>
               </thead>
               <tbody className={TABLE_CLASSES.tbody}>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-zinc-400 text-sm">
+                    <td colSpan={onOpenProcessing ? 11 : 10} className="text-center py-12 text-zinc-400 text-sm">
                       No shipments found. {search ? 'Try a different search.' : 'Click "Sync from Amazon" to load data.'}
                     </td>
                   </tr>
@@ -391,18 +453,84 @@ export default function AmazonFBAShipmentQueue() {
                             )}
                           </td>
 
+                          {/* Estimate */}
+                          <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                            {estimateByShipment[shipment.ShipmentId] ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 whitespace-nowrap">
+                                  {estimateByShipment[shipment.ShipmentId]}
+                                </span>
+                                <button
+                                  onClick={() => handleUnlinkEstimate(shipment.ShipmentId)}
+                                  className="p-0.5 text-zinc-300 hover:text-red-500 dark:text-zinc-600 dark:hover:text-red-400 transition-colors"
+                                  title="Unlink estimate"
+                                >
+                                  <Unlink size={11} />
+                                </button>
+                              </div>
+                            ) : linkInputFor === shipment.ShipmentId ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={linkInputVal}
+                                  onChange={e => setLinkInputVal(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') handleLinkEstimate(shipment.ShipmentId);
+                                    if (e.key === 'Escape') { setLinkInputFor(null); setLinkInputVal(''); }
+                                  }}
+                                  placeholder="EST/25-26/…"
+                                  autoFocus
+                                  className="w-32 px-1.5 py-0.5 text-xs border border-purple-300 dark:border-purple-700 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100"
+                                />
+                                <button
+                                  onClick={() => handleLinkEstimate(shipment.ShipmentId)}
+                                  disabled={linkingFor === shipment.ShipmentId || !linkInputVal.trim()}
+                                  className="px-2 py-0.5 text-xs font-medium text-white bg-purple-600 rounded hover:bg-purple-700 disabled:opacity-50"
+                                >
+                                  {linkingFor === shipment.ShipmentId ? '…' : 'Link'}
+                                </button>
+                                <button onClick={() => { setLinkInputFor(null); setLinkInputVal(''); }} className="p-0.5 text-zinc-400 hover:text-zinc-600">
+                                  <X size={11} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setLinkInputFor(shipment.ShipmentId); setLinkInputVal(''); }}
+                                className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                                title="Link an estimate"
+                              >
+                                <Link2 size={11} />
+                                Link
+                              </button>
+                            )}
+                          </td>
+
                           {/* Last synced */}
                           <td className="px-4 py-3 text-xs text-zinc-400">
                             {shipment.last_synced_at
                               ? new Date(shipment.last_synced_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })
                               : '—'}
                           </td>
+
+                          {/* Open in Processing */}
+                          {onOpenProcessing && (
+                            <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                              <button
+                                onClick={() => onOpenProcessing(shipment.ShipmentId, shipment.ShipmentName)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors whitespace-nowrap"
+                                title="View in Processing tab"
+                              >
+                                Processing
+                                <ArrowRight size={11} />
+                              </button>
+                            </td>
+                          )}
                         </tr>
 
                         {/* Expanded items row */}
                         {expanded && (
                           <tr className="bg-zinc-50 dark:bg-zinc-800/30">
-                            <td colSpan={9} className="px-6 py-4">
+                            <td colSpan={onOpenProcessing ? 11 : 10} className="px-6 py-4">
                               {/* Ship-from address */}
                               {shipment.ShipFromAddress?.City && (
                                 <p className="text-xs text-zinc-400 mb-3">

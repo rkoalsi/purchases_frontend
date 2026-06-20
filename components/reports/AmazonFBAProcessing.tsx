@@ -3,16 +3,21 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Upload, RefreshCw, Trash2, Edit2, Check, X, Search, Download } from 'lucide-react';
+import {
+  Upload, RefreshCw, Trash2, Edit2, Check, X, Download,
+  Save, ChevronRight, FileText, Link2, Unlink, AlertCircle, Plus,
+} from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState, SearchBar } from './TableStyles';
 import AmazonFBAShipmentQueue from './AmazonFBAShipmentQueue';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const SHIPMENTS_PER_PAGE = 10;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ProcessingRow {
   shipment_id: string;
+  shipment_name?: string;
   date: string | null;
   location: string;
   sku_code: string;
@@ -26,6 +31,67 @@ interface ProcessingRow {
   cost_price: number | null;
   hsn_code: string;
   gst: number | null;
+  _from_queue?: boolean;
+}
+
+interface ShipmentGroup {
+  rows: ProcessingRow[];
+  hasUploaded: boolean;
+  shipmentName: string;
+  location: string;
+  date: string | null;
+}
+
+interface DraftEdit {
+  packed_qty?: number;
+  sp?: number | null;
+  cost_price?: number | null;
+}
+
+interface EstimateInfo {
+  zoho_estimate_id?: string;
+  estimate_number?: string;
+  sub_total?: number | null;
+  total?: number | null;
+  status?: string | null;
+}
+
+interface EstimateDiffItem {
+  sku_code: string;
+  asin: string;
+  item_name: string;
+  processing_qty: number;
+  estimate_qty: number | null;
+  processing_rate: number;
+  estimate_rate: number | null;
+  processing_item_total: number;
+  estimate_item_total: number | null;
+  in_estimate: boolean;
+  qty_match: boolean;
+  rate_match: boolean;
+}
+
+interface EstimateDiff {
+  estimate_number: string;
+  estimate_sub_total: number | null;
+  estimate_total: number | null;
+  processing_sub_total: number;
+  processing_total: number;
+  processing_item_count: number;
+  estimate_item_count: number;
+  processing_total_qty: number;
+  estimate_total_qty: number;
+  items: EstimateDiffItem[];
+  only_in_estimate: { sku_code: string; item_name: string; estimate_qty: number; estimate_rate: number; estimate_item_total: number }[];
+}
+
+interface EtradeAddress {
+  address_id: string;
+  attention: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 interface SummaryRow {
@@ -44,6 +110,17 @@ interface SummaryRow {
 }
 
 const STATUS_OPTIONS = ['Pending', 'Processing', 'Packed', 'Dispatch', 'Delivered'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const fmt = (d: string | null | undefined) => {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
+  catch { return d; }
+};
+
+const fmtMoney = (v: number | null | undefined) =>
+  v != null ? `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 
 // ─── Summary row edit ────────────────────────────────────────────────────────
 
@@ -66,25 +143,12 @@ const SummaryEditRow: React.FC<{
     setEditing(true);
   };
 
-  const handleSave = async () => {
-    await onSave(key, draft);
-    setEditing(false);
-  };
-
-  const shortPct = row.short_supply_pct != null
-    ? `${(row.short_supply_pct * 100).toFixed(1)}%`
-    : '—';
-
-  const formatDate = (d: string | null) => {
-    if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
-    catch { return d; }
-  };
+  const shortPct = row.short_supply_pct != null ? `${(row.short_supply_pct * 100).toFixed(1)}%` : '—';
 
   return (
     <tr className={TABLE_CLASSES.tr}>
       <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-600 dark:text-zinc-400'>{row.shipment_id}</span></td>
-      <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{formatDate(row.shipment_date)}</span></td>
+      <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{fmt(row.shipment_date)}</span></td>
       <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.location || '—'}</span></td>
       <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.requested_qty.toLocaleString()}</span></td>
       <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.dispatched_qty.toLocaleString()}</span></td>
@@ -98,71 +162,39 @@ const SummaryEditRow: React.FC<{
           {shortPct}
         </span>
       </td>
-
-      {/* Editable: Reason */}
       <td className={TABLE_CLASSES.td} style={{ minWidth: 180 }}>
         {editing ? (
-          <input
-            type='text'
-            value={draft.reason_for_short_supply ?? ''}
+          <input type='text' value={draft.reason_for_short_supply ?? ''}
             onChange={e => setDraft(d => ({ ...d, reason_for_short_supply: e.target.value }))}
-            className='w-full px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100'
-          />
-        ) : (
-          <span className='text-sm text-zinc-900 dark:text-zinc-100'>{row.reason_for_short_supply || '—'}</span>
-        )}
+            className='w-full px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100' />
+        ) : <span className='text-sm text-zinc-900 dark:text-zinc-100'>{row.reason_for_short_supply || '—'}</span>}
       </td>
-
-      {/* Editable: Appointment Initiated Date */}
       <td className={TABLE_CLASSES.td}>
         {editing ? (
-          <input
-            type='date'
-            value={draft.appointment_initiated_date ?? ''}
+          <input type='date' value={draft.appointment_initiated_date ?? ''}
             onChange={e => setDraft(d => ({ ...d, appointment_initiated_date: e.target.value }))}
-            className='px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100'
-          />
-        ) : (
-          <span className='text-sm text-zinc-900 dark:text-zinc-100'>{row.appointment_initiated_date || '—'}</span>
-        )}
+            className='px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100' />
+        ) : <span className='text-sm text-zinc-900 dark:text-zinc-100'>{row.appointment_initiated_date || '—'}</span>}
       </td>
-
-      {/* Editable: Appointment Date */}
       <td className={TABLE_CLASSES.td}>
         {editing ? (
-          <input
-            type='date'
-            value={draft.appointment_date ?? ''}
+          <input type='date' value={draft.appointment_date ?? ''}
             onChange={e => setDraft(d => ({ ...d, appointment_date: e.target.value }))}
-            className='px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100'
-          />
-        ) : (
-          <span className='text-sm text-zinc-900 dark:text-zinc-100'>{row.appointment_date || '—'}</span>
-        )}
+            className='px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100' />
+        ) : <span className='text-sm text-zinc-900 dark:text-zinc-100'>{row.appointment_date || '—'}</span>}
       </td>
-
-      {/* Editable: Dispatched Date */}
       <td className={TABLE_CLASSES.td}>
         {editing ? (
-          <input
-            type='date'
-            value={draft.dispatched_date ?? ''}
+          <input type='date' value={draft.dispatched_date ?? ''}
             onChange={e => setDraft(d => ({ ...d, dispatched_date: e.target.value }))}
-            className='px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100'
-          />
-        ) : (
-          <span className='text-sm text-zinc-900 dark:text-zinc-100'>{row.dispatched_date || '—'}</span>
-        )}
+            className='px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100' />
+        ) : <span className='text-sm text-zinc-900 dark:text-zinc-100'>{row.dispatched_date || '—'}</span>}
       </td>
-
-      {/* Editable: Status */}
       <td className={TABLE_CLASSES.td}>
         {editing ? (
-          <select
-            value={draft.status ?? row.status}
+          <select value={draft.status ?? row.status}
             onChange={e => setDraft(d => ({ ...d, status: e.target.value }))}
-            className='px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100'
-          >
+            className='px-2 py-1 text-xs border border-blue-400 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100'>
             {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         ) : (
@@ -177,18 +209,14 @@ const SummaryEditRow: React.FC<{
           </span>
         )}
       </td>
-
-      {/* Actions */}
       <td className={TABLE_CLASSES.td}>
         {editing ? (
           <div className='flex items-center gap-1'>
-            <button onClick={handleSave} className='p-1 text-green-600 hover:text-green-700'><Check size={14} /></button>
+            <button onClick={async () => { await onSave(key, draft); setEditing(false); }} className='p-1 text-green-600 hover:text-green-700'><Check size={14} /></button>
             <button onClick={() => setEditing(false)} className='p-1 text-red-500 hover:text-red-600'><X size={14} /></button>
           </div>
         ) : (
-          <button onClick={startEdit} className='p-1 text-zinc-400 hover:text-blue-600 transition-colors'>
-            <Edit2 size={14} />
-          </button>
+          <button onClick={startEdit} className='p-1 text-zinc-400 hover:text-blue-600 transition-colors'><Edit2 size={14} /></button>
         )}
       </td>
     </tr>
@@ -206,7 +234,31 @@ export default function AmazonFBAProcessing() {
   const [errorProc, setErrorProc] = useState<string | null>(null);
   const [uploadingProc, setUploadingProc] = useState(false);
   const procFileRef = useRef<HTMLInputElement>(null);
-  const [searchProc, setSearchProc] = useState('');
+  const requestedEstimatesRef = useRef<Set<string>>(new Set());
+  const [selectedShipmentId, setSelectedShipmentId] = useState<string | null>(null);
+  const [draftEdits, setDraftEdits] = useState<Record<string, DraftEdit>>({});
+  const [savingRows, setSavingRows] = useState(false);
+
+  // Accordion search + pagination
+  const [shipmentSearch, setShipmentSearch] = useState('');
+  const [shipmentPage, setShipmentPage] = useState(1);
+  const [rowSearch, setRowSearch] = useState('');
+
+  // Estimate state
+  const [estimateByShipment, setEstimateByShipment] = useState<Record<string, EstimateInfo | null>>({});
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [etradeCustomer, setEtradeCustomer] = useState<{ contact_id: string; addresses: EtradeAddress[] } | null>(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [estDate, setEstDate] = useState('');
+  const [estBillingAddr, setEstBillingAddr] = useState('');
+  const [estShippingAddr, setEstShippingAddr] = useState('');
+  const [creatingEstimate, setCreatingEstimate] = useState(false);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkEstInput, setLinkEstInput] = useState('');
+  const [linkingEstimate, setLinkingEstimate] = useState(false);
+  const [estimateDiff, setEstimateDiff] = useState<EstimateDiff | null>(null);
+  const [loadingDiff, setLoadingDiff] = useState(false);
+  const [showDiff, setShowDiff] = useState(false);
 
   // Summary tab state
   const [summary, setSummary] = useState<SummaryRow[]>([]);
@@ -214,7 +266,54 @@ export default function AmazonFBAProcessing() {
   const [errorSum, setErrorSum] = useState<string | null>(null);
   const [searchSum, setSearchSum] = useState('');
 
-  // ─── Processing loaders ──────────────────────────────────────────────────
+  // Reset inline state when switching shipments
+  useEffect(() => {
+    setDraftEdits({});
+    setRowSearch('');
+    setEstimateDiff(null);
+    setShowDiff(false);
+    setShowLinkInput(false);
+    setLinkEstInput('');
+  }, [selectedShipmentId]);
+  
+  const shipmentGroups = useMemo<Record<string, ShipmentGroup>>(() => {
+    const g: Record<string, ShipmentGroup> = {};
+    for (const row of processing) {
+      if (!g[row.shipment_id]) {
+        g[row.shipment_id] = {
+          rows: [],
+          hasUploaded: false,
+          shipmentName: row.shipment_name ?? '',
+          location: row.location ?? '',
+          date: row.date,
+        };
+      }
+      g[row.shipment_id].rows.push(row);
+      if (!row._from_queue) g[row.shipment_id].hasUploaded = true;
+    }
+    return g;
+  }, [processing]);
+
+  // Auto-load estimate chips for all shipments as soon as processing data arrives
+  useEffect(() => {
+    const toLoad = Object.keys(shipmentGroups).filter(
+      sid => !requestedEstimatesRef.current.has(sid),
+    );
+    if (toLoad.length === 0) return;
+    toLoad.forEach(sid => {
+      requestedEstimatesRef.current.add(sid);
+      axios.get(`${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`)
+        .then(res => {
+          const data = res.data ?? {};
+          setEstimateByShipment(prev => ({ ...prev, [sid]: data.estimate_number ? data : null }));
+        })
+        .catch(() => {
+          setEstimateByShipment(prev => ({ ...prev, [sid]: null }));
+        });
+    });
+  }, [shipmentGroups]);
+
+  // ─── Loaders ────────────────────────────────────────────────────────────────
 
   const loadProcessing = useCallback(async () => {
     setLoadingProc(true);
@@ -244,11 +343,183 @@ export default function AmazonFBAProcessing() {
 
   const handleTabChange = useCallback((tab: 'queue' | 'processing' | 'summary') => {
     setActiveTab(tab);
-    if (tab === 'processing' && processing.length === 0) loadProcessing();
-    if (tab === 'summary' && summary.length === 0) loadSummary();
-  }, [processing.length, summary.length, loadProcessing, loadSummary]);
+    if (tab === 'processing') loadProcessing();
+    if (tab === 'summary') loadSummary();
+  }, [loadProcessing, loadSummary]);
 
-  // ─── Upload processing sheet ─────────────────────────────────────────────
+  const handleOpenFromQueue = useCallback((shipmentId: string, _shipmentName: string) => {
+    setSelectedShipmentId(shipmentId);
+    handleTabChange('processing');
+  }, [handleTabChange]);
+
+  // ─── Estimate helpers ───────────────────────────────────────────────────────
+
+  const handleToggleShipment = useCallback((sid: string) => {
+    const next = selectedShipmentId === sid ? null : sid;
+    setSelectedShipmentId(next);
+    setShipmentPage(1);
+  }, [selectedShipmentId]);
+
+  const openCreateModal = useCallback(async () => {
+    setShowCreateModal(true);
+    setEstDate(new Date().toISOString().slice(0, 10));
+    if (!etradeCustomer) {
+      setLoadingAddresses(true);
+      try {
+        const res = await axios.get(`${API_URL}/vendor_po/etrade_customer`);
+        setEtradeCustomer(res.data);
+        const addrs: EtradeAddress[] = res.data.addresses ?? [];
+        if (addrs.length > 0) {
+          setEstBillingAddr(addrs[0].address_id);
+          setEstShippingAddr(addrs[0].address_id);
+        }
+      } catch {
+        toast.error('Failed to load customer addresses');
+      } finally {
+        setLoadingAddresses(false);
+      }
+    }
+  }, [etradeCustomer]);
+
+  const handleCreateEstimate = useCallback(async () => {
+    if (!selectedShipmentId || !estBillingAddr || !estShippingAddr) return;
+    setCreatingEstimate(true);
+    try {
+      const res = await axios.post(
+        `${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/estimate`,
+        { billing_address_id: estBillingAddr, shipping_address_id: estShippingAddr, date: estDate },
+      );
+      const data = res.data;
+      toast.success(`Estimate ${data.estimate_number} created`);
+      setEstimateByShipment(prev => ({
+        ...prev,
+        [selectedShipmentId]: {
+          zoho_estimate_id: data.estimate_id,
+          estimate_number: data.estimate_number,
+          sub_total: data.sub_total,
+          total: data.total,
+          status: data.status,
+        },
+      }));
+      setShowCreateModal(false);
+      if (data.skipped_items?.length) {
+        toast.warn(`Skipped ${data.skipped_items.length} item(s): ${data.skipped_items.slice(0, 3).join(', ')}`);
+      }
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to create estimate' : 'Failed to create estimate');
+    } finally {
+      setCreatingEstimate(false);
+    }
+  }, [selectedShipmentId, estBillingAddr, estShippingAddr, estDate]);
+
+  const handleLinkEstimate = useCallback(async () => {
+    if (!selectedShipmentId || !linkEstInput.trim()) return;
+    setLinkingEstimate(true);
+    try {
+      const res = await axios.put(
+        `${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/estimate`,
+        { estimate_number: linkEstInput.trim() },
+      );
+      const data = res.data;
+      toast.success(`Linked estimate ${data.estimate_number}`);
+      setEstimateByShipment(prev => ({
+        ...prev,
+        [selectedShipmentId]: {
+          zoho_estimate_id: data.zoho_estimate_id,
+          estimate_number: data.estimate_number,
+          sub_total: data.sub_total,
+          total: data.total,
+        },
+      }));
+      setShowLinkInput(false);
+      setLinkEstInput('');
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to link estimate' : 'Failed to link estimate');
+    } finally {
+      setLinkingEstimate(false);
+    }
+  }, [selectedShipmentId, linkEstInput]);
+
+  const handleUnlinkEstimate = useCallback(async () => {
+    if (!selectedShipmentId) return;
+    if (!confirm('Remove the estimate link from this shipment?')) return;
+    try {
+      await axios.delete(`${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/estimate`);
+      toast.success('Estimate unlinked');
+      setEstimateByShipment(prev => ({ ...prev, [selectedShipmentId]: null }));
+      setEstimateDiff(null);
+      setShowDiff(false);
+    } catch {
+      toast.error('Failed to unlink estimate');
+    }
+  }, [selectedShipmentId]);
+
+  const handleLoadDiff = useCallback(async () => {
+    if (!selectedShipmentId) return;
+    setLoadingDiff(true);
+    try {
+      const res = await axios.get(`${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/estimate_diff`);
+      setEstimateDiff(res.data);
+      setShowDiff(true);
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to load breakdown' : 'Failed to load breakdown');
+    } finally {
+      setLoadingDiff(false);
+    }
+  }, [selectedShipmentId]);
+
+  // ─── Shipment groups ─────────────────────────────────────────────────────────
+
+
+  const allShipmentIds = useMemo(() =>
+    Object.keys(shipmentGroups).sort((a, b) => {
+      const da = shipmentGroups[a].date ? new Date(shipmentGroups[a].date!).getTime() : 0;
+      const db2 = shipmentGroups[b].date ? new Date(shipmentGroups[b].date!).getTime() : 0;
+      if (da !== db2) return db2 - da;
+      return b.localeCompare(a); // tie-break: newer ShipmentId last char higher
+    }),
+  [shipmentGroups]);
+
+  const filteredShipmentIds = useMemo(() => {
+    const q = shipmentSearch.toLowerCase();
+    if (!q) return allShipmentIds;
+    return allShipmentIds.filter(sid => {
+      const g = shipmentGroups[sid];
+      return (
+        sid.toLowerCase().includes(q) ||
+        g.shipmentName?.toLowerCase().includes(q) ||
+        g.location?.toLowerCase().includes(q)
+      );
+    });
+  }, [allShipmentIds, shipmentSearch, shipmentGroups]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredShipmentIds.length / SHIPMENTS_PER_PAGE));
+  const pagedIds = filteredShipmentIds.slice(
+    (shipmentPage - 1) * SHIPMENTS_PER_PAGE,
+    shipmentPage * SHIPMENTS_PER_PAGE,
+  );
+
+  // Reset page when search changes
+  useEffect(() => { setShipmentPage(1); }, [shipmentSearch]);
+
+  // Derived from selected shipment
+  const selectedGroup = selectedShipmentId ? (shipmentGroups[selectedShipmentId] ?? null) : null;
+  const isVirtualOnly = selectedGroup ? !selectedGroup.hasUploaded : false;
+  const hasDraftChanges = Object.keys(draftEdits).length > 0;
+
+  const selectedRows = useMemo(() => {
+    if (!selectedShipmentId || !selectedGroup) return [];
+    const q = rowSearch.toLowerCase();
+    if (!q) return selectedGroup.rows;
+    return selectedGroup.rows.filter(r =>
+      r.sku_code?.toLowerCase().includes(q) ||
+      r.item_name?.toLowerCase().includes(q) ||
+      r.asin?.toLowerCase().includes(q) ||
+      r.fnsku?.toLowerCase().includes(q)
+    );
+  }, [selectedShipmentId, selectedGroup, rowSearch]);
+
+  // ─── Upload processing sheet ─────────────────────────────────────────────────
 
   const handleUploadProc = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -268,64 +539,74 @@ export default function AmazonFBAProcessing() {
     }
   }, [loadProcessing]);
 
-  const handleClearProc = useCallback(async () => {
-    if (!confirm('Clear all processing records? This cannot be undone.')) return;
+  // ─── Save virtual rows ───────────────────────────────────────────────────────
+
+  const handleSaveRows = useCallback(async () => {
+    if (!selectedGroup) return;
+    setSavingRows(true);
     try {
-      const res = await axios.delete(`${API_URL}/amazon_fba_shipment/processing`);
+      const rows = selectedGroup.rows.map(row => {
+        const edits = draftEdits[row.sku_code] ?? {};
+        return {
+          ...row,
+          packed_qty: edits.packed_qty ?? row.packed_qty,
+          sp: edits.sp !== undefined ? edits.sp : row.sp,
+          cost_price: edits.cost_price !== undefined ? edits.cost_price : row.cost_price,
+        };
+      });
+      const res = await axios.post(`${API_URL}/amazon_fba_shipment/processing/rows`, { rows });
+      toast.success(`Saved ${res.data.rows_saved} rows`);
+      setDraftEdits({});
+      await loadProcessing();
+    } catch {
+      toast.error('Failed to save');
+    } finally {
+      setSavingRows(false);
+    }
+  }, [selectedGroup, draftEdits, loadProcessing]);
+
+  // ─── Clear uploaded rows for selected shipment ────────────────────────────────
+
+  const handleClearShipment = useCallback(async () => {
+    if (!selectedShipmentId || !selectedGroup?.hasUploaded) return;
+    if (!confirm(`Clear all uploaded processing records for ${selectedShipmentId}?`)) return;
+    try {
+      const res = await axios.delete(`${API_URL}/amazon_fba_shipment/processing`, {
+        data: { shipment_ids: [selectedShipmentId] },
+      });
       toast.success(`Cleared ${res.data.deleted} records`);
-      setProcessing([]);
+      await loadProcessing();
       setSummary([]);
     } catch {
       toast.error('Failed to clear records');
     }
-  }, []);
+  }, [selectedShipmentId, selectedGroup, loadProcessing]);
 
-  // ─── Save summary edits ──────────────────────────────────────────────────
+  // ─── Summary ──────────────────────────────────────────────────────────────────
 
   const saveSummaryEdit = useCallback(async (key: string, updates: Partial<SummaryRow>) => {
     const [shipmentId, location] = key.split('|||');
     try {
-      await axios.put(`${API_URL}/amazon_fba_shipment/summary/${encodeURIComponent(shipmentId)}`, updates, {
-        params: { location },
-      });
-      setSummary(prev => prev.map(r =>
-        `${r.shipment_id}|||${r.location}` === key ? { ...r, ...updates } : r
-      ));
+      await axios.put(`${API_URL}/amazon_fba_shipment/summary/${encodeURIComponent(shipmentId)}`, updates, { params: { location } });
+      setSummary(prev => prev.map(r => `${r.shipment_id}|||${r.location}` === key ? { ...r, ...updates } : r));
       toast.success('Saved');
     } catch {
       toast.error('Failed to save');
     }
   }, []);
 
-  // ─── Filtered rows ────────────────────────────────────────────────────────
-
-  const filteredProc = useMemo(() => {
-    const q = searchProc.toLowerCase();
-    if (!q) return processing;
-    return processing.filter(r =>
-      r.shipment_id?.toLowerCase().includes(q) ||
-      r.sku_code?.toLowerCase().includes(q) ||
-      r.item_name?.toLowerCase().includes(q) ||
-      r.location?.toLowerCase().includes(q)
-    );
-  }, [processing, searchProc]);
-
   const filteredSum = useMemo(() => {
     const q = searchSum.toLowerCase();
     if (!q) return summary;
-    return summary.filter(r =>
-      r.shipment_id?.toLowerCase().includes(q) ||
-      r.location?.toLowerCase().includes(q)
-    );
+    return summary.filter(r => r.shipment_id?.toLowerCase().includes(q) || r.location?.toLowerCase().includes(q));
   }, [summary, searchSum]);
 
-  const formatDate = (d: string | null) => {
-    if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
-    catch { return d || '—'; }
-  };
+  // ─── Address label helper ────────────────────────────────────────────────────
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  const addrLabel = (a: EtradeAddress) =>
+    [a.attention, a.address, a.city, a.state].filter(Boolean).join(', ');
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className='space-y-4'>
@@ -334,21 +615,17 @@ export default function AmazonFBAProcessing() {
         <div className={TABLE_CLASSES.headerSection}>
           <h2 className='text-xl font-semibold text-zinc-900 dark:text-zinc-100'>FBA Shipments</h2>
           <p className='text-sm text-zinc-500 dark:text-zinc-400 mt-1'>
-            View all SP-API synced shipments, upload processing sheets, and track shipment progress.
+            View SP-API synced shipments, upload processing sheets, create estimates, and track progress.
           </p>
         </div>
-
-        {/* Tabs */}
         <div className='border-b border-zinc-200 dark:border-zinc-800 px-3 sm:px-6 overflow-x-auto'>
           <nav className='flex gap-6 -mb-px'>
             {([
-              { key: 'queue',      label: 'Shipment Queue' },
+              { key: 'queue', label: 'Shipment Queue' },
               { key: 'processing', label: 'Shipment Processing' },
-              { key: 'summary',    label: 'Shipment Summary' },
+              { key: 'summary', label: 'Shipment Summary' },
             ] as const).map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => handleTabChange(key)}
+              <button key={key} onClick={() => handleTabChange(key)}
                 className={`py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   activeTab === key
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -362,8 +639,10 @@ export default function AmazonFBAProcessing() {
         </div>
       </div>
 
-      {/* ── Shipment Queue Tab ────────────────────────────────────────────── */}
-      {activeTab === 'queue' && <AmazonFBAShipmentQueue />}
+      {/* ── Queue Tab ────────────────────────────────────────────────────────── */}
+      {activeTab === 'queue' && (
+        <AmazonFBAShipmentQueue onOpenProcessing={handleOpenFromQueue} />
+      )}
 
       {/* ── Processing Tab ─────────────────────────────────────────────────── */}
       {activeTab === 'processing' && (
@@ -371,106 +650,498 @@ export default function AmazonFBAProcessing() {
           {/* Toolbar */}
           <div className={TABLE_CLASSES.container}>
             <div className={TABLE_CLASSES.headerSection}>
-              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-                <div>
-                  <p className='text-sm text-zinc-600 dark:text-zinc-400'>
-                    Upload your downloaded FBA shipment plan. Editable fields after upload: <strong>Shipment ID, Date, Location, Packed Qty</strong>.
-                  </p>
-                  <p className='text-xs text-zinc-400 mt-1'>
-                    Expected columns: Shipment ID, Date, Location, SKU Code, ASIN, FNSKU, Item Name, MRP, SP, Requested Qty, Packed Qty, Cost Price, HSN Code, GST
-                  </p>
-                </div>
-                <div className='flex items-center gap-2 flex-wrap'>
-                  <button
-                    onClick={loadProcessing}
-                    disabled={loadingProc}
-                    className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 disabled:opacity-50'
-                  >
+              <div className='flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4'>
+                <p className='text-sm text-zinc-600 dark:text-zinc-400'>
+                  Select a shipment to view its data. Queue-sourced shipments can be edited inline and saved without Excel upload.
+                </p>
+                <div className='flex items-center gap-2 flex-wrap flex-shrink-0'>
+                  <button onClick={loadProcessing} disabled={loadingProc}
+                    className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 disabled:opacity-50'>
                     <RefreshCw size={14} className={loadingProc ? 'animate-spin' : ''} />
                     Refresh
                   </button>
-                  <a
-                    href={`${process.env.NEXT_PUBLIC_API_URL}/amazon_fba_shipment/processing/template`}
-                    download='fba_processing_template.xlsx'
-                    className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50'
-                  >
+                  <a href={`${API_URL}/amazon_fba_shipment/processing/template`} download='fba_processing_template.xlsx'
+                    className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50'>
                     <Download size={14} />
-                    Download Template
+                    Template
                   </a>
                   <input ref={procFileRef} type='file' accept='.xlsx,.xls' className='hidden' onChange={handleUploadProc} />
-                  <button
-                    onClick={() => procFileRef.current?.click()}
-                    disabled={uploadingProc}
-                    className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50'
-                  >
+                  <button onClick={() => procFileRef.current?.click()} disabled={uploadingProc}
+                    className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50'>
                     <Upload size={14} />
                     {uploadingProc ? 'Uploading…' : 'Upload Sheet'}
                   </button>
-                  {processing.length > 0 && (
-                    <button
-                      onClick={handleClearProc}
-                      className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-zinc-800 border border-red-300 dark:border-red-800 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20'
-                    >
+                  {selectedGroup && isVirtualOnly && (
+                    <button onClick={handleSaveRows} disabled={savingRows}
+                      className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50'>
+                      <Save size={14} />
+                      {savingRows ? 'Saving…' : hasDraftChanges ? 'Save (edited)' : 'Save as Processing'}
+                    </button>
+                  )}
+                  {selectedGroup?.hasUploaded && (
+                    <button onClick={handleClearShipment}
+                      className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-zinc-800 border border-red-300 dark:border-red-800 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20'>
                       <Trash2 size={14} />
-                      Clear All
+                      Clear Shipment
                     </button>
                   )}
                 </div>
               </div>
-              <div className='mt-4'>
-                <SearchBar value={searchProc} onChange={setSearchProc} placeholder='Search by Shipment ID, SKU, item or location…' />
-              </div>
-              {processing.length > 0 && (
-                <p className='mt-2 text-xs text-zinc-400'>Showing {filteredProc.length} of {processing.length} rows</p>
-              )}
             </div>
           </div>
 
           {loadingProc && <LoadingState message='Loading processing data…' />}
           {errorProc && <ErrorState error={errorProc} onRetry={loadProcessing} />}
 
-          {!loadingProc && !errorProc && processing.length === 0 && (
-            <div className='bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg p-8 text-center text-sm text-zinc-500 dark:text-zinc-400'>
-              No processing data yet. Upload a FBA shipment plan sheet to get started.
-            </div>
-          )}
+          {!loadingProc && !errorProc && (
+            <>
+              {allShipmentIds.length === 0 ? (
+                <div className='bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-lg p-8 text-center text-sm text-zinc-500 dark:text-zinc-400'>
+                  No shipments found. Go to <strong>Shipment Queue</strong> and click <strong>Processing →</strong> on any shipment, or upload a processing sheet above.
+                </div>
+              ) : (
+                <div className={TABLE_CLASSES.container}>
+                  <div className={TABLE_CLASSES.headerSection}>
+                    {/* Accordion search */}
+                    <div className='flex items-center gap-3 mb-3'>
+                      <div className='flex-1'>
+                        <SearchBar value={shipmentSearch} onChange={setShipmentSearch} placeholder='Search by shipment ID, name or FC…' />
+                      </div>
+                      <span className='text-xs text-zinc-400 whitespace-nowrap'>
+                        {filteredShipmentIds.length} of {allShipmentIds.length} shipment{allShipmentIds.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
 
-          {!loadingProc && !errorProc && filteredProc.length > 0 && (
-            <div className={TABLE_CLASSES.container}>
-              <div className={TABLE_CLASSES.overflow}>
-                <table className={TABLE_CLASSES.table}>
-                  <thead className={TABLE_CLASSES.thead}>
-                    <tr>
-                      {['Shipment ID', 'Date', 'Location', 'SKU Code', 'ASIN', 'FNSKU', 'Item Name', 'MRP', 'SP', 'Requested Qty', 'Packed Qty', 'Cost Price', 'HSN Code', 'GST'].map(h => (
-                        <th key={h} className={TABLE_CLASSES.th} style={{ whiteSpace: 'nowrap' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className={TABLE_CLASSES.tbody}>
-                    {filteredProc.map((row, idx) => (
-                      <tr key={`${row.shipment_id}-${row.sku_code}-${idx}`} className={TABLE_CLASSES.tr}>
-                        <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-600 dark:text-zinc-400'>{row.shipment_id}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{formatDate(row.date)}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.location || '—'}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.sku_code}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-600 dark:text-zinc-400'>{row.asin}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-600 dark:text-zinc-400'>{row.fnsku || '—'}</span></td>
-                        <td className={TABLE_CLASSES.td} style={{ minWidth: 160, maxWidth: 240 }}>
-                          <span className='text-sm text-zinc-900 dark:text-zinc-100 line-clamp-2' title={row.item_name}>{row.item_name || '—'}</span>
-                        </td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.mrp != null ? `₹${row.mrp.toLocaleString()}` : '—'}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.sp != null ? `₹${row.sp.toLocaleString()}` : '—'}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.requested_qty.toLocaleString()}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className='text-sm font-medium text-zinc-900 dark:text-zinc-100'>{row.packed_qty.toLocaleString()}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.cost_price != null ? `₹${row.cost_price.toLocaleString()}` : '—'}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.hsn_code || '—'}</span></td>
-                        <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.gst != null ? `${row.gst}%` : '—'}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    {/* Accordion list */}
+                    <div className='space-y-2'>
+                      {pagedIds.length === 0 ? (
+                        <p className='text-sm text-zinc-400 text-center py-6'>No shipments match your search.</p>
+                      ) : pagedIds.map(sid => {
+                        const group = shipmentGroups[sid];
+                        const isOpen = selectedShipmentId === sid;
+                        const estInfo = estimateByShipment[sid];
+                        const isEstLoading = !(sid in estimateByShipment);
+
+                        return (
+                          <div key={sid} className={`border rounded-lg overflow-hidden transition-shadow ${
+                            isOpen
+                              ? 'border-blue-400 dark:border-blue-600 shadow-sm'
+                              : 'border-zinc-200 dark:border-zinc-700'
+                          }`}>
+                            {/* Accordion header */}
+                            <div
+                              role='button'
+                              tabIndex={0}
+                              onClick={() => handleToggleShipment(sid)}
+                              onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && handleToggleShipment(sid)}
+                              className={`flex items-center gap-2 sm:gap-3 px-3 py-2.5 cursor-pointer select-none ${
+                                isOpen
+                                  ? 'bg-blue-50 dark:bg-blue-900/10 border-b border-blue-200 dark:border-blue-800'
+                                  : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                              }`}
+                            >
+                              <ChevronRight size={14} className={`text-zinc-400 flex-shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}`} />
+                              <span className='font-mono text-[11px] text-zinc-400 flex-shrink-0 hidden xs:inline'>{sid}</span>
+                              <span className='text-sm font-medium text-zinc-800 dark:text-zinc-200 flex-1 truncate min-w-0' title={group.shipmentName || undefined}>
+                                {group.shipmentName || <span className='italic text-zinc-400'>No name</span>}
+                              </span>
+                              <span className='text-xs text-zinc-400 whitespace-nowrap hidden sm:inline'>
+                                {group.rows.length} SKU{group.rows.length !== 1 ? 's' : ''}
+                              </span>
+                              {group.location && (
+                                <span className='text-xs text-zinc-400 whitespace-nowrap hidden md:inline'>· {group.location}</span>
+                              )}
+                              {group.hasUploaded ? (
+                                <span className='text-[10px] font-medium px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 whitespace-nowrap'>
+                                  Uploaded
+                                </span>
+                              ) : (
+                                <span className='text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 whitespace-nowrap'>
+                                  From Queue
+                                </span>
+                              )}
+                              {estInfo?.estimate_number && (
+                                <span className='text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 whitespace-nowrap hidden sm:inline'>
+                                  {estInfo.estimate_number}
+                                </span>
+                              )}
+                              {/* Download link — stops propagation so accordion doesn't toggle */}
+                              <a
+                                href={`${API_URL}/amazon_fba_shipment/processing/${sid}/download`}
+                                download
+                                onClick={e => e.stopPropagation()}
+                                className='p-1.5 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors flex-shrink-0'
+                                title='Download as Excel'
+                              >
+                                <Download size={13} />
+                              </a>
+                            </div>
+
+                            {/* Accordion body */}
+                            {isOpen && (
+                              <div className='p-4 space-y-4'>
+                                {/* Row search + count */}
+                                <div className='flex items-center gap-3'>
+                                  <div className='flex-1'>
+                                    <SearchBar value={rowSearch} onChange={setRowSearch} placeholder='Search by SKU, item name, ASIN or FNSKU…' />
+                                  </div>
+                                  <span className='text-xs text-zinc-400 whitespace-nowrap'>
+                                    {selectedRows.length} of {group.rows.length} rows
+                                  </span>
+                                </div>
+
+                                {/* Processing table */}
+                                <div className={TABLE_CLASSES.overflow}>
+                                  <table className={TABLE_CLASSES.table}>
+                                    <thead className={TABLE_CLASSES.thead}>
+                                      <tr>
+                                        {[
+                                          'SKU Code', 'ASIN', 'FNSKU', 'Item Name',
+                                          'MRP', isVirtualOnly ? 'SP ✎' : 'SP',
+                                          'Requested Qty',
+                                          isVirtualOnly ? 'Packed Qty ✎' : 'Packed Qty',
+                                          isVirtualOnly ? 'Cost Price ✎' : 'Cost Price',
+                                          'HSN Code', 'GST', 'Date', 'Location',
+                                        ].map(h => (
+                                          <th key={h} className={TABLE_CLASSES.th} style={{ whiteSpace: 'nowrap' }}>{h}</th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody className={TABLE_CLASSES.tbody}>
+                                      {selectedRows.map((row, idx) => {
+                                        const edits = draftEdits[row.sku_code] ?? {};
+                                        const displaySp = edits.sp !== undefined ? edits.sp : (row.sp ?? row.mrp);
+                                        const displayPackedQty = edits.packed_qty ?? row.packed_qty;
+                                        const displayCostPrice = edits.cost_price !== undefined ? edits.cost_price : row.cost_price;
+                                        return (
+                                          <tr key={`${row.sku_code}-${idx}`} className={TABLE_CLASSES.tr}>
+                                            <td className={TABLE_CLASSES.td}><span className='text-sm font-mono text-zinc-700 dark:text-zinc-300'>{row.sku_code}</span></td>
+                                            <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-500 dark:text-zinc-400'>{row.asin || '—'}</span></td>
+                                            <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-500 dark:text-zinc-400'>{row.fnsku || '—'}</span></td>
+                                            <td className={TABLE_CLASSES.td} style={{ minWidth: 160, maxWidth: 240 }}>
+                                              <span className='text-sm text-zinc-900 dark:text-zinc-100 line-clamp-2' title={row.item_name}>{row.item_name || '—'}</span>
+                                            </td>
+                                            <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.mrp != null ? `₹${row.mrp.toLocaleString()}` : '—'}</span></td>
+
+                                            {/* SP — editable for virtual rows; pre-filled = MRP */}
+                                            <td className={TABLE_CLASSES.td}>
+                                              {isVirtualOnly ? (
+                                                <input type='number' min={0}
+                                                  value={displaySp ?? ''}
+                                                  onChange={e => {
+                                                    const v = e.target.value === '' ? null : parseFloat(e.target.value);
+                                                    setDraftEdits(d => ({ ...d, [row.sku_code]: { ...d[row.sku_code], sp: v } }));
+                                                  }}
+                                                  className='w-24 px-2 py-1 text-xs border border-blue-300 dark:border-blue-700 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-zinc-800 dark:text-zinc-100'
+                                                />
+                                              ) : (
+                                                <span className={TABLE_CLASSES.tdText}>{row.sp != null ? `₹${row.sp.toLocaleString()}` : '—'}</span>
+                                              )}
+                                            </td>
+
+                                            <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.requested_qty.toLocaleString()}</span></td>
+
+                                            {/* Packed Qty */}
+                                            <td className={TABLE_CLASSES.td}>
+                                              {isVirtualOnly ? (
+                                                <input type='number' min={0} value={displayPackedQty}
+                                                  onChange={e => {
+                                                    const v = parseInt(e.target.value, 10) || 0;
+                                                    setDraftEdits(d => ({ ...d, [row.sku_code]: { ...d[row.sku_code], packed_qty: v } }));
+                                                  }}
+                                                  className='w-20 px-2 py-1 text-xs border border-blue-300 dark:border-blue-700 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-zinc-800 dark:text-zinc-100'
+                                                />
+                                              ) : (
+                                                <span className='text-sm font-medium text-zinc-900 dark:text-zinc-100'>{row.packed_qty.toLocaleString()}</span>
+                                              )}
+                                            </td>
+
+                                            {/* Cost Price — optional */}
+                                            <td className={TABLE_CLASSES.td}>
+                                              {isVirtualOnly ? (
+                                                <input type='number' min={0} placeholder='optional'
+                                                  value={displayCostPrice ?? ''}
+                                                  onChange={e => {
+                                                    const v = e.target.value === '' ? null : parseFloat(e.target.value);
+                                                    setDraftEdits(d => ({ ...d, [row.sku_code]: { ...d[row.sku_code], cost_price: v } }));
+                                                  }}
+                                                  className='w-24 px-2 py-1 text-xs border border-blue-300 dark:border-blue-700 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-zinc-800 dark:text-zinc-100'
+                                                />
+                                              ) : (
+                                                <span className={TABLE_CLASSES.tdText}>{row.cost_price != null ? `₹${row.cost_price.toLocaleString()}` : '—'}</span>
+                                              )}
+                                            </td>
+
+                                            <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.hsn_code || '—'}</span></td>
+                                            <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.gst != null ? `${row.gst}%` : '—'}</span></td>
+                                            <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{fmt(row.date)}</span></td>
+                                            <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.location || '—'}</span></td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+
+                                {/* Save footer for virtual-only shipments */}
+                                {isVirtualOnly && (
+                                  <div className='px-4 py-3 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center justify-between gap-3 bg-amber-50/60 dark:bg-amber-900/10'>
+                                    <p className='text-xs text-amber-700 dark:text-amber-400'>
+                                      {hasDraftChanges
+                                        ? `${Object.keys(draftEdits).length} row${Object.keys(draftEdits).length !== 1 ? 's' : ''} edited — save to persist.`
+                                        : 'Edit Packed Qty and SP above, then save to create the processing record. Cost Price is optional.'}
+                                    </p>
+                                    <button onClick={handleSaveRows} disabled={savingRows}
+                                      className='inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 whitespace-nowrap'>
+                                      <Save size={14} />
+                                      {savingRows ? 'Saving…' : 'Save as Processing'}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* ── Estimate section ─────────────────────── */}
+                                <div className='border-t border-zinc-200 dark:border-zinc-700 pt-4'>
+                                  <div className='flex items-center gap-2 mb-3'>
+                                    <FileText size={14} className='text-zinc-400' />
+                                    <span className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>Estimate</span>
+                                  </div>
+
+                                  {isEstLoading ? (
+                                    <p className='text-xs text-zinc-400'>Loading estimate status…</p>
+                                  ) : estInfo?.estimate_number ? (
+                                    /* Estimate linked */
+                                    <div className='space-y-3'>
+                                      <div className='flex flex-wrap items-center gap-3'>
+                                        <span className='text-xs font-medium px-2 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'>
+                                          {estInfo.estimate_number}
+                                        </span>
+                                        {estInfo.sub_total != null && (
+                                          <span className='text-xs text-zinc-600 dark:text-zinc-400'>
+                                            Sub-total: <strong>{fmtMoney(estInfo.sub_total)}</strong>
+                                          </span>
+                                        )}
+                                        {estInfo.total != null && (
+                                          <span className='text-xs text-zinc-600 dark:text-zinc-400'>
+                                            Total (incl. GST): <strong>{fmtMoney(estInfo.total)}</strong>
+                                          </span>
+                                        )}
+                                        <button
+                                          onClick={() => showDiff ? setShowDiff(false) : handleLoadDiff()}
+                                          disabled={loadingDiff}
+                                          className='inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md hover:bg-blue-100 disabled:opacity-50'
+                                        >
+                                          <FileText size={11} />
+                                          {loadingDiff ? 'Loading…' : showDiff ? 'Hide Breakdown' : 'View Breakdown'}
+                                        </button>
+                                        <button onClick={handleUnlinkEstimate}
+                                          className='inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-red-600 dark:text-red-400 bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-50'>
+                                          <Unlink size={11} />
+                                          Unlink
+                                        </button>
+                                      </div>
+
+                                      {/* Estimate breakdown diff */}
+                                      {showDiff && estimateDiff && (
+                                        <div className='border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden mt-2'>
+                                          {/* Totals summary */}
+                                          <div className='p-3 bg-zinc-50 dark:bg-zinc-800/50 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs'>
+                                            {[
+                                              {
+                                                label: 'Items',
+                                                proc: estimateDiff.processing_item_count,
+                                                est: estimateDiff.estimate_item_count,
+                                                match: estimateDiff.processing_item_count === estimateDiff.estimate_item_count,
+                                                isQty: true,
+                                              },
+                                              {
+                                                label: 'Requested Qty',
+                                                proc: estimateDiff.processing_total_qty,
+                                                est: estimateDiff.estimate_total_qty,
+                                                match: estimateDiff.processing_total_qty === estimateDiff.estimate_total_qty,
+                                                isQty: true,
+                                              },
+                                              {
+                                                label: 'Amount (pre-GST)',
+                                                proc: estimateDiff.processing_sub_total,
+                                                est: estimateDiff.estimate_sub_total,
+                                                match: Math.abs((estimateDiff.estimate_sub_total ?? 0) - estimateDiff.processing_sub_total) < 1,
+                                                isQty: false,
+                                              },
+                                              {
+                                                label: 'Amount (incl. GST)',
+                                                proc: estimateDiff.processing_total,
+                                                est: estimateDiff.estimate_total,
+                                                match: Math.abs((estimateDiff.estimate_total ?? 0) - estimateDiff.processing_total) < 1,
+                                                isQty: false,
+                                              },
+                                            ].map(col => (
+                                              <div key={col.label} className='space-y-0.5'>
+                                                <p className='text-zinc-500 dark:text-zinc-400'>{col.label}</p>
+                                                <div className='flex items-center gap-1.5'>
+                                                  {col.match
+                                                    ? <Check size={11} className='text-green-500 flex-shrink-0' />
+                                                    : <AlertCircle size={11} className='text-red-500 flex-shrink-0' />}
+                                                  <span className={col.match ? 'text-green-700 dark:text-green-400 font-medium' : 'text-red-700 dark:text-red-400 font-medium'}>
+                                                    {col.isQty ? (col.proc as number).toLocaleString() : fmtMoney(col.proc as number)}
+                                                  </span>
+                                                </div>
+                                                <p className='text-zinc-400'>
+                                                  Est: {col.isQty ? (col.est as number | null ?? '—') : fmtMoney(col.est as number | null)}
+                                                </p>
+                                              </div>
+                                            ))}
+                                          </div>
+
+                                          {/* Per-item table */}
+                                          <div className='overflow-x-auto'>
+                                            <table className={TABLE_CLASSES.table}>
+                                              <thead className={TABLE_CLASSES.thead}>
+                                                <tr>
+                                                  {['SKU Code', 'Item Name', 'Proc Qty', 'Est Qty', 'Proc Rate', 'Est Rate', 'Proc Total', 'Est Total', 'In Est?'].map(h => (
+                                                    <th key={h} className={TABLE_CLASSES.th} style={{ whiteSpace: 'nowrap' }}>{h}</th>
+                                                  ))}
+                                                </tr>
+                                              </thead>
+                                              <tbody className={TABLE_CLASSES.tbody}>
+                                                {estimateDiff.items.map(item => (
+                                                  <tr key={item.sku_code} className={TABLE_CLASSES.tr}>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-zinc-700 dark:text-zinc-300'>{item.sku_code}</span></td>
+                                                    <td className={TABLE_CLASSES.td} style={{ minWidth: 140 }}><span className='text-xs text-zinc-900 dark:text-zinc-100 line-clamp-1'>{item.item_name || '—'}</span></td>
+                                                    <td className={TABLE_CLASSES.td}>
+                                                      <span className={`text-xs font-medium ${item.qty_match ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                        {item.processing_qty}
+                                                      </span>
+                                                    </td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-600 dark:text-zinc-400'>{item.estimate_qty ?? '—'}</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-600 dark:text-zinc-400'>{fmtMoney(item.processing_rate)}</span></td>
+                                                    <td className={TABLE_CLASSES.td}>
+                                                      <span className={`text-xs ${item.rate_match ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                        {fmtMoney(item.estimate_rate)}
+                                                      </span>
+                                                    </td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-700 dark:text-zinc-300'>{fmtMoney(item.processing_item_total)}</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-600 dark:text-zinc-400'>{fmtMoney(item.estimate_item_total)}</span></td>
+                                                    <td className={TABLE_CLASSES.td}>
+                                                      {item.in_estimate
+                                                        ? <span className='inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400'><Check size={11} /> Yes</span>
+                                                        : <span className='inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400'><X size={11} /> No</span>}
+                                                    </td>
+                                                  </tr>
+                                                ))}
+                                                {estimateDiff.only_in_estimate.map(item => (
+                                                  <tr key={`oe-${item.sku_code}`} className='bg-amber-50/50 dark:bg-amber-900/5'>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs font-mono text-amber-700 dark:text-amber-400'>{item.sku_code}</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-900 dark:text-zinc-100'>{item.item_name || '—'}</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-red-600'>—</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-600'>{item.estimate_qty}</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-400'>—</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-600'>{fmtMoney(item.estimate_rate)}</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-400'>—</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-zinc-600'>{fmtMoney(item.estimate_item_total)}</span></td>
+                                                    <td className={TABLE_CLASSES.td}><span className='text-xs text-amber-600'>Est. only</span></td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    /* No estimate — create / link */
+                                    <div className='flex flex-wrap items-start gap-3'>
+                                      <div className='text-xs text-zinc-400'>No estimate linked.</div>
+                                      <button onClick={openCreateModal}
+                                        className='inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700'>
+                                        <Plus size={11} />
+                                        Create Estimate
+                                      </button>
+                                      <button onClick={() => { setShowLinkInput(v => !v); setLinkEstInput(''); }}
+                                        className='inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-purple-600 dark:text-purple-400 bg-white dark:bg-zinc-800 border border-purple-200 dark:border-purple-800 rounded-md hover:bg-purple-50'>
+                                        <Link2 size={11} />
+                                        Link Existing
+                                      </button>
+
+                                      {showLinkInput && (
+                                        <div className='flex items-center gap-2 w-full sm:w-auto'>
+                                          <input
+                                            type='text'
+                                            value={linkEstInput}
+                                            onChange={e => setLinkEstInput(e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && handleLinkEstimate()}
+                                            placeholder='EST/25-26/0042'
+                                            className='px-2 py-1 text-xs border border-zinc-300 dark:border-zinc-600 rounded focus:outline-none focus:ring-1 focus:ring-purple-500 dark:bg-zinc-800 dark:text-zinc-100 w-40'
+                                          />
+                                          <button onClick={handleLinkEstimate} disabled={linkingEstimate || !linkEstInput.trim()}
+                                            className='px-3 py-1 text-xs font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50'>
+                                            {linkingEstimate ? 'Linking…' : 'Link'}
+                                          </button>
+                                          <button onClick={() => setShowLinkInput(false)} className='p-1 text-zinc-400 hover:text-zinc-600'>
+                                            <X size={13} />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                      <div className='flex items-center justify-center gap-1 mt-4 flex-wrap'>
+                        <button
+                          onClick={() => setShipmentPage(p => Math.max(1, p - 1))}
+                          disabled={shipmentPage === 1}
+                          className='px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 disabled:opacity-40'
+                        >
+                          ← Prev
+                        </button>
+                        {(() => {
+                          const pages: (number | '…')[] = [];
+                          const delta = 2;
+                          const left = shipmentPage - delta;
+                          const right = shipmentPage + delta;
+                          let prev = 0;
+                          for (let p = 1; p <= totalPages; p++) {
+                            if (p === 1 || p === totalPages || (p >= left && p <= right)) {
+                              if (prev && p - prev > 1) pages.push('…');
+                              pages.push(p);
+                              prev = p;
+                            }
+                          }
+                          return pages.map((p, i) =>
+                            p === '…'
+                              ? <span key={`e${i}`} className='px-1 text-xs text-zinc-400'>…</span>
+                              : <button key={p} onClick={() => setShipmentPage(p as number)}
+                                  className={`w-7 h-7 text-xs rounded-md font-medium ${
+                                    p === shipmentPage
+                                      ? 'bg-blue-600 text-white'
+                                      : 'text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50'
+                                  }`}
+                                >{p}</button>
+                          );
+                        })()}
+                        <button
+                          onClick={() => setShipmentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={shipmentPage === totalPages}
+                          className='px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 disabled:opacity-40'
+                        >
+                          Next →
+                        </button>
+                        <span className='text-xs text-zinc-400 ml-1'>
+                          {shipmentPage}/{totalPages}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -478,20 +1149,14 @@ export default function AmazonFBAProcessing() {
       {/* ── Summary Tab ────────────────────────────────────────────────────── */}
       {activeTab === 'summary' && (
         <div className='space-y-4'>
-          {/* Toolbar */}
           <div className={TABLE_CLASSES.container}>
             <div className={TABLE_CLASSES.headerSection}>
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-                <div>
-                  <p className='text-sm text-zinc-600 dark:text-zinc-400'>
-                    Summary aggregated from the Processing tab. Edit <strong>Reason, Appointment dates, Dispatched date, Status</strong> inline.
-                  </p>
-                </div>
-                <button
-                  onClick={loadSummary}
-                  disabled={loadingSum}
-                  className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 disabled:opacity-50'
-                >
+                <p className='text-sm text-zinc-600 dark:text-zinc-400'>
+                  Summary aggregated from the Processing tab. Edit <strong>Reason, Appointment dates, Dispatched date, Status</strong> inline.
+                </p>
+                <button onClick={loadSummary} disabled={loadingSum}
+                  className='inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50 disabled:opacity-50'>
                   <RefreshCw size={14} className={loadingSum ? 'animate-spin' : ''} />
                   Refresh
                 </button>
@@ -524,9 +1189,8 @@ export default function AmazonFBAProcessing() {
                         'Shipment ID', 'Shipment Date', 'Location',
                         'Requested Qty', 'Dispatched Qty',
                         'Short Supply (Qty)', 'Short Supply (%)',
-                        'Reason for Short Supply ✎',
-                        'Appt. Initiated ✎', 'Appointment Date ✎',
-                        'Dispatched Date ✎', 'Status ✎', 'Actions',
+                        'Reason for Short Supply ✎', 'Appt. Initiated ✎',
+                        'Appointment Date ✎', 'Dispatched Date ✎', 'Status ✎', 'Actions',
                       ].map(h => (
                         <th key={h} className={TABLE_CLASSES.th} style={{ whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
@@ -545,6 +1209,80 @@ export default function AmazonFBAProcessing() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Create Estimate Modal ─────────────────────────────────────────── */}
+      {showCreateModal && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4'>
+          <div className='bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl w-full max-w-md'>
+            <div className='flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700'>
+              <h3 className='text-sm font-semibold text-zinc-900 dark:text-zinc-100'>Create Zoho Estimate</h3>
+              <button onClick={() => setShowCreateModal(false)} className='p-1 text-zinc-400 hover:text-zinc-600 rounded'>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className='px-5 py-4 space-y-4'>
+              {selectedShipmentId && (
+                <p className='text-xs text-zinc-500 dark:text-zinc-400'>
+                  Shipment: <span className='font-mono text-zinc-700 dark:text-zinc-300'>{selectedShipmentId}</span>
+                  {selectedGroup?.shipmentName ? ` — ${selectedGroup.shipmentName}` : ''}
+                </p>
+              )}
+
+              <div>
+                <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>Date</label>
+                <input type='date' value={estDate} onChange={e => setEstDate(e.target.value)}
+                  className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500 dark:bg-zinc-800 dark:text-zinc-100' />
+              </div>
+
+              {loadingAddresses ? (
+                <p className='text-xs text-zinc-400'>Loading addresses…</p>
+              ) : etradeCustomer?.addresses?.length ? (
+                <>
+                  <div>
+                    <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>Billing Address</label>
+                    <select value={estBillingAddr} onChange={e => setEstBillingAddr(e.target.value)}
+                      className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500 dark:bg-zinc-800 dark:text-zinc-100'>
+                      {etradeCustomer.addresses.map(a => (
+                        <option key={a.address_id} value={a.address_id}>{addrLabel(a)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>Shipping Address</label>
+                    <select value={estShippingAddr} onChange={e => setEstShippingAddr(e.target.value)}
+                      className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md focus:outline-none focus:ring-1 focus:ring-purple-500 dark:bg-zinc-800 dark:text-zinc-100'>
+                      {etradeCustomer.addresses.map(a => (
+                        <option key={a.address_id} value={a.address_id}>{addrLabel(a)}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <p className='text-xs text-red-500'>No customer addresses found.</p>
+              )}
+
+              <p className='text-xs text-zinc-400'>
+                Line items: each processing row at <strong>MRP ÷ (1 + GST%)</strong> × Requested Qty. Customer: ETRADE MARKETING.
+              </p>
+            </div>
+
+            <div className='flex justify-end gap-2 px-5 py-4 border-t border-zinc-200 dark:border-zinc-700'>
+              <button onClick={() => setShowCreateModal(false)}
+                className='px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-md hover:bg-zinc-50'>
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateEstimate}
+                disabled={creatingEstimate || !estBillingAddr || !estShippingAddr}
+                className='px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50'
+              >
+                {creatingEstimate ? 'Creating…' : 'Create Estimate'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
