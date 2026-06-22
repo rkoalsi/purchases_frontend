@@ -285,6 +285,7 @@ function ExistingBrandsTab({
 
 interface BrandPO {
   po_number:     string;
+  order_name:    string;
   date:          string;
   currency_code: string;
   exchange_rate: number;
@@ -293,6 +294,8 @@ interface BrandPO {
   total:         number;
   num_items:     number;
 }
+
+const PO_PAGE_SIZE = 10;
 
 interface POSelection {
   selected: boolean;
@@ -323,6 +326,8 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
   const [pos, setPos]                   = useState<BrandPO[]>([]);
   const [sel, setSel]                   = useState<Record<string, POSelection>>({});
   const [loadingPos, setLoadingPos]     = useState(false);
+  const [currency, setCurrency]         = useState('');
+  const [page, setPage]                 = useState(1);
   const [includeLive, setIncludeLive]   = useState(false);
   const [running, setRunning]           = useState(false);
   const [error, setError]               = useState<string | null>(null);
@@ -341,6 +346,8 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
 
   // When brand changes, fetch its POs
   useEffect(() => {
+    setPage(1);
+    setCurrency('');
     if (!brand) { setPos([]); setSel({}); return; }
     setLoadingPos(true);
     setError(null);
@@ -352,6 +359,9 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
       .then((res) => {
         const list: BrandPO[] = res.data.purchase_orders ?? [];
         setPos(list);
+        // Default the currency filter to the most-recent PO's currency (list is
+        // date-desc) so a multi-currency brand like Truelove opens on one set.
+        setCurrency(list[0]?.currency_code ?? '');
         const init: Record<string, POSelection> = {};
         for (const p of list) {
           const fx = p.exchange_rate > 0 ? p.exchange_rate : 96.0;
@@ -371,7 +381,14 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
     setSel((prev) => ({ ...prev, [po]: { ...prev[po], rates: { ...prev[po].rates, [key]: val } } }));
   }
 
+  // Currencies present across this brand's POs (date-desc order preserved).
+  const currencies   = Array.from(new Set(pos.map((p) => p.currency_code).filter(Boolean)));
+  // Active currency view; only filter when the brand spans more than one.
+  const currencyPOs  = currencies.length > 1 ? pos.filter((p) => p.currency_code === currency) : pos;
+
   const selectedPOs = pos.filter((p) => sel[p.po_number]?.selected);
+  const pageCount   = Math.max(1, Math.ceil(currencyPOs.length / PO_PAGE_SIZE));
+  const pagedPos    = currencyPOs.slice((page - 1) * PO_PAGE_SIZE, page * PO_PAGE_SIZE);
 
   async function handleGenerate() {
     if (!brand)              { toast.error('Select a brand.'); return; }
@@ -434,6 +451,32 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
         </select>
       </div>
 
+      {/* Currency split — appears when the brand has POs in >1 currency
+          (e.g. Truelove: USD vendor + CNY vendor) */}
+      {!loadingPos && currencies.length > 1 && (
+        <div>
+          <p className='text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide mb-2'>
+            Currency
+          </p>
+          <div className='inline-flex rounded-md border border-zinc-200 dark:border-zinc-700 overflow-hidden'>
+            {currencies.map((c) => (
+              <button
+                key={c}
+                type='button'
+                onClick={() => { setCurrency(c); setPage(1); }}
+                className={`px-3 py-1.5 text-sm transition-colors ${
+                  currency === c
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                } border-r last:border-r-0 border-zinc-200 dark:border-zinc-700`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* PO list */}
       {loadingPos && (
         <div className='flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400'>
@@ -448,9 +491,9 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
       {!loadingPos && pos.length > 0 && (
         <div className='space-y-2'>
           <p className='text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide'>
-            Purchase orders ({selectedPOs.length} selected)
+            Purchase orders ({currencyPOs.length}{currencies.length > 1 ? ` ${currency}` : ''} · {selectedPOs.length} selected)
           </p>
-          {pos.map((p) => {
+          {pagedPos.map((p) => {
             const s = sel[p.po_number];
             return (
               <div key={p.po_number} className='rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50'>
@@ -469,7 +512,12 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
                     )}
                   </div>
                   <span className='flex-1 min-w-0'>
-                    <span className='text-sm font-medium text-zinc-800 dark:text-zinc-200'>{p.po_number}</span>
+                    <span className='text-sm font-medium text-zinc-800 dark:text-zinc-200'>
+                      {p.po_number}
+                      {p.order_name && (
+                        <span className='ml-2 text-zinc-500 dark:text-zinc-400 font-normal'>· {p.order_name}</span>
+                      )}
+                    </span>
                     <span className='block text-[11px] text-zinc-500 dark:text-zinc-400 truncate'>
                       {p.date} · {p.num_items} items · {p.currency_code} {p.total.toLocaleString()} · {p.vendor_name}
                     </span>
@@ -485,6 +533,28 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
               </div>
             );
           })}
+
+          {pageCount > 1 && (
+            <div className='flex items-center justify-between pt-1'>
+              <button
+                type='button'
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className='rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              >
+                Previous
+              </button>
+              <span className='text-[11px] text-zinc-500 dark:text-zinc-400'>Page {page} of {pageCount}</span>
+              <button
+                type='button'
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                disabled={page >= pageCount}
+                className='rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-100 dark:hover:bg-zinc-800'
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
 
