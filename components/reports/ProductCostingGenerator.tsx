@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '@/components/context/AuthContext';
+import { BRAND_GROUPS, mergeBrandOptions } from '@/util/brandGroups';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -280,13 +281,268 @@ function ExistingBrandsTab({
   );
 }
 
+// ── Order Wise Costing sub-component ─────────────────────────────────────────
+
+interface BrandPO {
+  po_number:     string;
+  date:          string;
+  currency_code: string;
+  exchange_rate: number;
+  vendor_name:   string;
+  status:        string;
+  total:         number;
+  num_items:     number;
+}
+
+interface POSelection {
+  selected: boolean;
+  rates:    ExchangeRates;
+}
+
+function constituentBrands(label: string): string[] {
+  return BRAND_GROUPS[label] ?? [label];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function downloadBlob(res: { data: any; headers: any }, fallback: string) {
+  const url   = URL.createObjectURL(new Blob([res.data]));
+  const link  = document.createElement('a');
+  const cd    = res.headers['content-disposition'] ?? '';
+  const match = cd.match(/filename="?([^"]+)"?/);
+  link.href     = url;
+  link.download = match ? match[1] : fallback;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
+  const [brandOptions, setBrandOptions] = useState<{ value: string; label: string }[]>([]);
+  const [brand, setBrand]               = useState('');
+  const [pos, setPos]                   = useState<BrandPO[]>([]);
+  const [sel, setSel]                   = useState<Record<string, POSelection>>({});
+  const [loadingPos, setLoadingPos]     = useState(false);
+  const [includeLive, setIncludeLive]   = useState(false);
+  const [running, setRunning]           = useState(false);
+  const [error, setError]               = useState<string | null>(null);
+  const [succeeded, setSucceeded]       = useState(false);
+
+  // Load + merge brands once
+  useEffect(() => {
+    axios.get(`${API_URL}/product-costing/brands`, { headers })
+      .then((res) => {
+        const raw = (res.data.brands ?? []).map((b: string) => ({ value: b, label: b }));
+        setBrandOptions(mergeBrandOptions(raw));
+      })
+      .catch(() => { /* keep empty */ });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // When brand changes, fetch its POs
+  useEffect(() => {
+    if (!brand) { setPos([]); setSel({}); return; }
+    setLoadingPos(true);
+    setError(null);
+    setSucceeded(false);
+    const brandsParam = constituentBrands(brand).join(',');
+    axios.get(`${API_URL}/product-costing/order-wise/pos`, {
+      headers, params: { brands: brandsParam },
+    })
+      .then((res) => {
+        const list: BrandPO[] = res.data.purchase_orders ?? [];
+        setPos(list);
+        const init: Record<string, POSelection> = {};
+        for (const p of list) {
+          const fx = p.exchange_rate > 0 ? p.exchange_rate : 96.0;
+          init[p.po_number] = { selected: false, rates: { bank: fx, customs: fx, freight: fx } };
+        }
+        setSel(init);
+      })
+      .catch(() => { setPos([]); setSel({}); setError('Failed to load purchase orders.'); })
+      .finally(() => setLoadingPos(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brand]);
+
+  function togglePO(po: string) {
+    setSel((prev) => ({ ...prev, [po]: { ...prev[po], selected: !prev[po].selected } }));
+  }
+  function updatePORate(po: string, key: keyof ExchangeRates, val: number) {
+    setSel((prev) => ({ ...prev, [po]: { ...prev[po], rates: { ...prev[po].rates, [key]: val } } }));
+  }
+
+  const selectedPOs = pos.filter((p) => sel[p.po_number]?.selected);
+
+  async function handleGenerate() {
+    if (!brand)              { toast.error('Select a brand.'); return; }
+    if (!selectedPOs.length) { toast.error('Select at least one PO.'); return; }
+
+    setRunning(true);
+    setError(null);
+    setSucceeded(false);
+
+    const body = {
+      brand_names: constituentBrands(brand),
+      include_live_data: includeLive,
+      pos: selectedPOs.map((p) => ({
+        po_number:      p.po_number,
+        currency_label: p.currency_code,
+        exchange_rates: sel[p.po_number].rates,
+      })),
+    };
+
+    try {
+      const res = await axios.post(`${API_URL}/product-costing/order-wise/generate`, body, {
+        headers, responseType: 'blob', timeout: 180_000,
+      });
+      downloadBlob(res, 'order_costing.xlsx');
+      setSucceeded(true);
+      toast.success('Order costing sheet downloaded.');
+    } catch (err: unknown) {
+      let msg = 'Generation failed.';
+      if (axios.isAxiosError(err)) {
+        if (err.response?.data instanceof Blob) {
+          const text = await err.response.data.text();
+          try { msg = JSON.parse(text)?.detail ?? msg; } catch { msg = text || msg; }
+        } else {
+          msg = err.response?.data?.detail ?? err.message;
+        }
+      }
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className='px-5 py-4 space-y-4'>
+      {/* Brand select */}
+      <div>
+        <p className='text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide mb-2'>
+          Brand
+        </p>
+        <select
+          value={brand}
+          onChange={(e) => setBrand(e.target.value)}
+          className='w-full max-w-xs rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2.5 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500'
+        >
+          <option value=''>Choose a brand…</option>
+          {brandOptions.map((b) => (
+            <option key={b.value} value={b.value}>{b.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* PO list */}
+      {loadingPos && (
+        <div className='flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400'>
+          <RefreshCw className='h-4 w-4 animate-spin' /> Loading purchase orders…
+        </div>
+      )}
+
+      {!loadingPos && brand && pos.length === 0 && (
+        <p className='text-sm text-zinc-500 dark:text-zinc-400'>No purchase orders found for this brand.</p>
+      )}
+
+      {!loadingPos && pos.length > 0 && (
+        <div className='space-y-2'>
+          <p className='text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide'>
+            Purchase orders ({selectedPOs.length} selected)
+          </p>
+          {pos.map((p) => {
+            const s = sel[p.po_number];
+            return (
+              <div key={p.po_number} className='rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50'>
+                <button
+                  type='button'
+                  onClick={() => togglePO(p.po_number)}
+                  className='w-full flex items-center gap-3 px-3 py-2.5 text-left'
+                >
+                  <div className={`h-4 w-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors ${
+                    s?.selected ? 'border-blue-500 bg-blue-500' : 'border-zinc-300 dark:border-zinc-600'
+                  }`}>
+                    {s?.selected && (
+                      <svg className='h-2.5 w-2.5 text-white' viewBox='0 0 10 10' fill='currentColor'>
+                        <path d='M1.5 5l2.5 2.5 4.5-4.5' stroke='currentColor' strokeWidth='2' fill='none' strokeLinecap='round' strokeLinejoin='round' />
+                      </svg>
+                    )}
+                  </div>
+                  <span className='flex-1 min-w-0'>
+                    <span className='text-sm font-medium text-zinc-800 dark:text-zinc-200'>{p.po_number}</span>
+                    <span className='block text-[11px] text-zinc-500 dark:text-zinc-400 truncate'>
+                      {p.date} · {p.num_items} items · {p.currency_code} {p.total.toLocaleString()} · {p.vendor_name}
+                    </span>
+                  </span>
+                </button>
+                {s?.selected && (
+                  <div className='flex flex-wrap gap-3 px-3 pb-3 pl-10'>
+                    <RateInput label='Bank rate'    value={s.rates.bank}    onChange={(v) => updatePORate(p.po_number, 'bank', v)} />
+                    <RateInput label='Customs rate' value={s.rates.customs} onChange={(v) => updatePORate(p.po_number, 'customs', v)} />
+                    <RateInput label='Freight rate' value={s.rates.freight} onChange={(v) => updatePORate(p.po_number, 'freight', v)} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Include live toggle */}
+      {pos.length > 0 && (
+        <label className='flex items-center gap-3 cursor-pointer'>
+          <div
+            onClick={() => setIncludeLive((v) => !v)}
+            className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${includeLive ? 'bg-blue-500' : 'bg-zinc-300 dark:bg-zinc-600'}`}
+          >
+            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${includeLive ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
+          <div>
+            <p className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>Include live data</p>
+            <p className='text-xs text-zinc-500 dark:text-zinc-400'>Appends Zoho stock + 3-month sales columns. Adds ~30s.</p>
+          </div>
+        </label>
+      )}
+
+      {/* Generate */}
+      <div>
+        <button
+          onClick={handleGenerate}
+          disabled={running || selectedPOs.length === 0}
+          className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
+            running || selectedPOs.length === 0
+              ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+          }`}
+        >
+          {running ? (
+            <><RefreshCw className='h-4 w-4 animate-spin' />Generating{includeLive ? ' (fetching live data…)' : '…'}</>
+          ) : (
+            <><Download className='h-4 w-4' />{selectedPOs.length === 0 ? 'Select POs above' : `Generate & Download (${selectedPOs.length} PO${selectedPOs.length > 1 ? 's' : ''})`}</>
+          )}
+        </button>
+        {succeeded && !running && (
+          <div className='mt-3 flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm'>
+            <CheckCircle2 className='h-4 w-4' />File downloaded successfully.
+          </div>
+        )}
+        {error && (
+          <div className='mt-3 flex items-center gap-2 text-red-600 dark:text-red-400 text-sm'>
+            <AlertTriangle className='h-4 w-4 flex-shrink-0' />{error}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ProductCostingGenerator() {
   const { accessToken } = useAuth();
   const headers = { Authorization: `Bearer ${accessToken}` };
 
-  const [activeTab, setActiveTab] = useState<'existing' | 'new'>('existing');
+  const [activeTab, setActiveTab] = useState<'existing' | 'new' | 'order'>('existing');
 
   // ── existing brands state ─────────────────────────────────────────────────
   const [allTabs, setAllTabs]           = useState<PresetTab[]>(PRESET_TABS);
@@ -503,6 +759,17 @@ export default function ProductCostingGenerator() {
           <Upload className='h-4 w-4' />
           New Brands
         </button>
+        <button
+          onClick={() => setActiveTab('order')}
+          className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            activeTab === 'order'
+              ? 'border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-50/40 dark:bg-blue-900/10'
+              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+          }`}
+        >
+          <FileSpreadsheet className='h-4 w-4' />
+          Order Wise Costing
+        </button>
       </div>
 
       {/* ── Existing Brands tab ───────────────────────────────────────── */}
@@ -634,6 +901,9 @@ export default function ProductCostingGenerator() {
           </div>
         </>
       )}
+
+      {/* ── Order Wise Costing tab ────────────────────────────────────── */}
+      {activeTab === 'order' && <OrderWiseTab headers={headers} />}
     </div>
   );
 }
