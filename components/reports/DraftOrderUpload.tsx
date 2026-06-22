@@ -6,7 +6,6 @@ import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { Upload, FileSpreadsheet, X, AlertCircle, CheckCircle, ShoppingCart, Loader2, Trash2, RefreshCw, Package, ExternalLink } from 'lucide-react';
 import { TABLE_CLASSES } from './TableStyles';
-import capitalize from '@/util/capitalize';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -166,7 +165,15 @@ export default function DraftOrderUpload() {
     key: string; vendorId: string; poNumber: string; poDate: string;
   } | null>(null);
 
+  // re-upload mode — tracks which existing draft/PO is being overwritten
+  const [reuploadMode, setReuploadMode] = useState<{
+    draftId: string; poNumber: string; previousItems: OrderItem[];
+  } | null>(null);
+  const [showReuploadConfirm, setShowReuploadConfirm] = useState(false);
+  const [pendingValidation, setPendingValidation] = useState<ValidationResult | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAreaRef = useRef<HTMLDivElement>(null);
 
   // ── draft list ─────────────────────────────────────────────────────────
   const fetchDrafts = useCallback(async () => {
@@ -214,7 +221,47 @@ export default function DraftOrderUpload() {
     setValidation(null);
     setAvailableVendors([]);
     setGroups({});
+    setReuploadMode(null);
+    setShowReuploadConfirm(false);
+    setPendingValidation(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // ── start re-upload mode ───────────────────────────────────────────────
+  const handleStartReupload = (draft: DraftOrder) => {
+    reset();
+    setReuploadMode({
+      draftId: draft._id,
+      poNumber: draft.po_number!,
+      previousItems: draft.items ?? [],
+    });
+    setTimeout(() => uploadAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
+  // ── confirm re-upload (after user approves the overwrite dialog) ────────
+  const handleConfirmReupload = () => {
+    if (!pendingValidation || !reuploadMode) return;
+    setShowReuploadConfirm(false);
+
+    const data = pendingValidation;
+    setPendingValidation(null);
+
+    const vendors = data.detected_vendors ?? [];
+    setAvailableVendors(vendors);
+    setValidation(data);
+
+    const currencyGroups = groupItemsByCurrency(data.items ?? []);
+    const initialGroups: Record<string, CurrencyGroupState> = {};
+    for (const currency of Object.keys(currencyGroups)) {
+      const gs = defaultGroupState();
+      const matchedVendor = vendors.find(v => v.currency_code === currency) ?? null;
+      gs.selectedVendor = matchedVendor ?? (vendors.length === 1 ? vendors[0] : null);
+      // Pre-fill existing PO number and mark draft as already saved
+      gs.purchaseorderNumber = reuploadMode.poNumber;
+      gs.savedDraftId = reuploadMode.draftId;
+      initialGroups[currency] = gs;
+    }
+    setGroups(initialGroups);
   };
 
   // ── file handling ──────────────────────────────────────────────────────
@@ -314,8 +361,8 @@ export default function DraftOrderUpload() {
       const form = new FormData();
       form.append('file', file);
       const { data } = await axios.post<ValidationResult>(`${API_URL}/vendors/draft_orders/validate`, form);
-      setValidation(data);
       if (!data.valid) {
+        setValidation(data);
         // Seed itemEdits from server-merged saved values (tax_rate, upc_code, ean_code)
         const edits: ItemEdits = {};
         for (const m of data.missing_items ?? []) {
@@ -328,7 +375,12 @@ export default function DraftOrderUpload() {
         }
         setItemEdits(edits);
         setShowMissingModal(true);
+      } else if (reuploadMode) {
+        // In re-upload mode: store result and ask for confirmation before touching groups
+        setPendingValidation(data);
+        setShowReuploadConfirm(true);
       } else {
+        setValidation(data);
         const vendors = data.detected_vendors ?? [];
         setAvailableVendors(vendors);
 
@@ -412,12 +464,31 @@ export default function DraftOrderUpload() {
     }
   };
 
-  // ── create PO (per currency) ───────────────────────────────────────────
+  // ── create / update PO (per currency) ─────────────────────────────────
   const handleCreatePO = async (currency: string, items: OrderItem[]) => {
     const gs = groups[currency];
     if (!gs?.selectedVendor) return;
     updateGroup(currency, { creating: true });
     try {
+      if (reuploadMode) {
+        const { data } = await axios.post(
+          `${API_URL}/vendors/draft_orders/${reuploadMode.draftId}/update_po`,
+          {
+            contact_id: gs.selectedVendor.contact_id,
+            date: gs.poDate,
+            items,
+            notes: gs.notes,
+            reference_number: gs.referenceNumber,
+            purchaseorder_number: gs.purchaseorderNumber,
+          },
+        );
+        updateGroup(currency, { createdPO: data });
+        toast.success(`PO ${data.purchaseorder_number} updated`);
+        setReuploadMode(null);
+        await fetchDrafts();
+        return;
+      }
+
       let draftId = gs.savedDraftId;
       if (!draftId) {
         const { data: draft } = await axios.post<DraftOrder>(`${API_URL}/vendors/draft_orders/save`, {
@@ -445,7 +516,7 @@ export default function DraftOrderUpload() {
       toast.success(`PO ${data.purchaseorder_number} created (${currency})`);
       await fetchDrafts();
     } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to create purchase order');
+      toast.error(err?.response?.data?.detail || (reuploadMode ? 'Failed to update purchase order' : 'Failed to create purchase order'));
     } finally {
       updateGroup(currency, { creating: false });
     }
@@ -710,7 +781,9 @@ export default function DraftOrderUpload() {
                 className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
               >
                 {gs.creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-                {gs.creating ? 'Creating…' : 'Create Purchase Order'}
+                {gs.creating
+                  ? (reuploadMode ? 'Updating…' : 'Creating…')
+                  : (reuploadMode ? 'Update Purchase Order' : 'Create Purchase Order')}
               </button>
             </div>
           </div>
@@ -877,6 +950,16 @@ export default function DraftOrderUpload() {
                           >
                             Load
                           </button>
+                          {draft.po_created && draft.po_number && (
+                            <button
+                              onClick={() => handleStartReupload(draft)}
+                              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                              title="Re-upload a new file to overwrite this PO"
+                            >
+                              <RefreshCw size={11} />
+                              Re-upload
+                            </button>
+                          )}
                           {canCreateBrandOrder && (
                             brandOrderCreated[draftKey] ? (
                               <button
@@ -924,7 +1007,23 @@ export default function DraftOrderUpload() {
 
       {/* Upload area */}
       {!validation?.valid && (
-        <>
+        <div ref={uploadAreaRef} className="space-y-4">
+          {reuploadMode && (
+            <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
+                <RefreshCw className="w-4 h-4 flex-shrink-0" />
+                <span>
+                  Re-uploading for <strong>{reuploadMode.poNumber}</strong> — the uploaded file will overwrite this PO on Zoho
+                </span>
+              </div>
+              <button
+                onClick={reset}
+                className="text-xs font-medium text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 ml-4 whitespace-nowrap"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           <div
             className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer
               ${dragOver
@@ -963,7 +1062,7 @@ export default function DraftOrderUpload() {
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {file && !validation?.valid && (
@@ -1053,6 +1152,67 @@ export default function DraftOrderUpload() {
           )}
         </>
       )}
+
+      {/* Re-upload confirmation modal */}
+      {showReuploadConfirm && pendingValidation && reuploadMode && (() => {
+        const newItems = pendingValidation.items ?? [];
+        const oldCodes = new Set(reuploadMode.previousItems.map(i => i.bb_code || i.manufacturer_code));
+        const newCodes = new Set(newItems.map(i => i.bb_code || i.manufacturer_code));
+        const addedCount = newItems.filter(i => !oldCodes.has(i.bb_code || i.manufacturer_code)).length;
+        const removedCount = reuploadMode.previousItems.filter(i => !newCodes.has(i.bb_code || i.manufacturer_code)).length;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <h2 className="text-base font-semibold">Overwrite {reuploadMode.poNumber}?</h2>
+                </div>
+                <button
+                  onClick={() => { setShowReuploadConfirm(false); setPendingValidation(null); }}
+                  className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                The existing Zoho PO will be replaced with the items from the new file. This cannot be undone.
+              </p>
+
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="rounded-lg bg-zinc-50 dark:bg-zinc-800 px-3 py-2">
+                  <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{newItems.length}</p>
+                  <p className="text-xs text-zinc-500">Total items</p>
+                </div>
+                <div className={`rounded-lg px-3 py-2 ${addedCount > 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-zinc-50 dark:bg-zinc-800'}`}>
+                  <p className={`text-lg font-bold ${addedCount > 0 ? 'text-green-700 dark:text-green-400' : 'text-zinc-400'}`}>+{addedCount}</p>
+                  <p className="text-xs text-zinc-500">New</p>
+                </div>
+                <div className={`rounded-lg px-3 py-2 ${removedCount > 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-zinc-50 dark:bg-zinc-800'}`}>
+                  <p className={`text-lg font-bold ${removedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-400'}`}>−{removedCount}</p>
+                  <p className="text-xs text-zinc-500">Removed</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  onClick={() => { setShowReuploadConfirm(false); setPendingValidation(null); }}
+                  className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmReupload}
+                  className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors"
+                >
+                  Yes, overwrite PO
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Brand picker modal */}
       {brandPickerFor && (() => {
