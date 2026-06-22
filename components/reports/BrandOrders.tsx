@@ -85,7 +85,13 @@ interface BrandOrder {
   custom_duty_due_date?: string;
   shipping_charges?: number | null;
   shipping_charges_due_date?: string;
+  balance_payment_date?: string;
+  balance_payment_amount?: number | null;
+  total_payment_made_to_supplier?: number | null;
+  total_payment_made_to_supplier_date?: string;
+  vendor_payments?: Array<{ name: string | null; amount: number | null; date: string | null }>;
 }
+interface VendorPaymentRow { name: string; amount: string; date: string; }
 interface CreateFormState {
   brand: string; vendor_id: string; name?: string; order_date: string; shipment_eta: string;
   purchaseorder_number?: string;
@@ -99,6 +105,10 @@ interface CreateFormState {
   custom_duty_due_date?: string;
   shipping_charges?: string;
   shipping_charges_due_date?: string;
+  balance_payment_date?: string;
+  balance_payment_amount?: string;
+  total_payment_made_to_supplier?: string;
+  total_payment_made_to_supplier_date?: string;
 }
 interface PoResult { purchaseorder_number: string; order_status_formatted: string; vendor_id?: string; bill_date?: string; po_date?: string; }
 interface GlobalFileResult {
@@ -330,6 +340,9 @@ export default function BrandOrders() {
 
   const [editingOrder, setEditingOrder] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<CreateFormState>>({});
+  const emptyVendor = (): VendorPaymentRow => ({ name: '', amount: '', date: '' });
+  const [createVendorPayments, setCreateVendorPayments] = useState<VendorPaymentRow[]>([emptyVendor(), emptyVendor(), emptyVendor()]);
+  const [editVendorPayments, setEditVendorPayments] = useState<VendorPaymentRow[]>([]);
   const [saving, setSaving] = useState(false);
 
   const [poEditingOrder, setPoEditingOrder] = useState<string | null>(null);
@@ -440,6 +453,8 @@ export default function BrandOrders() {
       { key: 'advance_payment_date',        label: 'Advance Pmt',   stage: 'amber' },
       { key: 'custom_duty_due_date',        label: 'Duty Due',      stage: 'orange' },
       { key: 'shipping_charges_due_date',   label: 'Shipping Due',  stage: 'blue' },
+      { key: 'balance_payment_date',        label: 'Balance Pmt',   stage: 'teal' },
+      { key: 'total_payment_made_to_supplier_date', label: 'Paid to Supplier', stage: 'emerald' },
     ];
     const normalizeBrand = (order: BrandOrder): string => {
       if (order.vendor_id && vendorBrandLabel[order.vendor_id]) {
@@ -463,6 +478,14 @@ export default function BrandOrders() {
             orderId: order._id,
             stage,
           });
+        }
+      }
+      // Dynamic vendor_payments dates
+      const VENDOR_STAGES: CalendarEvent['stage'][] = ['sky', 'purple', 'teal', 'amber', 'orange', 'indigo', 'red', 'blue', 'emerald'];
+      for (const [i, vp] of (order.vendor_payments ?? []).entries()) {
+        if (vp.date) {
+          const label = vp.name ? `${vp.name}` : `Vendor ${i + 1}`;
+          evts.push({ date: vp.date.slice(0, 10), label, brand, poNumber: order.purchaseorder_number, orderName: order.name, orderId: order._id, stage: VENDOR_STAGES[i % VENDOR_STAGES.length] });
         }
       }
     }
@@ -751,6 +774,7 @@ export default function BrandOrders() {
     const defaultBrand = brandOptions.length > 0 ? brandOptions[0].name : '';
     setCreateForVendor(vendorId);
     setCreateForm({ brand: defaultBrand, vendor_id: vendorId, order_date: '', shipment_eta: '', purchaseorder_number: undefined });
+    setCreateVendorPayments([emptyVendor(), emptyVendor(), emptyVendor()]);
     setCreatePoQuery('');
     setCreatePoResults([]);
   };
@@ -810,6 +834,11 @@ export default function BrandOrders() {
       if (createForm.advance_payment_amount) form.append('advance_payment_amount', createForm.advance_payment_amount);
       if (createForm.custom_duty) form.append('custom_duty', createForm.custom_duty);
       if (createForm.shipping_charges) form.append('shipping_charges', createForm.shipping_charges);
+      if (createForm.balance_payment_date) form.append('balance_payment_date', createForm.balance_payment_date);
+      if (createForm.balance_payment_amount) form.append('balance_payment_amount', createForm.balance_payment_amount);
+      if (createForm.total_payment_made_to_supplier) form.append('total_payment_made_to_supplier', createForm.total_payment_made_to_supplier);
+      if (createForm.total_payment_made_to_supplier_date) form.append('total_payment_made_to_supplier_date', createForm.total_payment_made_to_supplier_date);
+      form.append('vendor_payments', JSON.stringify(createVendorPayments.map(vp => ({ name: vp.name, amount: vp.amount, date: vp.date }))));
       await axios.post(`${API_URL}/brand_orders/`, form);
       toast.success('Order created');
       setCreateForVendor(null);
@@ -838,7 +867,17 @@ export default function BrandOrders() {
       custom_duty_due_date: order.custom_duty_due_date ?? '',
       shipping_charges: order.shipping_charges != null ? String(order.shipping_charges) : '',
       shipping_charges_due_date: order.shipping_charges_due_date ?? '',
+      balance_payment_date: order.balance_payment_date ?? '',
+      balance_payment_amount: order.balance_payment_amount != null ? String(order.balance_payment_amount) : '',
+      total_payment_made_to_supplier: order.total_payment_made_to_supplier != null ? String(order.total_payment_made_to_supplier) : '',
+      total_payment_made_to_supplier_date: order.total_payment_made_to_supplier_date ?? '',
     });
+    const existingVps: VendorPaymentRow[] = (order.vendor_payments ?? []).map(vp => ({
+      name: vp.name ?? '',
+      amount: vp.amount != null ? String(vp.amount) : '',
+      date: vp.date ?? '',
+    }));
+    setEditVendorPayments(existingVps.length > 0 ? existingVps : [emptyVendor(), emptyVendor(), emptyVendor()]);
   };
   const cancelEdit = () => { setEditingOrder(null); setEditForm({}); };
 
@@ -863,6 +902,11 @@ export default function BrandOrders() {
       if (editForm.advance_payment_amount !== undefined && editForm.advance_payment_amount !== '') form.append('advance_payment_amount', editForm.advance_payment_amount);
       if (editForm.custom_duty !== undefined && editForm.custom_duty !== '') form.append('custom_duty', editForm.custom_duty);
       if (editForm.shipping_charges !== undefined && editForm.shipping_charges !== '') form.append('shipping_charges', editForm.shipping_charges);
+      form.append('balance_payment_date', editForm.balance_payment_date ?? '');
+      if (editForm.balance_payment_amount !== undefined && editForm.balance_payment_amount !== '') form.append('balance_payment_amount', editForm.balance_payment_amount);
+      form.append('total_payment_made_to_supplier_date', editForm.total_payment_made_to_supplier_date ?? '');
+      if (editForm.total_payment_made_to_supplier !== undefined && editForm.total_payment_made_to_supplier !== '') form.append('total_payment_made_to_supplier', editForm.total_payment_made_to_supplier);
+      form.append('vendor_payments', JSON.stringify(editVendorPayments.map(vp => ({ name: vp.name, amount: vp.amount, date: vp.date }))));
       await axios.patch(`${API_URL}/brand_orders/${orderId}`, form);
       toast.success('Order updated');
       setEditingOrder(null);
@@ -1520,7 +1564,7 @@ export default function BrandOrders() {
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Advance Payment Amount (INR)</label>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Advance Payment Amount (PO Currency)</label>
                       <input type="number" min="0" step="0.01" value={createForm.advance_payment_amount || ''} onChange={e => setCreateForm(p => ({ ...p, advance_payment_amount: e.target.value }))}
                         placeholder="0.00"
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
@@ -1547,6 +1591,65 @@ export default function BrandOrders() {
                         placeholder="0.00"
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                     </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Balance Payment Date</label>
+                      <input type="date" value={createForm.balance_payment_date || ''} onChange={e => setCreateForm(p => ({ ...p, balance_payment_date: e.target.value }))}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Balance Payment Amount (INR)</label>
+                      <input type="number" min="0" step="0.01" value={createForm.balance_payment_amount || ''} onChange={e => setCreateForm(p => ({ ...p, balance_payment_amount: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Total Payment Made to Supplier Date</label>
+                      <input type="date" value={createForm.total_payment_made_to_supplier_date || ''} onChange={e => setCreateForm(p => ({ ...p, total_payment_made_to_supplier_date: e.target.value }))}
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Total Payment Made to Supplier (USD)</label>
+                      <input type="number" min="0" step="0.01" value={createForm.total_payment_made_to_supplier || ''} onChange={e => setCreateForm(p => ({ ...p, total_payment_made_to_supplier: e.target.value }))}
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    </div>
+                  </div>
+                  {/* Dynamic vendor (service provider) rows */}
+                  <div className="mt-2 space-y-2">
+                    {createVendorPayments.map((vp, i) => (
+                      <div key={i} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2.5">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Vendor {i + 1} (Service Provider)</span>
+                          {i >= 3 && (
+                            <button type="button" onClick={() => setCreateVendorPayments(p => p.filter((_, idx) => idx !== i))}
+                              className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Name</label>
+                            <input type="text" value={vp.name} onChange={e => setCreateVendorPayments(p => p.map((r, idx) => idx === i ? { ...r, name: e.target.value } : r))}
+                              placeholder="e.g. Freight Forwarder"
+                              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Amount (INR)</label>
+                            <input type="number" min="0" step="0.01" value={vp.amount} onChange={e => setCreateVendorPayments(p => p.map((r, idx) => idx === i ? { ...r, amount: e.target.value } : r))}
+                              placeholder="0.00"
+                              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Date</label>
+                            <input type="date" value={vp.date} onChange={e => setCreateVendorPayments(p => p.map((r, idx) => idx === i ? { ...r, date: e.target.value } : r))}
+                              className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setCreateVendorPayments(p => [...p, emptyVendor()])}
+                      className="w-full py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
+                      + Add Vendor (Service Provider)
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1797,7 +1900,7 @@ export default function BrandOrders() {
                                                 className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                                             </div>
                                             <div>
-                                              <label className="block text-xs text-zinc-400 mb-0.5">Advance Payment Amount (INR)</label>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Advance Payment Amount ({orders.find(o => o._id === editingOrder)?.po_currency_code || 'INR'})</label>
                                               <input type="number" min="0" step="0.01" value={editForm.advance_payment_amount ?? ''} onChange={e => setEditForm(p => ({ ...p, advance_payment_amount: e.target.value }))}
                                                 placeholder="0.00"
                                                 className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
@@ -1824,6 +1927,65 @@ export default function BrandOrders() {
                                                 placeholder="0.00"
                                                 className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
                                             </div>
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Balance Payment Date</label>
+                                              <input type="date" value={editForm.balance_payment_date ?? ''} onChange={e => setEditForm(p => ({ ...p, balance_payment_date: e.target.value }))}
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Balance Payment Amount (INR)</label>
+                                              <input type="number" min="0" step="0.01" value={editForm.balance_payment_amount ?? ''} onChange={e => setEditForm(p => ({ ...p, balance_payment_amount: e.target.value }))}
+                                                placeholder="0.00"
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Total Payment Made to Supplier Date</label>
+                                              <input type="date" value={editForm.total_payment_made_to_supplier_date ?? ''} onChange={e => setEditForm(p => ({ ...p, total_payment_made_to_supplier_date: e.target.value }))}
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                            <div>
+                                              <label className="block text-xs text-zinc-400 mb-0.5">Total Payment Made to Supplier (USD)</label>
+                                              <input type="number" min="0" step="0.01" value={editForm.total_payment_made_to_supplier ?? ''} onChange={e => setEditForm(p => ({ ...p, total_payment_made_to_supplier: e.target.value }))}
+                                                placeholder="0.00"
+                                                className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                            </div>
+                                          </div>
+                                          {/* Dynamic vendor (service provider) rows */}
+                                          <div className="mt-2 space-y-2">
+                                            {editVendorPayments.map((vp, i) => (
+                                              <div key={i} className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-2">
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                  <span className="text-[9px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Vendor {i + 1} (Service Provider)</span>
+                                                  {i >= 3 && (
+                                                    <button type="button" onClick={() => setEditVendorPayments(p => p.filter((_, idx) => idx !== i))}
+                                                      className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                                                  )}
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-1.5">
+                                                  <div>
+                                                    <label className="block text-xs text-zinc-400 mb-0.5">Name</label>
+                                                    <input type="text" value={vp.name} onChange={e => setEditVendorPayments(p => p.map((r, idx) => idx === i ? { ...r, name: e.target.value } : r))}
+                                                      placeholder="e.g. Freight Forwarder"
+                                                      className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="block text-xs text-zinc-400 mb-0.5">Amount (INR)</label>
+                                                    <input type="number" min="0" step="0.01" value={vp.amount} onChange={e => setEditVendorPayments(p => p.map((r, idx) => idx === i ? { ...r, amount: e.target.value } : r))}
+                                                      placeholder="0.00"
+                                                      className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="block text-xs text-zinc-400 mb-0.5">Date</label>
+                                                    <input type="date" value={vp.date} onChange={e => setEditVendorPayments(p => p.map((r, idx) => idx === i ? { ...r, date: e.target.value } : r))}
+                                                      className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-xs bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                            <button type="button" onClick={() => setEditVendorPayments(p => [...p, emptyVendor()])}
+                                              className="w-full py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
+                                              + Add Vendor (Service Provider)
+                                            </button>
                                           </div>
                                         </div>
 
