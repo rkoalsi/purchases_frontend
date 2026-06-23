@@ -13,6 +13,7 @@ export default function InventoryAgingReport() {
   const today = new Date().toISOString().split('T')[0];
   const [toDate, setToDate] = useState(today);
   const [prevDate, setPrevDate] = useState('');
+  const [includeCogs, setIncludeCogs] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleDownload = async () => {
@@ -27,7 +28,7 @@ export default function InventoryAgingReport() {
     setLoading(true);
     try {
       const resp = await axios.get(`${API_URL}/inventory_aging/download`, {
-        params: { to_date: toDate, prev_date: prevDate },
+        params: { to_date: toDate, prev_date: prevDate, include_cogs: includeCogs },
         headers: { Authorization: `Bearer ${accessToken}` },
         responseType: 'blob',
       });
@@ -90,6 +91,22 @@ export default function InventoryAgingReport() {
             Must be earlier than the current period date.
           </p>
         </div>
+
+        <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-3">
+          <input
+            type="checkbox"
+            checked={includeCogs}
+            onChange={(e) => setIncludeCogs(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 text-blue-600 focus:ring-blue-500"
+          />
+          <span className="text-sm">
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">Include COGS</span>
+            <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+              Adds Unit Cost, Pupscribe Stock Value, and Pupscribe Stock on Hand columns
+              (from Zoho Books inventory valuation — adds ~30s to generation time).
+            </span>
+          </span>
+        </label>
 
         <button
           onClick={handleDownload}
