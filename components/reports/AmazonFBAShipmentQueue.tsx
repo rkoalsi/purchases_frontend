@@ -41,7 +41,49 @@ interface FBAShipment {
   last_synced_at: string;
 }
 
+interface EstimateInfo {
+  estimate_number?: string | null;
+  status?: string | null;
+  sales_order_no?: string | null;
+  estimate_linked_so_number?: string | null;
+  package_number?: string | null;
+  so_packages?: string[];
+  transfer_order_number?: string | null;
+  assembly_numbers?: string[];
+}
+
+// True when the shipment has any linked Zoho artifact
+const hasAnyLink = (d: EstimateInfo | null | undefined): boolean =>
+  !!d && (
+    !!d.estimate_number ||
+    !!d.sales_order_no ||
+    !!d.estimate_linked_so_number ||
+    !!d.package_number ||
+    (d.so_packages?.length ?? 0) > 0 ||
+    !!d.transfer_order_number ||
+    (d.assembly_numbers?.length ?? 0) > 0
+  );
+
 // ─── Status helpers ───────────────────────────────────────────────────────────
+
+const EST_STATUS_CLASSES: Record<string, string> = {
+  draft:     'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300',
+  sent:      'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  accepted:  'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  invoiced:  'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+  declined:  'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  expired:   'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+};
+
+const EstStatusBadge = ({ status }: { status?: string | null }) => {
+  if (!status) return null;
+  const cls = EST_STATUS_CLASSES[status.toLowerCase()] ?? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300';
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${cls}`}>
+      {status}
+    </span>
+  );
+};
 
 const STATUS_META: Record<string, { label: string; classes: string }> = {
   CLOSED:     { label: 'Closed',      classes: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300' },
@@ -158,8 +200,8 @@ export default function AmazonFBAShipmentQueue({ onOpenProcessing }: AmazonFBASh
   const [jumpInput, setJumpInput]       = useState('');
   const PAGE_SIZE = 10;
 
-  // Estimate state
-  const [estimateByShipment, setEstimateByShipment] = useState<Record<string, string | null>>({});
+  // Estimate / Zoho-links state
+  const [estimateByShipment, setEstimateByShipment] = useState<Record<string, EstimateInfo | null>>({});
   const [linkInputFor, setLinkInputFor] = useState<string | null>(null);
   const [linkInputVal, setLinkInputVal] = useState('');
   const [linkingFor, setLinkingFor]     = useState<string | null>(null);
@@ -237,7 +279,18 @@ export default function AmazonFBAShipmentQueue({ onOpenProcessing }: AmazonFBASh
     ? new Date(shipments[0].last_synced_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
     : null;
 
-  // ── Auto-load estimates for current page ────────────────────────────────────
+  // Fetch full Zoho-links info (estimate status + SO/package/TO/assemblies) for a shipment
+  const refreshEstimate = useCallback(async (sid: string) => {
+    try {
+      const res = await axios.get(`${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`);
+      const d: EstimateInfo = res.data ?? {};
+      setEstimateByShipment(prev => ({ ...prev, [sid]: hasAnyLink(d) ? d : null }));
+    } catch {
+      setEstimateByShipment(prev => ({ ...prev, [sid]: null }));
+    }
+  }, []);
+
+  // ── Auto-load Zoho links for current page ────────────────────────────────────
   useEffect(() => {
     const toLoad = shipments
       .map(s => s.ShipmentId)
@@ -245,14 +298,9 @@ export default function AmazonFBAShipmentQueue({ onOpenProcessing }: AmazonFBASh
     if (toLoad.length === 0) return;
     toLoad.forEach(sid => {
       requestedEstimatesRef.current.add(sid);
-      axios.get(`${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`)
-        .then(res => {
-          const num = res.data?.estimate_number ?? null;
-          setEstimateByShipment(prev => ({ ...prev, [sid]: num }));
-        })
-        .catch(() => setEstimateByShipment(prev => ({ ...prev, [sid]: null })));
+      refreshEstimate(sid);
     });
-  }, [shipments]);
+  }, [shipments, refreshEstimate]);
 
   // ── Estimate link/unlink ────────────────────────────────────────────────────
   const handleLinkEstimate = useCallback(async (sid: string) => {
@@ -264,27 +312,27 @@ export default function AmazonFBAShipmentQueue({ onOpenProcessing }: AmazonFBASh
         `${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`,
         { estimate_number: val },
       );
-      setEstimateByShipment(prev => ({ ...prev, [sid]: res.data.estimate_number }));
       setLinkInputFor(null);
       setLinkInputVal('');
       toast.success(`Linked ${res.data.estimate_number}`);
+      refreshEstimate(sid);
     } catch (e: any) {
       toast.error(e.response?.data?.detail ?? 'Failed to link estimate');
     } finally {
       setLinkingFor(null);
     }
-  }, [linkInputVal]);
+  }, [linkInputVal, refreshEstimate]);
 
   const handleUnlinkEstimate = useCallback(async (sid: string) => {
     if (!confirm('Remove the estimate link from this shipment?')) return;
     try {
       await axios.delete(`${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`);
-      setEstimateByShipment(prev => ({ ...prev, [sid]: null }));
       toast.success('Estimate unlinked');
+      refreshEstimate(sid);
     } catch {
       toast.error('Failed to unlink estimate');
     }
-  }, []);
+  }, [refreshEstimate]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -374,7 +422,7 @@ export default function AmazonFBAShipmentQueue({ onOpenProcessing }: AmazonFBASh
                   <th className={TABLE_CLASSES.th}>SKUs</th>
                   <th className={TABLE_CLASSES.th}>Inward Progress</th>
                   <th className={TABLE_CLASSES.th}>Linked</th>
-                  <th className={TABLE_CLASSES.th}>Estimate</th>
+                  <th className={TABLE_CLASSES.th}>Zoho Links</th>
                   <th className={TABLE_CLASSES.th}>Synced</th>
                   {onOpenProcessing && <th className={TABLE_CLASSES.th} />}
                 </tr>
@@ -453,56 +501,118 @@ export default function AmazonFBAShipmentQueue({ onOpenProcessing }: AmazonFBASh
                             )}
                           </td>
 
-                          {/* Estimate */}
-                          <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                            {estimateByShipment[shipment.ShipmentId] ? (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 whitespace-nowrap">
-                                  {estimateByShipment[shipment.ShipmentId]}
-                                </span>
-                                <button
-                                  onClick={() => handleUnlinkEstimate(shipment.ShipmentId)}
-                                  className="p-0.5 text-zinc-300 hover:text-red-500 dark:text-zinc-600 dark:hover:text-red-400 transition-colors"
-                                  title="Unlink estimate"
-                                >
-                                  <Unlink size={11} />
-                                </button>
-                              </div>
-                            ) : linkInputFor === shipment.ShipmentId ? (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="text"
-                                  value={linkInputVal}
-                                  onChange={e => setLinkInputVal(e.target.value)}
-                                  onKeyDown={e => {
-                                    if (e.key === 'Enter') handleLinkEstimate(shipment.ShipmentId);
-                                    if (e.key === 'Escape') { setLinkInputFor(null); setLinkInputVal(''); }
-                                  }}
-                                  placeholder="EST/25-26/…"
-                                  autoFocus
-                                  className="w-32 px-1.5 py-0.5 text-xs border border-purple-300 dark:border-purple-700 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100"
-                                />
-                                <button
-                                  onClick={() => handleLinkEstimate(shipment.ShipmentId)}
-                                  disabled={linkingFor === shipment.ShipmentId || !linkInputVal.trim()}
-                                  className="px-2 py-0.5 text-xs font-medium text-white bg-purple-600 rounded hover:bg-purple-700 disabled:opacity-50"
-                                >
-                                  {linkingFor === shipment.ShipmentId ? '…' : 'Link'}
-                                </button>
-                                <button onClick={() => { setLinkInputFor(null); setLinkInputVal(''); }} className="p-0.5 text-zinc-400 hover:text-zinc-600">
-                                  <X size={11} />
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => { setLinkInputFor(shipment.ShipmentId); setLinkInputVal(''); }}
-                                className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                                title="Link an estimate"
-                              >
-                                <Link2 size={11} />
-                                Link
-                              </button>
-                            )}
+                          {/* Zoho Links — estimate (+status), SO, packages, transfer order, assemblies */}
+                          <td className="px-4 py-3 align-top" onClick={e => e.stopPropagation()}>
+                            {(() => {
+                              const info = estimateByShipment[shipment.ShipmentId];
+                              const soNum = info?.estimate_linked_so_number || info?.sales_order_no;
+                              const packages = [...(info?.so_packages ?? []), ...(info?.package_number ? [info.package_number] : [])];
+                              const toNum = info?.transfer_order_number;
+                              const assemblies = info?.assembly_numbers ?? [];
+                              return (
+                                <div className="flex flex-col gap-1 min-w-[150px]">
+                                  {/* Estimate row (link/unlink) */}
+                                  {info?.estimate_number ? (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[11px] text-zinc-400 w-12">Est</span>
+                                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 whitespace-nowrap font-mono">
+                                        {info.estimate_number}
+                                      </span>
+                                      <EstStatusBadge status={info.status} />
+                                      <button
+                                        onClick={() => handleUnlinkEstimate(shipment.ShipmentId)}
+                                        className="p-0.5 text-zinc-300 hover:text-red-500 dark:text-zinc-600 dark:hover:text-red-400 transition-colors"
+                                        title="Unlink estimate"
+                                      >
+                                        <Unlink size={11} />
+                                      </button>
+                                    </div>
+                                  ) : linkInputFor === shipment.ShipmentId ? (
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="text"
+                                        value={linkInputVal}
+                                        onChange={e => setLinkInputVal(e.target.value)}
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter') handleLinkEstimate(shipment.ShipmentId);
+                                          if (e.key === 'Escape') { setLinkInputFor(null); setLinkInputVal(''); }
+                                        }}
+                                        placeholder="EST/25-26/…"
+                                        autoFocus
+                                        className="w-32 px-1.5 py-0.5 text-xs border border-purple-300 dark:border-purple-700 rounded focus:outline-none dark:bg-zinc-800 dark:text-zinc-100"
+                                      />
+                                      <button
+                                        onClick={() => handleLinkEstimate(shipment.ShipmentId)}
+                                        disabled={linkingFor === shipment.ShipmentId || !linkInputVal.trim()}
+                                        className="px-2 py-0.5 text-xs font-medium text-white bg-purple-600 rounded hover:bg-purple-700 disabled:opacity-50"
+                                      >
+                                        {linkingFor === shipment.ShipmentId ? '…' : 'Link'}
+                                      </button>
+                                      <button onClick={() => { setLinkInputFor(null); setLinkInputVal(''); }} className="p-0.5 text-zinc-400 hover:text-zinc-600">
+                                        <X size={11} />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => { setLinkInputFor(shipment.ShipmentId); setLinkInputVal(''); }}
+                                      className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors w-fit"
+                                      title="Link an estimate"
+                                    >
+                                      <Link2 size={11} />
+                                      Link Estimate
+                                    </button>
+                                  )}
+
+                                  {/* Sales Order */}
+                                  {soNum && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] text-zinc-400 w-12">SO</span>
+                                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-mono whitespace-nowrap">
+                                        {soNum}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Packages */}
+                                  {packages.length > 0 && (
+                                    <div className="flex items-start gap-1.5">
+                                      <span className="text-[11px] text-zinc-400 w-12 mt-0.5">Pkg</span>
+                                      <div className="flex flex-wrap gap-1">
+                                        {packages.map((pkg, i) => (
+                                          <span key={i} className="text-xs font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono whitespace-nowrap">
+                                            {pkg}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Transfer Order */}
+                                  {toNum && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] text-zinc-400 w-12">TO</span>
+                                      <span className="text-xs font-medium px-2 py-0.5 rounded bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800 font-mono whitespace-nowrap">
+                                        {toNum}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* Assemblies */}
+                                  {assemblies.length > 0 && (
+                                    <div className="flex items-start gap-1.5">
+                                      <span className="text-[11px] text-zinc-400 w-12 mt-0.5">Asm</span>
+                                      <div className="flex flex-wrap gap-1">
+                                        {assemblies.map((an, i) => (
+                                          <span key={i} className="text-xs font-medium px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-mono whitespace-nowrap">
+                                            {an}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           {/* Last synced */}

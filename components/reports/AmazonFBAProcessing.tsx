@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 import {
   Upload, RefreshCw, Trash2, Edit2, Check, X, Download,
   Save, ChevronRight, FileText, Link2, Unlink, AlertCircle, Plus,
+  Package, ExternalLink,
 } from 'lucide-react';
 import { TABLE_CLASSES, LoadingState, ErrorState, SearchBar } from './TableStyles';
 import AmazonFBAShipmentQueue from './AmazonFBAShipmentQueue';
@@ -54,6 +55,26 @@ interface EstimateInfo {
   sub_total?: number | null;
   total?: number | null;
   status?: string | null;
+  sales_order_no?: string | null;
+  sales_order_id?: string | null;
+  package_number?: string | null;
+  estimate_linked_so_number?: string | null;
+  so_packages?: string[];
+  transfer_order_number?: string | null;
+  transfer_order_id?: string | null;
+  bundle_ids?: string[];
+  assembly_numbers?: string[];
+}
+
+interface Warehouse {
+  warehouse_id: string;
+  warehouse_name: string;
+}
+
+interface SalesOrderSearchResult {
+  salesorder_number: string;
+  salesorder_id: string;
+  customer_name?: string;
 }
 
 interface EstimateDiffItem {
@@ -121,6 +142,37 @@ const fmt = (d: string | null | undefined) => {
 
 const fmtMoney = (v: number | null | undefined) =>
   v != null ? `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+
+const EST_STATUS_CLASSES: Record<string, string> = {
+  draft:    'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300',
+  sent:     'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  accepted: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  invoiced: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+  declined: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  expired:  'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+};
+
+const EstStatusBadge = ({ status }: { status?: string | null }) => {
+  if (!status) return null;
+  const cls = EST_STATUS_CLASSES[status.toLowerCase()] ?? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300';
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium capitalize ${cls}`}>
+      {status}
+    </span>
+  );
+};
+
+// True when the shipment has any linked Zoho artifact (estimate, SO, package, TO or assembly)
+const hasAnyLink = (d: EstimateInfo | null | undefined): boolean =>
+  !!d && (
+    !!d.estimate_number ||
+    !!d.sales_order_no ||
+    !!d.estimate_linked_so_number ||
+    !!d.package_number ||
+    (d.so_packages?.length ?? 0) > 0 ||
+    !!d.transfer_order_number ||
+    (d.assembly_numbers?.length ?? 0) > 0
+  );
 
 // ─── Summary row edit ────────────────────────────────────────────────────────
 
@@ -260,6 +312,35 @@ export default function AmazonFBAProcessing() {
   const [loadingDiff, setLoadingDiff] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
 
+  // ── Fulfilment linking (Sales Order / Transfer Order / Assemblies) ──
+  const [linkSOOpen, setLinkSOOpen] = useState(false);
+  const [linkSONumber, setLinkSONumber] = useState('');
+  const [soSearchResults, setSoSearchResults] = useState<SalesOrderSearchResult[]>([]);
+  const [linkingSO, setLinkingSO] = useState(false);
+
+  const [linkPackageOpen, setLinkPackageOpen] = useState(false);
+  const [linkPackageNumber, setLinkPackageNumber] = useState('');
+  const [linkingPackage, setLinkingPackage] = useState(false);
+  const [unlinkingPackage, setUnlinkingPackage] = useState(false);
+
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
+  const [createTOOpen, setCreateTOOpen] = useState(false);
+  const [linkTOOpen, setLinkTOOpen] = useState(false);
+  const [linkTONumber, setLinkTONumber] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [fromWarehouseId, setFromWarehouseId] = useState('');
+  const [toWarehouseId, setToWarehouseId] = useState('');
+  const [creatingTO, setCreatingTO] = useState(false);
+  const [linkingTO, setLinkingTO] = useState(false);
+  const [unlinkingTO, setUnlinkingTO] = useState(false);
+
+  const [linkAssemblyOpen, setLinkAssemblyOpen] = useState(false);
+  const [linkAssemblyNumber, setLinkAssemblyNumber] = useState('');
+  const [creatingAssemblies, setCreatingAssemblies] = useState(false);
+  const [linkingAssembly, setLinkingAssembly] = useState(false);
+  const [unlinkingAssemblies, setUnlinkingAssemblies] = useState(false);
+
   // Summary tab state
   const [summary, setSummary] = useState<SummaryRow[]>([]);
   const [loadingSum, setLoadingSum] = useState(false);
@@ -274,6 +355,17 @@ export default function AmazonFBAProcessing() {
     setShowDiff(false);
     setShowLinkInput(false);
     setLinkEstInput('');
+    setLinkSOOpen(false);
+    setLinkSONumber('');
+    setSoSearchResults([]);
+    setLinkPackageOpen(false);
+    setLinkPackageNumber('');
+    setCreateTOOpen(false);
+    setLinkTOOpen(false);
+    setLinkTONumber('');
+    setToDate('');
+    setLinkAssemblyOpen(false);
+    setLinkAssemblyNumber('');
   }, [selectedShipmentId]);
   
   const shipmentGroups = useMemo<Record<string, ShipmentGroup>>(() => {
@@ -304,8 +396,8 @@ export default function AmazonFBAProcessing() {
       requestedEstimatesRef.current.add(sid);
       axios.get(`${API_URL}/amazon_fba_shipment/processing/${sid}/estimate`)
         .then(res => {
-          const data = res.data ?? {};
-          setEstimateByShipment(prev => ({ ...prev, [sid]: data.estimate_number ? data : null }));
+          const data: EstimateInfo = res.data ?? {};
+          setEstimateByShipment(prev => ({ ...prev, [sid]: hasAnyLink(data) ? data : null }));
         })
         .catch(() => {
           setEstimateByShipment(prev => ({ ...prev, [sid]: null }));
@@ -467,6 +559,205 @@ export default function AmazonFBAProcessing() {
       setLoadingDiff(false);
     }
   }, [selectedShipmentId]);
+
+  // ─── Fulfilment: Sales Order / Transfer Order / Assemblies ──────────────────
+
+  const patchEst = useCallback((sid: string, updates: Partial<EstimateInfo>) => {
+    setEstimateByShipment(prev => ({ ...prev, [sid]: { ...(prev[sid] ?? {}), ...updates } }));
+  }, []);
+
+  // Sales order search (reuses the vendor_po search endpoint)
+  useEffect(() => {
+    if (!linkSOOpen) return;
+    const q = linkSONumber.trim();
+    if (!q) { setSoSearchResults([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await axios.get<SalesOrderSearchResult[]>(
+          `${API_URL}/vendor_po/search/sales_orders`, { params: { q } },
+        );
+        setSoSearchResults(data ?? []);
+      } catch { setSoSearchResults([]); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [linkSONumber, linkSOOpen]);
+
+  const handleLinkSO = useCallback(async () => {
+    if (!selectedShipmentId || !linkSONumber.trim()) return;
+    setLinkingSO(true);
+    try {
+      const { data } = await axios.patch<{ sales_order_no: string; sales_order_id: string | null }>(
+        `${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/sales_order_no`,
+        { sales_order_no: linkSONumber.trim() },
+      );
+      toast.success(`Sales order ${data.sales_order_no} linked`);
+      patchEst(selectedShipmentId, { sales_order_no: data.sales_order_no, sales_order_id: data.sales_order_id });
+      setLinkSOOpen(false);
+      setLinkSONumber('');
+      setSoSearchResults([]);
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to link sales order' : 'Failed to link sales order');
+    } finally {
+      setLinkingSO(false);
+    }
+  }, [selectedShipmentId, linkSONumber, patchEst]);
+
+  const handleLinkPackage = useCallback(async () => {
+    if (!selectedShipmentId || !linkPackageNumber.trim()) return;
+    setLinkingPackage(true);
+    try {
+      const { data } = await axios.patch<{ package_number: string }>(
+        `${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/package`,
+        { package_number: linkPackageNumber.trim() },
+      );
+      toast.success(`Package ${data.package_number} linked`);
+      patchEst(selectedShipmentId, { package_number: data.package_number });
+      setLinkPackageOpen(false);
+      setLinkPackageNumber('');
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to link package' : 'Failed to link package');
+    } finally {
+      setLinkingPackage(false);
+    }
+  }, [selectedShipmentId, linkPackageNumber, patchEst]);
+
+  const handleUnlinkPackage = useCallback(async () => {
+    if (!selectedShipmentId) return;
+    if (!confirm('Remove the manually-linked package from this shipment?')) return;
+    setUnlinkingPackage(true);
+    try {
+      await axios.delete(`${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/package`);
+      toast.success('Package unlinked');
+      patchEst(selectedShipmentId, { package_number: null });
+    } catch {
+      toast.error('Failed to unlink package');
+    } finally {
+      setUnlinkingPackage(false);
+    }
+  }, [selectedShipmentId, patchEst]);
+
+  const loadWarehouses = useCallback(async () => {
+    if (warehouses.length > 0 || warehousesLoading) return;
+    setWarehousesLoading(true);
+    try {
+      const { data } = await axios.get<{ warehouses: Warehouse[] }>(`${API_URL}/vendor_po/warehouses`);
+      setWarehouses(data.warehouses ?? []);
+    } catch {
+      toast.error('Failed to load warehouses');
+    } finally {
+      setWarehousesLoading(false);
+    }
+  }, [warehouses.length, warehousesLoading]);
+
+  const openCreateTOModal = useCallback(() => {
+    setToDate('');
+    setFromWarehouseId('3220178000000403010');   // Pupscribe (default)
+    setToWarehouseId('3220178000156676949');      // Mumbai (Amazon) (default)
+    setCreateTOOpen(true);
+    loadWarehouses();
+  }, [loadWarehouses]);
+
+  const handleCreateTO = useCallback(async () => {
+    if (!selectedShipmentId) return;
+    setCreatingTO(true);
+    try {
+      const { data } = await axios.post<{ transfer_order_id: string; transfer_order_number: string; status: string }>(
+        `${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/transfer_order`,
+        { date: toDate || undefined, from_warehouse_id: fromWarehouseId || undefined, to_warehouse_id: toWarehouseId || undefined },
+      );
+      toast.success(`Transfer order ${data.transfer_order_number} created`);
+      patchEst(selectedShipmentId, { transfer_order_number: data.transfer_order_number, transfer_order_id: data.transfer_order_id });
+      setCreateTOOpen(false);
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to create transfer order' : 'Failed to create transfer order');
+    } finally {
+      setCreatingTO(false);
+    }
+  }, [selectedShipmentId, toDate, fromWarehouseId, toWarehouseId, patchEst]);
+
+  const handleLinkTO = useCallback(async () => {
+    if (!selectedShipmentId || !linkTONumber.trim()) return;
+    setLinkingTO(true);
+    try {
+      const { data } = await axios.patch<{ transfer_order_number: string; transfer_order_id: string }>(
+        `${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/transfer_order`,
+        { transfer_order_number: linkTONumber.trim() },
+      );
+      toast.success(`Transfer order ${data.transfer_order_number} linked`);
+      patchEst(selectedShipmentId, { transfer_order_number: data.transfer_order_number, transfer_order_id: data.transfer_order_id });
+      setLinkTOOpen(false);
+      setLinkTONumber('');
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to link transfer order' : 'Failed to link transfer order');
+    } finally {
+      setLinkingTO(false);
+    }
+  }, [selectedShipmentId, linkTONumber, patchEst]);
+
+  const handleUnlinkTO = useCallback(async () => {
+    if (!selectedShipmentId) return;
+    if (!confirm('Remove the transfer order link from this shipment?')) return;
+    setUnlinkingTO(true);
+    try {
+      await axios.delete(`${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/transfer_order`);
+      toast.success('Transfer order unlinked');
+      patchEst(selectedShipmentId, { transfer_order_number: null, transfer_order_id: null });
+    } catch {
+      toast.error('Failed to unlink transfer order');
+    } finally {
+      setUnlinkingTO(false);
+    }
+  }, [selectedShipmentId, patchEst]);
+
+  const handleCreateAssemblies = useCallback(async () => {
+    if (!selectedShipmentId) return;
+    setCreatingAssemblies(true);
+    try {
+      const { data } = await axios.post<{ bundle_ids: string[]; assembly_numbers: string[] }>(
+        `${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/assemblies`,
+      );
+      toast.success(`${data.assembly_numbers.length} assembly(s) created`);
+      patchEst(selectedShipmentId, { bundle_ids: data.bundle_ids, assembly_numbers: data.assembly_numbers });
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to create assemblies' : 'Failed to create assemblies');
+    } finally {
+      setCreatingAssemblies(false);
+    }
+  }, [selectedShipmentId, patchEst]);
+
+  const handleLinkAssembly = useCallback(async () => {
+    if (!selectedShipmentId || !linkAssemblyNumber.trim()) return;
+    setLinkingAssembly(true);
+    try {
+      const { data } = await axios.patch<{ bundle_ids: string[]; assembly_numbers: string[] }>(
+        `${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/assemblies`,
+        { assembly_number: linkAssemblyNumber.trim() },
+      );
+      toast.success(`Assembly ${linkAssemblyNumber.trim()} linked`);
+      patchEst(selectedShipmentId, { bundle_ids: data.bundle_ids, assembly_numbers: data.assembly_numbers });
+      setLinkAssemblyOpen(false);
+      setLinkAssemblyNumber('');
+    } catch (e: unknown) {
+      toast.error(axios.isAxiosError(e) ? e.response?.data?.detail ?? 'Failed to link assembly' : 'Failed to link assembly');
+    } finally {
+      setLinkingAssembly(false);
+    }
+  }, [selectedShipmentId, linkAssemblyNumber, patchEst]);
+
+  const handleUnlinkAssemblies = useCallback(async () => {
+    if (!selectedShipmentId) return;
+    if (!confirm('Remove all assembly links from this shipment?')) return;
+    setUnlinkingAssemblies(true);
+    try {
+      await axios.delete(`${API_URL}/amazon_fba_shipment/processing/${selectedShipmentId}/assemblies`);
+      toast.success('Assemblies unlinked');
+      patchEst(selectedShipmentId, { bundle_ids: [], assembly_numbers: [] });
+    } catch {
+      toast.error('Failed to unlink assemblies');
+    } finally {
+      setUnlinkingAssemblies(false);
+    }
+  }, [selectedShipmentId, patchEst]);
 
   // ─── Shipment groups ─────────────────────────────────────────────────────────
 
@@ -765,6 +1056,9 @@ export default function AmazonFBAProcessing() {
                                   {estInfo.estimate_number}
                                 </span>
                               )}
+                              {estInfo?.estimate_number && estInfo?.status && (
+                                <span className='hidden md:inline'><EstStatusBadge status={estInfo.status} /></span>
+                              )}
                               {/* Download link — stops propagation so accordion doesn't toggle */}
                               <a
                                 href={`${API_URL}/amazon_fba_shipment/processing/${sid}/download`}
@@ -779,9 +1073,9 @@ export default function AmazonFBAProcessing() {
 
                             {/* Accordion body */}
                             {isOpen && (
-                              <div className='p-4 space-y-4'>
+                              <div className='p-4 flex flex-col gap-4'>
                                 {/* Row search + count */}
-                                <div className='flex items-center gap-3'>
+                                <div className='flex items-center gap-3 border-t border-zinc-200 dark:border-zinc-700 pt-4'>
                                   <div className='flex-1'>
                                     <SearchBar value={rowSearch} onChange={setRowSearch} placeholder='Search by SKU, item name, ASIN or FNSKU…' />
                                   </div>
@@ -899,8 +1193,8 @@ export default function AmazonFBAProcessing() {
                                   </div>
                                 )}
 
-                                {/* ── Estimate section ─────────────────────── */}
-                                <div className='border-t border-zinc-200 dark:border-zinc-700 pt-4'>
+                                {/* ── Estimate section (rendered above the table via order-first) ── */}
+                                <div className='order-first'>
                                   <div className='flex items-center gap-2 mb-3'>
                                     <FileText size={14} className='text-zinc-400' />
                                     <span className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>Estimate</span>
@@ -915,6 +1209,7 @@ export default function AmazonFBAProcessing() {
                                         <span className='text-xs font-medium px-2 py-1 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'>
                                           {estInfo.estimate_number}
                                         </span>
+                                        <EstStatusBadge status={estInfo.status} />
                                         {estInfo.sub_total != null && (
                                           <span className='text-xs text-zinc-600 dark:text-zinc-400'>
                                             Sub-total: <strong>{fmtMoney(estInfo.sub_total)}</strong>
@@ -1083,6 +1378,130 @@ export default function AmazonFBAProcessing() {
                                       )}
                                     </div>
                                   )}
+                                </div>
+
+                                {/* ── Fulfilment section (rendered above the table via order-first) ── */}
+                                <div className='order-first border-t border-zinc-200 dark:border-zinc-700 pt-4'>
+                                  <div className='flex items-center gap-2 mb-3'>
+                                    <Package size={14} className='text-zinc-400' />
+                                    <span className='text-sm font-medium text-zinc-700 dark:text-zinc-300'>Fulfilment</span>
+                                  </div>
+
+                                  {isEstLoading ? (
+                                    <p className='text-xs text-zinc-400'>Loading fulfilment status…</p>
+                                  ) : (() => {
+                                    const soNum = estInfo?.estimate_linked_so_number || estInfo?.sales_order_no;
+                                    const soPackages = estInfo?.so_packages ?? [];
+                                    const manualPkg = estInfo?.package_number || null;
+                                    const hasPackage = soPackages.length > 0 || !!manualPkg;
+                                    const toNum = estInfo?.transfer_order_number;
+                                    const assemblies = estInfo?.assembly_numbers ?? [];
+                                    return (
+                                      <div className='space-y-3'>
+                                        {/* Sales Order */}
+                                        <div className='flex flex-wrap items-center gap-2'>
+                                          <span className='text-xs font-medium text-zinc-500 dark:text-zinc-400 w-28'>Sales Order</span>
+                                          {soNum ? (
+                                            <span className='px-2 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-200 dark:border-amber-800 font-mono'>
+                                              {soNum}
+                                            </span>
+                                          ) : (
+                                            <button
+                                              onClick={() => { setLinkSOOpen(true); setLinkSONumber(''); setSoSearchResults([]); }}
+                                              className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                                            >
+                                              <Link2 size={11} /> Link SO
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        {/* Packages — SO-derived or manually linked by number */}
+                                        <div className='flex flex-wrap items-center gap-2'>
+                                          <span className='text-xs font-medium text-zinc-500 dark:text-zinc-400 w-28'>Packages</span>
+                                          {soPackages.map((pkg, i) => (
+                                            <span key={`so-${i}`} className='px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono'>
+                                              {pkg}
+                                            </span>
+                                          ))}
+                                          {manualPkg && (
+                                            <span className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 border border-blue-200 dark:border-blue-800 font-mono'>
+                                              {manualPkg}
+                                              <button onClick={handleUnlinkPackage} disabled={unlinkingPackage}
+                                                className='text-blue-400 hover:text-red-500 disabled:opacity-50' title='Unlink package'>
+                                                {unlinkingPackage ? <RefreshCw size={10} className='animate-spin' /> : <X size={11} />}
+                                              </button>
+                                            </span>
+                                          )}
+                                          {!hasPackage && (
+                                            <button onClick={() => { setLinkPackageOpen(true); setLinkPackageNumber(''); }}
+                                              className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'>
+                                              <Link2 size={11} /> Link Package
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        {/* Transfer Order — created from the package */}
+                                        <div className='flex flex-wrap items-center gap-2'>
+                                          <span className='text-xs font-medium text-zinc-500 dark:text-zinc-400 w-28'>Transfer Order</span>
+                                          {toNum ? (
+                                            <>
+                                              <span className='px-2 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400 border border-violet-200 dark:border-violet-800 font-mono'>
+                                                {toNum}
+                                              </span>
+                                              <button onClick={handleUnlinkTO} disabled={unlinkingTO}
+                                                className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50'>
+                                                {unlinkingTO ? <RefreshCw size={11} className='animate-spin' /> : <Unlink size={11} />} Unlink
+                                              </button>
+                                            </>
+                                          ) : hasPackage ? (
+                                            <>
+                                              <button onClick={openCreateTOModal}
+                                                className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-600 text-white hover:bg-violet-700'>
+                                                <ExternalLink size={11} /> Create TO
+                                              </button>
+                                              <button onClick={() => { setLinkTOOpen(true); setLinkTONumber(''); }}
+                                                className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'>
+                                                <Link2 size={11} /> Link TO
+                                              </button>
+                                            </>
+                                          ) : (
+                                            <span className='text-xs text-zinc-400'>Link a package first</span>
+                                          )}
+                                        </div>
+
+                                        {/* Assemblies — created for combo items in the package */}
+                                        <div className='flex flex-wrap items-center gap-2'>
+                                          <span className='text-xs font-medium text-zinc-500 dark:text-zinc-400 w-28'>Assemblies</span>
+                                          {assemblies.length > 0 ? (
+                                            <>
+                                              {assemblies.map((an, i) => (
+                                                <span key={i} className='px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 font-mono'>
+                                                  {an}
+                                                </span>
+                                              ))}
+                                              <button onClick={handleUnlinkAssemblies} disabled={unlinkingAssemblies}
+                                                className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50'>
+                                                {unlinkingAssemblies ? <RefreshCw size={11} className='animate-spin' /> : <Unlink size={11} />} Unlink
+                                              </button>
+                                            </>
+                                          ) : hasPackage ? (
+                                            <>
+                                              <button onClick={handleCreateAssemblies} disabled={creatingAssemblies}
+                                                className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50'>
+                                                {creatingAssemblies ? <RefreshCw size={11} className='animate-spin' /> : <ExternalLink size={11} />} Create Assemblies
+                                              </button>
+                                              <button onClick={() => { setLinkAssemblyOpen(true); setLinkAssemblyNumber(''); }}
+                                                className='inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'>
+                                                <Link2 size={11} /> Link Assembly
+                                              </button>
+                                            </>
+                                          ) : (
+                                            <span className='text-xs text-zinc-400'>Link a package first</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             )}
@@ -1280,6 +1699,220 @@ export default function AmazonFBAProcessing() {
                 className='px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50'
               >
                 {creatingEstimate ? 'Creating…' : 'Create Estimate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Sales Order Modal ─────────────────────────────────────────── */}
+      {linkSOOpen && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
+          <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700'>
+            <div className='flex items-center gap-3 mb-4'>
+              <div className='p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full'>
+                <Link2 size={18} className='text-amber-600 dark:text-amber-400' />
+              </div>
+              <div>
+                <h3 className='text-base font-semibold text-zinc-900 dark:text-zinc-100'>Link Sales Order</h3>
+                <p className='text-xs text-zinc-500 dark:text-zinc-400 font-mono'>{selectedShipmentId}</p>
+              </div>
+            </div>
+            <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>Sales Order Number</label>
+            <input
+              type='text'
+              value={linkSONumber}
+              onChange={e => setLinkSONumber(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLinkSO()}
+              placeholder='SO-00123'
+              className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-amber-500'
+            />
+            {soSearchResults.length > 0 && (
+              <div className='mt-2 max-h-40 overflow-y-auto border border-zinc-200 dark:border-zinc-700 rounded-md divide-y divide-zinc-100 dark:divide-zinc-800'>
+                {soSearchResults.map(so => (
+                  <button
+                    key={so.salesorder_id}
+                    onClick={() => { setLinkSONumber(so.salesorder_number); setSoSearchResults([]); }}
+                    className='w-full text-left px-3 py-1.5 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                  >
+                    <span className='font-mono text-zinc-700 dark:text-zinc-300'>{so.salesorder_number}</span>
+                    {so.customer_name && <span className='text-zinc-400 ml-2'>{so.customer_name}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className='flex justify-end gap-2 mt-5'>
+              <button onClick={() => { setLinkSOOpen(false); setLinkSONumber(''); setSoSearchResults([]); }} disabled={linkingSO}
+                className='px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50'>
+                Cancel
+              </button>
+              <button onClick={handleLinkSO} disabled={linkingSO || !linkSONumber.trim()}
+                className='px-4 py-2 text-sm rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 flex items-center gap-2'>
+                {linkingSO ? <RefreshCw size={13} className='animate-spin' /> : <Link2 size={13} />}
+                {linkingSO ? 'Linking…' : 'Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Package Modal ─────────────────────────────────────────────── */}
+      {linkPackageOpen && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
+          <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700'>
+            <div className='flex items-center gap-3 mb-4'>
+              <div className='p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full'>
+                <Package size={18} className='text-blue-600 dark:text-blue-400' />
+              </div>
+              <div>
+                <h3 className='text-base font-semibold text-zinc-900 dark:text-zinc-100'>Link Package</h3>
+                <p className='text-xs text-zinc-500 dark:text-zinc-400 font-mono'>{selectedShipmentId}</p>
+              </div>
+            </div>
+            <p className='text-xs text-zinc-500 dark:text-zinc-400 mb-3'>
+              The package must already exist in Zoho (it drives the Transfer Order &amp; Assemblies).
+            </p>
+            <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>Package Number</label>
+            <input type='text' value={linkPackageNumber} onChange={e => setLinkPackageNumber(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLinkPackage()} placeholder='PKG-00123'
+              className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500' />
+            <div className='flex justify-end gap-2 mt-5'>
+              <button onClick={() => { setLinkPackageOpen(false); setLinkPackageNumber(''); }} disabled={linkingPackage}
+                className='px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50'>
+                Cancel
+              </button>
+              <button onClick={handleLinkPackage} disabled={linkingPackage || !linkPackageNumber.trim()}
+                className='px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2'>
+                {linkingPackage ? <RefreshCw size={13} className='animate-spin' /> : <Link2 size={13} />}
+                {linkingPackage ? 'Linking…' : 'Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create Transfer Order Modal ────────────────────────────────────── */}
+      {createTOOpen && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
+          <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-md border border-zinc-200 dark:border-zinc-700'>
+            <div className='flex items-center gap-3 mb-4'>
+              <div className='p-2 bg-violet-100 dark:bg-violet-900/30 rounded-full'>
+                <ExternalLink size={18} className='text-violet-600 dark:text-violet-400' />
+              </div>
+              <div>
+                <h3 className='text-base font-semibold text-zinc-900 dark:text-zinc-100'>Create Transfer Order</h3>
+                <p className='text-xs text-zinc-500 dark:text-zinc-400 font-mono'>{selectedShipmentId}</p>
+              </div>
+            </div>
+            <p className='text-xs text-zinc-500 dark:text-zinc-400 mb-4'>
+              Creates a Zoho Inventory transfer order from the linked package&apos;s line items.
+            </p>
+            <div className='space-y-3'>
+              <div>
+                <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>From Warehouse</label>
+                {warehousesLoading ? (
+                  <div className='flex items-center gap-2 px-3 py-2 text-xs text-zinc-400 border border-zinc-300 dark:border-zinc-600 rounded-md'>
+                    <RefreshCw size={12} className='animate-spin' /> Loading warehouses…
+                  </div>
+                ) : (
+                  <select value={fromWarehouseId} onChange={e => setFromWarehouseId(e.target.value)}
+                    className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500'>
+                    {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>)}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>To Warehouse</label>
+                {warehousesLoading ? (
+                  <div className='flex items-center gap-2 px-3 py-2 text-xs text-zinc-400 border border-zinc-300 dark:border-zinc-600 rounded-md'>
+                    <RefreshCw size={12} className='animate-spin' /> Loading warehouses…
+                  </div>
+                ) : (
+                  <select value={toWarehouseId} onChange={e => setToWarehouseId(e.target.value)}
+                    className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500'>
+                    {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>)}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>Date (optional — defaults to today)</label>
+                <input type='date' value={toDate} onChange={e => setToDate(e.target.value)}
+                  className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500' />
+              </div>
+            </div>
+            <div className='flex justify-end gap-2 mt-5'>
+              <button onClick={() => { setCreateTOOpen(false); setToDate(''); }} disabled={creatingTO}
+                className='px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50'>
+                Cancel
+              </button>
+              <button onClick={handleCreateTO} disabled={creatingTO || warehousesLoading}
+                className='px-4 py-2 text-sm rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 flex items-center gap-2'>
+                {creatingTO ? <RefreshCw size={13} className='animate-spin' /> : <ExternalLink size={13} />}
+                {creatingTO ? 'Creating…' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Transfer Order Modal ──────────────────────────────────────── */}
+      {linkTOOpen && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
+          <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700'>
+            <div className='flex items-center gap-3 mb-4'>
+              <div className='p-2 bg-violet-100 dark:bg-violet-900/30 rounded-full'>
+                <Link2 size={18} className='text-violet-600 dark:text-violet-400' />
+              </div>
+              <div>
+                <h3 className='text-base font-semibold text-zinc-900 dark:text-zinc-100'>Link Transfer Order</h3>
+                <p className='text-xs text-zinc-500 dark:text-zinc-400 font-mono'>{selectedShipmentId}</p>
+              </div>
+            </div>
+            <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>Transfer Order Number</label>
+            <input type='text' value={linkTONumber} onChange={e => setLinkTONumber(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLinkTO()} placeholder='TO-123'
+              className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500' />
+            <div className='flex justify-end gap-2 mt-5'>
+              <button onClick={() => { setLinkTOOpen(false); setLinkTONumber(''); }} disabled={linkingTO}
+                className='px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50'>
+                Cancel
+              </button>
+              <button onClick={handleLinkTO} disabled={linkingTO || !linkTONumber.trim()}
+                className='px-4 py-2 text-sm rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 flex items-center gap-2'>
+                {linkingTO ? <RefreshCw size={13} className='animate-spin' /> : <Link2 size={13} />}
+                {linkingTO ? 'Linking…' : 'Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Link Assembly Modal ────────────────────────────────────────────── */}
+      {linkAssemblyOpen && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4'>
+          <div className='bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-zinc-200 dark:border-zinc-700'>
+            <div className='flex items-center gap-3 mb-4'>
+              <div className='p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-full'>
+                <Link2 size={18} className='text-indigo-600 dark:text-indigo-400' />
+              </div>
+              <div>
+                <h3 className='text-base font-semibold text-zinc-900 dark:text-zinc-100'>Link Assembly</h3>
+                <p className='text-xs text-zinc-500 dark:text-zinc-400 font-mono'>{selectedShipmentId}</p>
+              </div>
+            </div>
+            <label className='block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1'>Assembly Reference Number</label>
+            <input type='text' value={linkAssemblyNumber} onChange={e => setLinkAssemblyNumber(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLinkAssembly()} placeholder='ASM-00045'
+              className='w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500' />
+            <div className='flex justify-end gap-2 mt-5'>
+              <button onClick={() => { setLinkAssemblyOpen(false); setLinkAssemblyNumber(''); }} disabled={linkingAssembly}
+                className='px-4 py-2 text-sm rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50'>
+                Cancel
+              </button>
+              <button onClick={handleLinkAssembly} disabled={linkingAssembly || !linkAssemblyNumber.trim()}
+                className='px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2'>
+                {linkingAssembly ? <RefreshCw size={13} className='animate-spin' /> : <Link2 size={13} />}
+                {linkingAssembly ? 'Linking…' : 'Link'}
               </button>
             </div>
           </div>
