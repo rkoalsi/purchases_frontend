@@ -148,7 +148,7 @@ export default function DraftOrderUpload() {
   const [showMissingModal, setShowMissingModal] = useState(false);
   const [availableVendors, setAvailableVendors] = useState<DetectedVendor[]>([]);
   const [creatingZohoItems, setCreatingZohoItems] = useState(false);
-  const [zohoItemResults, setZohoItemResults] = useState<{ created: any[]; failed: any[]; masters_sheet?: { inserted: number; error?: string | null } } | null>(null);
+  const [zohoItemResults, setZohoItemResults] = useState<{ created: any[]; failed: any[]; skipped?: any[]; masters_sheet?: { inserted: number; error?: string | null } } | null>(null);
   const [itemEdits, setItemEdits] = useState<ItemEdits>({});
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -285,7 +285,7 @@ export default function DraftOrderUpload() {
     setCreatingZohoItems(true);
     setZohoItemResults(null);
     try {
-      const { data } = await axios.post<{ created: any[]; failed: any[] }>(
+      const { data } = await axios.post<{ created: any[]; failed: any[]; skipped?: any[] }>(
         `${API_URL}/vendors/draft_orders/create_zoho_items`,
         {
           items: items.map(m => {
@@ -309,10 +309,12 @@ export default function DraftOrderUpload() {
         },
       );
       setZohoItemResults(data);
+      const skippedCount = data.skipped?.length ?? 0;
+      const skippedMsg = skippedCount > 0 ? `, ${skippedCount} already existed` : '';
       if (data.failed.length === 0) {
-        toast.success(`${data.created.length} item${data.created.length !== 1 ? 's' : ''} created on Zoho`);
+        toast.success(`${data.created.length} item${data.created.length !== 1 ? 's' : ''} created on Zoho${skippedMsg}`);
       } else {
-        toast.warn(`${data.created.length} created, ${data.failed.length} failed`);
+        toast.warn(`${data.created.length} created, ${data.failed.length} failed${skippedMsg}`);
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to create items on Zoho');
@@ -1284,14 +1286,17 @@ export default function DraftOrderUpload() {
                     const edits = itemEdits[key] ?? { tax_rate: m.tax_rate ?? 18, upc_code: m.upc_code ?? m.sku_code ?? '', ean_code: m.ean_code ?? m.sku_code ?? '' };
                     const isCreated = zohoItemResults?.created.some(c => c.bb_code === m.bb_code && c.manufacturer_code === m.manufacturer_code);
                     const isFailed = zohoItemResults?.failed.find(f => f.bb_code === m.bb_code && f.manufacturer_code === m.manufacturer_code);
+                    const isSkipped = zohoItemResults?.skipped?.some(s => s.bb_code === m.bb_code && s.manufacturer_code === m.manufacturer_code);
+                    const isDone = isCreated || isSkipped;
                     return (
-                      <tr key={i} className={`border-t border-zinc-100 dark:border-zinc-800 ${isCreated ? 'bg-green-50 dark:bg-green-900/20' : isFailed ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
+                      <tr key={i} className={`border-t border-zinc-100 dark:border-zinc-800 ${isCreated ? 'bg-green-50 dark:bg-green-900/20' : isSkipped ? 'bg-zinc-100 dark:bg-zinc-800/40' : isFailed ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
                         <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 font-mono text-xs">{m.manufacturer_code || '—'}</td>
                         <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 font-mono text-xs">{m.bb_code || '—'}</td>
                         <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200">
                           <div className="flex items-center gap-2">
                             {m.item_name}
                             {isCreated && <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Created</span>}
+                            {isSkipped && !isCreated && <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium" title="Already exists in Zoho — skipped to avoid a duplicate">↺ Already exists</span>}
                             {isFailed && <span className="text-xs text-red-600 dark:text-red-400 font-medium" title={isFailed.error}>✗ Failed</span>}
                           </div>
                         </td>
@@ -1306,7 +1311,7 @@ export default function DraftOrderUpload() {
                               type="text"
                               value={edits.upc_code}
                               onChange={e => updateItemEdit(m, 'upc_code', e.target.value)}
-                              disabled={!!isCreated}
+                              disabled={!!isDone}
                               placeholder="UPC"
                               className="w-full px-1.5 py-0.5 text-xs border border-zinc-200 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
                             />
@@ -1314,7 +1319,7 @@ export default function DraftOrderUpload() {
                               type="text"
                               value={edits.ean_code}
                               onChange={e => updateItemEdit(m, 'ean_code', e.target.value)}
-                              disabled={!!isCreated}
+                              disabled={!!isDone}
                               placeholder="EAN"
                               className="w-full px-1.5 py-0.5 text-xs border border-zinc-200 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
                             />
@@ -1324,7 +1329,7 @@ export default function DraftOrderUpload() {
                           <select
                             value={edits.tax_rate}
                             onChange={e => updateItemEdit(m, 'tax_rate', parseInt(e.target.value))}
-                            disabled={!!isCreated}
+                            disabled={!!isDone}
                             className="text-xs border border-zinc-200 dark:border-zinc-600 rounded px-1.5 py-1 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 disabled:opacity-50"
                           >
                             <option value={5}>GST 5%</option>
@@ -1347,7 +1352,7 @@ export default function DraftOrderUpload() {
                 Close
               </button>
               <div className="flex gap-3">
-                {zohoItemResults && zohoItemResults.created.length > 0 && (
+                {zohoItemResults && (zohoItemResults.created.length > 0 || (zohoItemResults.skipped?.length ?? 0) > 0) && (
                   <button
                     onClick={() => { setShowMissingModal(false); handleValidate(); }}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
@@ -1369,7 +1374,9 @@ export default function DraftOrderUpload() {
                 {zohoItemResults?.failed.length === 0 && (
                   <span className="flex items-center gap-1.5 text-sm text-green-700 dark:text-green-400 font-medium px-4 py-2">
                     <CheckCircle className="w-4 h-4" />
-                    All items created
+                    {(zohoItemResults.skipped?.length ?? 0) > 0
+                      ? `Done — ${zohoItemResults.created.length} created, ${zohoItemResults.skipped!.length} already existed`
+                      : 'All items created'}
                   </span>
                 )}
                 {zohoItemResults && zohoItemResults.failed.length > 0 && (
