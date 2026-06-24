@@ -423,7 +423,7 @@ export default function MasterReport() {
 
                         <ColGroup title="Pricing & Value">
                             <ColRow name="MRP" desc="Max Retail Price from product master" />
-                            <ColRow name="Unit Price" desc="Purchase price from the most recent PO (currency-formatted)" />
+                            <ColRow name="Unit Price" desc="Buyer-managed unit price from the Unit Prices page (Tools → Unit Prices), currency-formatted. Blank when no price has been set for the SKU." />
                             <ColRow name="Total Amount" desc="Total invoiced value in the selected period (₹)" />
                             <ColRow name="Total MRP" desc="Retail value of current WH stock" formula="= MRP × Pupscribe WH Stock (latest)" />
                             <ColRow name="Collection Value" desc="Estimated net collection value (half of retail)" formula="= Total MRP ÷ 2" />
