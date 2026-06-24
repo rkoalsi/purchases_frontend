@@ -29,6 +29,7 @@ interface MissingItem {
   category?: string;
   sub_category?: string;
   series?: string;
+  brand?: string;
   mrp?: number | null;
   tax_rate?: number;
   upc_code?: string;
@@ -300,6 +301,7 @@ export default function DraftOrderUpload() {
               category: m.category || '',
               sub_category: m.sub_category || '',
               series: m.series || '',
+              brand: m.brand || '',
               mrp: m.mrp ?? null,
               tax_rate: edits.tax_rate ?? m.tax_rate ?? 18,
               upc_code: edits.upc_code ?? m.upc_code ?? m.sku_code ?? '',
