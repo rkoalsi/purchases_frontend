@@ -622,12 +622,182 @@ function SlotImageCard({
 // ─── Unified Edit Modal ───────────────────────────────────────────────────────
 
 
+function SupplierImagesPanel({ product, token }: { product: any; token: string }) {
+  const sku    = product.cf_sku_code || product.sku || '';
+  const itemId = product.item_id || '';
+
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState<string | null>(null);
+  const [images,    setImages]    = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [progress,  setProgress]  = useState<{ done: number; total: number } | null>(null);
+  const [saving,    setSaving]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const [dragOver,  setDragOver]  = useState(false);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const zipUrl = `${SHEETS_API}/supplier-images/${encodeURIComponent(sku)}/zip`;
+
+  useEffect(() => {
+    if (!sku) return;
+    setLoading(true);
+    setError(null);
+    axios.get(`${SHEETS_API}/supplier-images/${encodeURIComponent(sku)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => setImages(r.data.images || []))
+      .catch(e => setError(e.response?.data?.detail || e.message))
+      .finally(() => setLoading(false));
+  }, [sku, token]);
+
+  const uploadFiles = async (files: File[]) => {
+    const imgs = files.filter(f => f.type.startsWith('image/'));
+    if (imgs.length === 0) return;
+    setUploading(true);
+    setProgress({ done: 0, total: imgs.length });
+    const added: string[] = [];
+    for (let i = 0; i < imgs.length; i++) {
+      try {
+        const fd = new FormData();
+        fd.append('file', imgs[i]);
+        fd.append('sku_code', sku);
+        fd.append('item_id', itemId);
+        const r = await axios.post(`${SHEETS_API}/supplier-images/upload`, fd, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        added.push(r.data.url);
+      } catch (e: any) {
+        alert(`Failed to upload ${imgs[i].name}: ${e.response?.data?.detail || e.message}`);
+      }
+      setProgress({ done: i + 1, total: imgs.length });
+    }
+    setImages(prev => [...prev, ...added]);
+    setUploading(false);
+    setProgress(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length) await uploadFiles(files);
+  };
+
+  const handleInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length) await uploadFiles(files);
+  };
+
+  const handleDelete = async (url: string) => {
+    setImages(prev => prev.filter(u => u !== url));
+    try {
+      await axios.delete(`${SHEETS_API}/supplier-images/${encodeURIComponent(sku)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { url },
+      });
+    } catch {
+      setImages(prev => [...prev, url]);
+      alert('Delete failed');
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await axios.post(
+        `${SHEETS_API}/supplier-images/${encodeURIComponent(sku)}/save`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return (
+    <div className='flex items-center justify-center py-12'>
+      <Loader2 className='w-6 h-6 animate-spin text-purple-500' />
+    </div>
+  );
+  if (error) return <p className='text-sm text-red-500 text-center py-8'>{error}</p>;
+
+  return (
+    <div className='space-y-4'>
+      {/* Header */}
+      <div className='flex items-center justify-between'>
+        <div>
+          <p className='text-xs font-semibold text-gray-700 dark:text-zinc-200'>Supplier Images · {images.length}</p>
+          {images.length > 0 && (
+            <a href={zipUrl} className='flex items-center gap-1 text-[10px] text-purple-500 hover:underline mt-0.5'>
+              <Download className='w-3 h-3' /> Download all (zip)
+            </a>
+          )}
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving || images.length === 0}
+          className='px-3 py-1.5 text-xs rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1.5 transition-colors'
+        >
+          {saving ? <Loader2 className='w-3 h-3 animate-spin' /> : saved ? <Check className='w-3 h-3' /> : <Upload className='w-3 h-3' />}
+          {saved ? 'Saved!' : 'Save to Sheet'}
+        </button>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+          dragOver ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' : 'border-gray-200 dark:border-zinc-700'
+        }`}
+      >
+        <Upload className='w-6 h-6 mx-auto text-gray-300 dark:text-zinc-600 mb-2' />
+        <p className='text-xs text-gray-500 dark:text-zinc-400 mb-2'>Drag &amp; drop images or a folder here</p>
+        <div className='flex items-center justify-center gap-2'>
+          <button onClick={() => fileInputRef.current?.click()} className='px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300'>Select files</button>
+          <button onClick={() => folderInputRef.current?.click()} className='px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300'>Select folder</button>
+        </div>
+        {uploading && progress && (
+          <p className='text-[10px] text-purple-500 mt-3'>Uploading {progress.done}/{progress.total}…</p>
+        )}
+      </div>
+
+      <input ref={fileInputRef} type='file' accept='image/*' multiple className='hidden' onChange={handleInput} />
+      {/* @ts-expect-error webkitdirectory is non-standard */}
+      <input ref={folderInputRef} type='file' webkitdirectory='' directory='' multiple className='hidden' onChange={handleInput} />
+
+      {images.length === 0 ? (
+        <p className='text-center text-xs text-gray-400 dark:text-zinc-500 py-8'>No supplier images yet.</p>
+      ) : (
+        <div className='grid grid-cols-3 gap-3'>
+          {images.map(url => (
+            <div key={url} className='relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700'>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt='' className='w-full h-full object-cover' />
+              <button onClick={() => handleDelete(url)} className='absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:bg-red-600' title='Delete'>
+                <X className='w-3 h-3' />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSection = 'media', initialMediaTab = 'images' }: {
   product: any;
   accessToken: string;
   onClose: () => void;
   onSaved: (updated: any) => void;
-  initialSection?: 'media' | 'details' | 'nutrition' | 'sheet_images';
+  initialSection?: 'media' | 'details' | 'nutrition' | 'sheet_images' | 'supplier_images';
   initialMediaTab?: 'images' | 'videos' | 'drive';
 }) {
   const cat = product.catalogue || {};
@@ -670,7 +840,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
     with_packaging:    parseDimRow(cat.dimensions?.with_packaging),
   });
 
-  const [activeSection, setActiveSection] = useState<'media' | 'details' | 'nutrition' | 'sheet_images'>(initialSection);
+  const [activeSection, setActiveSection] = useState<'media' | 'details' | 'nutrition' | 'sheet_images' | 'supplier_images'>(initialSection);
   const [mediaTab, setMediaTab] = useState<'images' | 'videos' | 'drive'>(initialMediaTab);
 
   // Sheet images state
@@ -855,11 +1025,12 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
   const treatsAttrs = cat.treats_attributes || {};
   const hasTreatsAttrs = Object.keys(treatsAttrs).length > 0;
   const hasNutrition = !!(cat.ingredient_list || cat.nutritional_analysis || hasTreatsAttrs);
-  const SECTIONS: { key: 'media' | 'details' | 'nutrition' | 'sheet_images'; label: string }[] = [
+  const SECTIONS: { key: 'media' | 'details' | 'nutrition' | 'sheet_images' | 'supplier_images'; label: string }[] = [
     { key: 'media',         label: 'Media' },
     { key: 'details',       label: 'Details' },
     ...(hasNutrition ? [{ key: 'nutrition' as const, label: 'Nutrition' }] : []),
-    { key: 'sheet_images',  label: 'Sheet Images' },
+    { key: 'sheet_images',    label: 'Ecom Images' },
+    { key: 'supplier_images', label: 'Supplier Images' },
   ];
 
   const MEDIA_TABS = [
@@ -1250,11 +1421,19 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
               {/* header */}
               <div className='flex items-center justify-between'>
                 <div>
-                  <p className='text-xs font-semibold text-gray-700 dark:text-zinc-200'>Master Sheet Images</p>
+                  <p className='text-xs font-semibold text-gray-700 dark:text-zinc-200'>Ecom Images</p>
                   {sheetLoading
                     ? <p className='text-[10px] text-gray-400 mt-0.5'>Loading…</p>
                     : <p className='text-[10px] text-gray-400 mt-0.5'>{sheetName}</p>
                   }
+                  {(product.cf_sku_code || product.sku) && (
+                    <a
+                      href={`${SHEETS_API}/product-images/${encodeURIComponent(product.cf_sku_code || product.sku)}/zip`}
+                      className='flex items-center gap-1 text-[10px] text-purple-500 hover:underline mt-0.5'
+                    >
+                      <Download className='w-3 h-3' /> Download all (zip)
+                    </a>
+                  )}
                 </div>
                 <div className='flex flex-col items-end gap-1'>
                   <div className='flex items-center gap-2'>
@@ -1313,6 +1492,11 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Supplier Images section ── */}
+          {activeSection === 'supplier_images' && (
+            <SupplierImagesPanel product={product} token={accessToken} />
           )}
 
           {/* ── Nutrition section ── */}

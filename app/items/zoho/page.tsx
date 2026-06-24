@@ -253,7 +253,7 @@ function ProductThumbnail({ product, onOpenCarousel }: { product: any; onOpenCar
 
 // ─── Product Detail Drawer ─────────────────────────────────────────────────────
 
-type DrawerTab = 'media' | 'details' | 'catalogue' | 'nutrition' | 'master_images';
+type DrawerTab = 'media' | 'details' | 'catalogue' | 'nutrition' | 'master_images' | 'supplier_images';
 
 function ProductDetailDrawer({
   product,
@@ -284,7 +284,8 @@ function ProductDetailDrawer({
     { key: 'details',       label: 'Details' },
     { key: 'catalogue',     label: 'Catalogue' },
     ...(hasNutrition ? [{ key: 'nutrition' as DrawerTab, label: 'Nutrition' }] : []),
-    { key: 'master_images', label: 'Images' },
+    { key: 'master_images',   label: 'Ecom Images' },
+    { key: 'supplier_images', label: 'Supplier Images' },
   ];
 
   useEffect(() => {
@@ -722,9 +723,14 @@ function ProductDetailDrawer({
             </div>
           )}
 
-          {/* ── Master Images tab ── */}
+          {/* ── Ecom Images tab ── */}
           {activeTab === 'master_images' && (
             <MasterImagesTab product={product} token={token} />
+          )}
+
+          {/* ── Supplier Images tab ── */}
+          {activeTab === 'supplier_images' && (
+            <SupplierImagesTab product={product} token={token} />
           )}
 
         </div>
@@ -969,9 +975,19 @@ function MasterImagesTab({ product, token }: { product: any; token: string }) {
     <div className='px-5 py-4'>
       {/* Header row */}
       <div className='flex items-center justify-between mb-4'>
-        <p className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider'>
-          Sheet: <span className='text-blue-500 dark:text-blue-400'>{sheet}</span>
-        </p>
+        <div className='flex flex-col gap-1'>
+          <p className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider'>
+            Sheet: <span className='text-blue-500 dark:text-blue-400'>{sheet}</span>
+          </p>
+          {sku && (
+            <a
+              href={`${SHEETS_API}/product-images/${encodeURIComponent(sku)}/zip`}
+              className='flex items-center gap-1 text-[10px] text-blue-500 hover:underline'
+            >
+              <Download className='w-3 h-3' /> Download all (zip)
+            </a>
+          )}
+        </div>
         <div className='flex flex-col items-end gap-1'>
           <button
             onClick={handleSave}
@@ -1047,6 +1063,207 @@ function MasterImagesTab({ product, token }: { product: any; token: string }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// ─── Supplier Images Tab ───────────────────────────────────────────────────────
+
+function SupplierImagesTab({ product, token }: { product: any; token: string }) {
+  const sku    = product.cf_sku_code || product.sku || '';
+  const itemId = product.item_id || '';
+
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState<string | null>(null);
+  const [images,    setImages]    = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [progress,  setProgress]  = useState<{ done: number; total: number } | null>(null);
+  const [saving,    setSaving]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const [dragOver,  setDragOver]  = useState(false);
+  const fileInputRef   = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const zipUrl = `${SHEETS_API}/supplier-images/${encodeURIComponent(sku)}/zip`;
+
+  useEffect(() => {
+    if (!sku) return;
+    setLoading(true);
+    setError(null);
+    axios.get(`${SHEETS_API}/supplier-images/${encodeURIComponent(sku)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => setImages(r.data.images || []))
+      .catch(e => setError(e.response?.data?.detail || e.message))
+      .finally(() => setLoading(false));
+  }, [sku, token]);
+
+  const uploadFiles = async (files: File[]) => {
+    const imgs = files.filter(f => f.type.startsWith('image/'));
+    if (imgs.length === 0) return;
+    setUploading(true);
+    setProgress({ done: 0, total: imgs.length });
+    const added: string[] = [];
+    for (let i = 0; i < imgs.length; i++) {
+      try {
+        const fd = new FormData();
+        fd.append('file', imgs[i]);
+        fd.append('sku_code', sku);
+        fd.append('item_id', itemId);
+        const r = await axios.post(`${SHEETS_API}/supplier-images/upload`, fd, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        added.push(r.data.url);
+      } catch (e: any) {
+        alert(`Failed to upload ${imgs[i].name}: ${e.response?.data?.detail || e.message}`);
+      }
+      setProgress({ done: i + 1, total: imgs.length });
+    }
+    setImages(prev => [...prev, ...added]);
+    setUploading(false);
+    setProgress(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length) await uploadFiles(files);
+  };
+
+  const handleInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length) await uploadFiles(files);
+  };
+
+  const handleDelete = async (url: string) => {
+    setImages(prev => prev.filter(u => u !== url));
+    try {
+      await axios.delete(`${SHEETS_API}/supplier-images/${encodeURIComponent(sku)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { url },
+      });
+    } catch {
+      /* revert on failure */
+      setImages(prev => [...prev, url]);
+      alert('Delete failed');
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await axios.post(
+        `${SHEETS_API}/supplier-images/${encodeURIComponent(sku)}/save`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e: any) {
+      alert(e.response?.data?.detail || 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return (
+    <div className='flex items-center justify-center py-16'>
+      <Loader2 className='w-6 h-6 animate-spin text-blue-500' />
+    </div>
+  );
+
+  if (error) return (
+    <div className='px-5 py-8 text-center'>
+      <p className='text-sm text-red-500'>{error}</p>
+    </div>
+  );
+
+  return (
+    <div className='px-5 py-4'>
+      {/* Header */}
+      <div className='flex items-center justify-between mb-4'>
+        <div className='flex flex-col gap-1'>
+          <p className='text-[10px] font-semibold text-gray-400 dark:text-zinc-500 uppercase tracking-wider'>
+            Supplier Images · {images.length}
+          </p>
+          {images.length > 0 && (
+            <a href={zipUrl} className='flex items-center gap-1 text-[10px] text-blue-500 hover:underline'>
+              <Download className='w-3 h-3' /> Download all (zip)
+            </a>
+          )}
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving || images.length === 0}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-60 ${
+            saved ? 'bg-green-500 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+          }`}
+        >
+          {saving ? <Loader2 className='w-3.5 h-3.5 animate-spin' />
+            : saved ? <CheckCircle className='w-3.5 h-3.5' />
+            : <Upload className='w-3.5 h-3.5' />}
+          {saved ? 'Saved!' : 'Save to Sheet'}
+        </button>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        className={`rounded-xl border-2 border-dashed p-6 text-center transition-colors mb-4 ${
+          dragOver
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+            : 'border-gray-200 dark:border-zinc-700'
+        }`}
+      >
+        <Upload className='w-6 h-6 mx-auto text-gray-300 dark:text-zinc-600 mb-2' />
+        <p className='text-xs text-gray-500 dark:text-zinc-400 mb-2'>
+          Drag &amp; drop images or a folder here
+        </p>
+        <div className='flex items-center justify-center gap-2'>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className='px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300'
+          >Select files</button>
+          <button
+            onClick={() => folderInputRef.current?.click()}
+            className='px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300'
+          >Select folder</button>
+        </div>
+        {uploading && progress && (
+          <p className='text-[10px] text-blue-500 mt-3'>
+            Uploading {progress.done}/{progress.total}…
+          </p>
+        )}
+      </div>
+
+      <input ref={fileInputRef} type='file' accept='image/*' multiple className='hidden' onChange={handleInput} />
+      {/* @ts-expect-error webkitdirectory is non-standard */}
+      <input ref={folderInputRef} type='file' webkitdirectory='' directory='' multiple className='hidden' onChange={handleInput} />
+
+      {/* Grid */}
+      {images.length === 0 ? (
+        <p className='text-center text-xs text-gray-400 dark:text-zinc-500 py-8'>No supplier images yet.</p>
+      ) : (
+        <div className='grid grid-cols-3 gap-3'>
+          {images.map(url => (
+            <div key={url} className='relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700'>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt='' className='w-full h-full object-cover' />
+              <button
+                onClick={() => handleDelete(url)}
+                className='absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500/90 text-white flex items-center justify-center hover:bg-red-600'
+                title='Delete'
+              >
+                <X className='w-3 h-3' />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
