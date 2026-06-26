@@ -1,6 +1,8 @@
 'use client';
 
 import { useAuth } from '@/components/context/AuthContext';
+import EcomInfoPanel from '@/components/items/EcomInfoPanel';
+import BulkEditBar from '@/components/items/BulkEditBar';
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import {
@@ -253,7 +255,7 @@ function ProductThumbnail({ product, onOpenCarousel }: { product: any; onOpenCar
 
 // ─── Product Detail Drawer ─────────────────────────────────────────────────────
 
-type DrawerTab = 'media' | 'details' | 'catalogue' | 'nutrition' | 'master_images' | 'supplier_images';
+type DrawerTab = 'media' | 'details' | 'catalogue' | 'nutrition' | 'ecom_info' | 'master_images' | 'supplier_images';
 
 function ProductDetailDrawer({
   product,
@@ -284,6 +286,7 @@ function ProductDetailDrawer({
     { key: 'details',       label: 'Details' },
     { key: 'catalogue',     label: 'Catalogue' },
     ...(hasNutrition ? [{ key: 'nutrition' as DrawerTab, label: 'Nutrition' }] : []),
+    { key: 'ecom_info',       label: 'Ecom Information' },
     { key: 'master_images',   label: 'Ecom Images' },
     { key: 'supplier_images', label: 'Supplier Images' },
   ];
@@ -318,7 +321,7 @@ function ProductDetailDrawer({
       <div className='fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]' onClick={onClose} />
 
       {/* Drawer — fixed full height, flex column so tabs + content never overflow */}
-      <div className='fixed right-0 top-0 bottom-0 z-50 w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col'>
+      <div className='fixed right-0 top-0 bottom-0 z-50 w-full max-w-2xl bg-white dark:bg-zinc-900 shadow-2xl flex flex-col'>
 
         {/* Header — shrink-0 so it never scrolls away */}
         <div className='flex items-start justify-between px-5 py-4 border-b border-gray-100 dark:border-zinc-800 shrink-0'>
@@ -721,6 +724,15 @@ function ProductDetailDrawer({
                 <p className='text-sm text-gray-400 text-center py-8'>No nutrition information recorded</p>
               )}
             </div>
+          )}
+
+          {/* ── Ecom Information tab ── */}
+          {activeTab === 'ecom_info' && (
+            <EcomInfoPanel
+              product={product}
+              token={token}
+              onSaved={vals => { cat.amazon_title = vals.amazon_title; cat.amazon_description = vals.amazon_description; cat.amazon_features = vals.amazon_features; }}
+            />
           )}
 
           {/* ── Ecom Images tab ── */}
@@ -2251,6 +2263,15 @@ export default function ZohoItemsPage() {
               <ArrowDownUp className='w-3.5 h-3.5' />
               Latest First
             </button>
+
+            <div className='ml-auto'>
+              <BulkEditBar
+                token={accessToken || ''}
+                label='Bulk edit ecom info'
+                filterParams={{ search: prodSearch || undefined, brand: prodBrand || undefined, zoho_status: prodZohoStatus || undefined, purchase_status: prodPurchaseStatus || undefined }}
+                onApplied={fetchProducts}
+              />
+            </div>
           </div>
 
           {prodLoading ? (
