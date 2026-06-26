@@ -1,6 +1,8 @@
 'use client';
 
 import { useAuth } from '@/components/context/AuthContext';
+import EcomInfoPanel from '@/components/items/EcomInfoPanel';
+import BulkEditBar from '@/components/items/BulkEditBar';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
@@ -840,7 +842,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
     with_packaging:    parseDimRow(cat.dimensions?.with_packaging),
   });
 
-  const [activeSection, setActiveSection] = useState<'media' | 'details' | 'nutrition' | 'sheet_images' | 'supplier_images'>(initialSection);
+  const [activeSection, setActiveSection] = useState<'media' | 'details' | 'nutrition' | 'ecom_info' | 'sheet_images' | 'supplier_images'>(initialSection);
   const [mediaTab, setMediaTab] = useState<'images' | 'videos' | 'drive'>(initialMediaTab);
 
   // Sheet images state
@@ -1025,10 +1027,11 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
   const treatsAttrs = cat.treats_attributes || {};
   const hasTreatsAttrs = Object.keys(treatsAttrs).length > 0;
   const hasNutrition = !!(cat.ingredient_list || cat.nutritional_analysis || hasTreatsAttrs);
-  const SECTIONS: { key: 'media' | 'details' | 'nutrition' | 'sheet_images' | 'supplier_images'; label: string }[] = [
+  const SECTIONS: { key: 'media' | 'details' | 'nutrition' | 'ecom_info' | 'sheet_images' | 'supplier_images'; label: string }[] = [
     { key: 'media',         label: 'Media' },
     { key: 'details',       label: 'Details' },
     ...(hasNutrition ? [{ key: 'nutrition' as const, label: 'Nutrition' }] : []),
+    { key: 'ecom_info',       label: 'Ecom Information' },
     { key: 'sheet_images',    label: 'Ecom Images' },
     { key: 'supplier_images', label: 'Supplier Images' },
   ];
@@ -1494,6 +1497,15 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
             </div>
           )}
 
+          {/* ── Ecom Information section ── */}
+          {activeSection === 'ecom_info' && (
+            <EcomInfoPanel
+              product={product}
+              token={accessToken}
+              onSaved={vals => { if (cat) { cat.amazon_title = vals.amazon_title; cat.amazon_description = vals.amazon_description; cat.amazon_features = vals.amazon_features; } }}
+            />
+          )}
+
           {/* ── Supplier Images section ── */}
           {activeSection === 'supplier_images' && (
             <SupplierImagesPanel product={product} token={accessToken} />
@@ -1827,11 +1839,17 @@ export default function DesignNewItemsPage() {
         )}
         <div className='ml-auto flex flex-wrap items-center gap-2'>
           <ViewToggle mode={viewMode} onChange={setViewMode} />
-          <button onClick={downloadXlsx} disabled={downloading}
+          {/* <button onClick={downloadXlsx} disabled={downloading}
             className='flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors'>
             {downloading ? <Loader2 className='w-3.5 h-3.5 animate-spin' /> : <Download className='w-3.5 h-3.5' />}
             Download Products XLSX
-          </button>
+          </button> */}
+          <BulkEditBar
+            token={accessToken}
+            label='Bulk edit details'
+            filterParams={{ search, brand, category, zoho_status: zohoStatus, purchase_status: purchaseStatus }}
+            onApplied={fetchProducts}
+          />
           {/* <button onClick={downloadPisTemplate}
             className='flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'
             title='Download empty PIS template'>
