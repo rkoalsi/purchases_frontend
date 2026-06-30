@@ -182,7 +182,7 @@ export default function DraftOrderUpload() {
     try {
       const [draftsRes, brandOrdersRes] = await Promise.all([
         axios.get<DraftOrder[]>(`${API_URL}/vendors/draft_orders`),
-        axios.get<{ purchaseorder_number: string | null }[]>(`${API_URL}/brand_orders/`).catch(() => ({ data: [] })),
+        axios.get<{ purchaseorder_number: string | null }[]>(`${API_URL}/brand_orders`).catch(() => ({ data: [] })),
       ]);
       setDraftOrders(draftsRes.data);
 
@@ -585,7 +585,7 @@ export default function DraftOrderUpload() {
       form.append('vendor_id', vendorId);
       form.append('purchaseorder_number', poNumber);
       if (poDate) form.append('order_date', poDate);
-      await axios.post(`${API_URL}/brand_orders/`, form);
+      await axios.post(`${API_URL}/brand_orders`, form);
       toast.success(`Brand order created for PO ${poNumber}`);
       setBrandOrderCreated(p => ({ ...p, [key]: true }));
     } catch (err: any) {
