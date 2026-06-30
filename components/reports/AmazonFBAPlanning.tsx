@@ -10,19 +10,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, string> = {
-  Active: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
-  Inactive: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400',
-  'Discontinued on Amazon': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
-};
-
-const StatusBadge: React.FC<{ value: string | null | undefined }> = ({ value }) => (
-  <span
-    className={`px-2 py-0.5 rounded text-xs font-medium ${
-      value ? STATUS_STYLES[value] ?? STATUS_STYLES['Inactive'] : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500'
-    }`}
-  >
-    {value ?? 'Not set'}
+// Combined Amazon status, e.g. "Active - SF, FBA" / "Active" / "" — rendered as text.
+const AmazonStatusCell: React.FC<{ value: string | null | undefined }> = ({ value }) => (
+  <span className='text-xs text-zinc-700 dark:text-zinc-300 whitespace-nowrap'>
+    {value || <span className='text-zinc-300 dark:text-zinc-600'>—</span>}
   </span>
 );
 
@@ -30,7 +21,7 @@ interface PlanningRow {
   asin: string;
   sku_code: string;
   fnsku: string;
-  amazon_status?: string | null;
+  platform_status?: string | null;
   item_name: string;
   mrp: number;
   sp: number;
@@ -374,7 +365,7 @@ export default function AmazonFBAPlanning() {
                       </span>
                     </td>
                     <td className={TABLE_CLASSES.td}>
-                      <StatusBadge value={row.amazon_status} />
+                      <AmazonStatusCell value={row.platform_status} />
                     </td>
                     <td className={TABLE_CLASSES.td}><span className={TABLE_CLASSES.tdText}>{row.sku_code}</span></td>
                     <td className={TABLE_CLASSES.td} style={{ minWidth: 180, maxWidth: 260 }}>
