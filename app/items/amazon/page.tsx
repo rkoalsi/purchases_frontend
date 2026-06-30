@@ -21,6 +21,9 @@ async function buildSkuBrandMap(token: string): Promise<Map<string, string>> {
 const AMAZON_STATUSES = ['Active', 'Inactive', 'Discontinued on Amazon'] as const;
 type AmazonStatus = (typeof AMAZON_STATUSES)[number];
 
+const PLATFORMS = ['SF', 'FBA', 'VC', 'DF'] as const;
+type Platform = (typeof PLATFORMS)[number];
+
 type SkuItem = {
   _id: string;
   item_id: string;
@@ -29,6 +32,7 @@ type SkuItem = {
   seller_sku?: string;
   fnsku?: string | null;
   amazon_status?: AmazonStatus | null;
+  active_platforms?: Platform[] | null;
 };
 
 type MarginData = {
@@ -221,7 +225,7 @@ const ToggleCell: React.FC<{
   );
 };
 
-// ─── Amazon status dropdown ───────────────────────────────────────────────────
+// ─── Amazon status single-select (Active / Inactive / Discontinued) ───────────
 
 const STATUS_STYLES: Record<string, string> = {
   Active: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
@@ -277,6 +281,83 @@ const StatusDropdown: React.FC<{
               <span className={`inline-block px-1.5 py-0.5 rounded ${STATUS_STYLES[s]}`}>{s}</span>
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Platform status multi-select (SF / FBA / VC / DF) ────────────────────────
+
+const PLATFORM_STYLES: Record<Platform, string> = {
+  SF:  'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  FBA: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+  VC:  'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+  DF:  'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
+};
+
+const PlatformPicker: React.FC<{
+  value: Platform[] | null | undefined;
+  onSave: (val: Platform[]) => Promise<void>;
+}> = ({ value, onSave }) => {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const selected = value ?? [];
+
+  React.useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const toggle = async (p: Platform) => {
+    const next = selected.includes(p)
+      ? selected.filter((x) => x !== p)
+      : [...selected, p];
+    // keep canonical order
+    const ordered = PLATFORMS.filter((x) => next.includes(x));
+    setSaving(true);
+    try { await onSave(ordered); } finally { setSaving(false); }
+  };
+
+  return (
+    <div className='relative' ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={saving}
+        className={`flex flex-wrap gap-1 items-center min-w-[3rem] px-2 py-1 rounded text-xs font-medium transition-colors cursor-pointer border border-transparent hover:border-gray-200 dark:hover:border-zinc-700 ${
+          saving ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        {saving ? (
+          <span className='text-gray-400'>…</span>
+        ) : selected.length ? (
+          PLATFORMS.filter((p) => selected.includes(p)).map((p) => (
+            <span key={p} className={`inline-block px-1.5 py-0.5 rounded ${PLATFORM_STYLES[p]}`}>{p}</span>
+          ))
+        ) : (
+          <span className='text-gray-400 dark:text-zinc-500'>None</span>
+        )}
+      </button>
+      {open && (
+        <div className='absolute left-0 top-full mt-1 z-20 w-40 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg py-1'>
+          {PLATFORMS.map((p) => {
+            const on = selected.includes(p);
+            return (
+              <button
+                key={p}
+                onClick={() => toggle(p)}
+                className='w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors'
+              >
+                <span className={`inline-block px-1.5 py-0.5 rounded ${PLATFORM_STYLES[p]} ${on ? '' : 'opacity-40'}`}>{p}</span>
+                <input type='checkbox' readOnly checked={on} className='pointer-events-none' />
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -457,6 +538,14 @@ export default function AmazonSkuMappingPage() {
     toast.success('Amazon status updated');
   };
 
+  const savePlatforms = async (asin: string, val: Platform[]) => {
+    await axios.put(`${API_BASE}/sku-mapping/${asin}/platforms?platforms=${encodeURIComponent(val.join(','))}`);
+    setSkuData((prev) =>
+      prev.map((item) => (item.item_id === asin ? { ...item, active_platforms: val } : item))
+    );
+    toast.success('Platform status updated');
+  };
+
   const saveFnsku = async (asin: string, val: string) => {
     await axios.put(`${API_BASE}/sku-mapping/${asin}/fnsku?fnsku=${encodeURIComponent(val)}`);
     setSkuData((prev) =>
@@ -494,7 +583,9 @@ export default function AmazonSkuMappingPage() {
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
       toast.success(res.data.message);
-      await fetchAllMargins();
+      // Refetch BOTH datasets: the sheet can update sku-mapping fields
+      // (Amazon Status, Platforms, FNSKU) as well as margins.
+      await Promise.all([fetchSkuData(), fetchAllMargins()]);
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Upload failed');
     } finally {
@@ -554,6 +645,7 @@ export default function AmazonSkuMappingPage() {
                     { col: 'ASIN', note: 'required' },
                     { col: 'FNSKU', note: '' },
                     { col: 'Amazon Status', note: 'Active / Inactive / Discontinued on Amazon' },
+                    { col: 'Platforms', note: 'comma-separated: SF, FBA, VC, DF (blank = none)' },
                     { col: 'ASP', note: '' },
                     { col: 'New Margin', note: 'e.g. 0.25 = 25%' },
                     { col: 'Cost Price w/o Tax', note: '' },
@@ -643,6 +735,7 @@ export default function AmazonSkuMappingPage() {
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>ASIN</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>FNSKU</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Amazon Status</th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Platforms</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Margin %</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>Cost Price w/o Tax (₹)</th>
                   <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider'>eTrade ASP (₹)</th>
@@ -653,7 +746,7 @@ export default function AmazonSkuMappingPage() {
               <tbody className='divide-y divide-gray-100 dark:divide-zinc-800'>
                 {paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
+                    <td colSpan={12} className='px-6 py-10 text-center text-sm text-gray-400 dark:text-zinc-500'>
                       {search ? `No results for "${search}"` : 'No items yet'}
                     </td>
                   </tr>
@@ -687,6 +780,12 @@ export default function AmazonSkuMappingPage() {
                         <StatusDropdown
                           value={item.amazon_status}
                           onSave={(v) => saveAmazonStatus(asin, v)}
+                        />
+                      </td>
+                      <td className='px-6 py-3.5'>
+                        <PlatformPicker
+                          value={item.active_platforms}
+                          onSave={(v) => savePlatforms(asin, v)}
                         />
                       </td>
                       <td className='px-6 py-3.5'>

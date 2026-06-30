@@ -38,6 +38,7 @@ interface Row {
   etrade_asp: number | null;
   monthly_sales: Record<string, number>;
   month_labels: string[];
+  platform_status?: string | null;
 }
 
 type EditState = { asin: string; field: string; value: string };
@@ -375,6 +376,7 @@ export default function VCUnderOrdering() {
                     'Final Units ✎',
                     zohoHeader, 'Stock in Transit', 'SIT Brands', 'Status',
                     ...monthLabels,
+                    'Amazon Status',
                   ].map((h, i) => (
                     <th key={i} className={TABLE_CLASSES.th} style={{ whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
@@ -505,6 +507,9 @@ export default function VCUnderOrdering() {
                         <span className={TABLE_CLASSES.tdText}>{(row.monthly_sales?.[lbl] ?? 0).toLocaleString()}</span>
                       </td>
                     ))}
+                    <td className={TABLE_CLASSES.td}>
+                      <span className={TABLE_CLASSES.tdText} style={{ whiteSpace: 'nowrap' }}>{row.platform_status || '—'}</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

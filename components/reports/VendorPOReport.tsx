@@ -109,6 +109,7 @@ interface POItem {
   final_supply_fo_override: number | null;
   monthly_sales: number[];
   month_labels: [number, number, string][];
+  platform_status?: string | null;
 }
 
 interface POReport {
@@ -2882,6 +2883,7 @@ export default function VendorPOReport() {
                       { label: 'Final Units (For Under-ordering)', yellow: true },
                       { label: 'Final Supply Qty (For Over-ordering)', yellow: true },
                       ...(report.items[0]?.month_labels ?? []).map(([,, lbl]: [number, number, string]) => ({ label: lbl, yellow: true })),
+                      { label: 'Amazon Status', yellow: true },
                     ].map(({ label, yellow }) => (
                       <th
                         key={label}
@@ -3001,6 +3003,7 @@ export default function VendorPOReport() {
                         {(item.monthly_sales ?? []).map((units, mi) => (
                           <td key={mi} className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300">{fmtInt(units)}</td>
                         ))}
+                        <td className="px-3 py-2 text-center text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{item.platform_status || '—'}</td>
                       </tr>
                     );
                   })}
