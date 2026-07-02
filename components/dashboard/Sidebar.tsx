@@ -62,6 +62,8 @@ const PERMISSION_REQUIREMENTS = {
   AMAZON_ITEMS: { name: 'items_amazon' },
   BLINKIT_ITEMS: { name: 'items_blinkit' },
   ZOHO_ITEMS: { name: 'items_zoho' },
+  AMAZON_LISTING_MANAGE: { name: 'items_amazon_listing_manage' },
+  AMAZON_LISTING: { anyOf: ['items_amazon_listing', 'items_amazon_listing_manage'] },
   // Report-specific permissions
   AMAZON_REPORTS: { name: 'reports_amazon' },
   AMAZON_SETTLEMENTS: { name: 'reports_amazon_settlements' },
@@ -142,6 +144,12 @@ const navigation = [
         href: '/items/zoho',
         icon: Building2,
         requiredPermission: PERMISSION_REQUIREMENTS.ZOHO_ITEMS,
+      },
+      {
+        name: 'Amazon Listing',
+        href: '/items/amazon_listing',
+        icon: CheckSquare,
+        requiredPermission: PERMISSION_REQUIREMENTS.AMAZON_LISTING,
       },
     ],
   },
