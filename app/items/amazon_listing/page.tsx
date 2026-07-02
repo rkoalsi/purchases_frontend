@@ -349,7 +349,8 @@ export default function AmazonListingPage() {
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -624,12 +625,12 @@ export default function AmazonListingPage() {
             <SearchBox
               value={pSearchInput}
               onChange={setPSearchInput}
-              onEnter={() => (setPPage(1), setPSearch(pSearchInput))}
+              onEnter={() => { setPPage(1); setPSearch(pSearchInput); }}
               placeholder="Search SKU / name / ASIN"
             />
-            <BrandSelect value={pBrand} onChange={(v) => (setPPage(1), setPBrand(v))} />
-            <PurchaseSelect value={pPurchase} onChange={(v) => (setPPage(1), setPPurchase(v))} />
-            <select className={CTRL} value={pZoho} onChange={(e) => (setPPage(1), setPZoho(e.target.value))}>
+            <BrandSelect value={pBrand} onChange={(v) => { setPPage(1); setPBrand(v); }} />
+            <PurchaseSelect value={pPurchase} onChange={(v) => { setPPage(1); setPPurchase(v); }} />
+            <select className={CTRL} value={pZoho} onChange={(e) => { setPPage(1); setPZoho(e.target.value); }}>
               <option value="">All Zoho statuses</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
@@ -637,7 +638,7 @@ export default function AmazonListingPage() {
             <select
               className={CTRL}
               value={pListed}
-              onChange={(e) => (setPPage(1), setPListed(e.target.value as any))}
+              onChange={(e) => { setPPage(1); setPListed(e.target.value as any); }}
             >
               <option value="all">All listing states</option>
               <option value="listed">Listed on Amazon</option>
