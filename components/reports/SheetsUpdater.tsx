@@ -541,14 +541,12 @@ export default function SheetsUpdater() {
       .get(`${API_URL}/sheets/config`, { headers })
       .then((res) => setSavedUrls(res.data ?? {}))
       .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSaveUrl = useCallback(async (jobId: string, url: string) => {
     await axios.put(`${API_URL}/sheets/config/${jobId}`, { sheet_url: url }, { headers });
     setSavedUrls((prev) => ({ ...prev, [jobId]: url }));
     toast.success(url ? 'Custom sheet URL saved' : 'Reset to default sheet');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
   const resolvedMasterUrl = savedUrls['master-stock'] || MASTER_SHEET_URL;

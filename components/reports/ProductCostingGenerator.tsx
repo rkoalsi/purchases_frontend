@@ -306,7 +306,6 @@ function constituentBrands(label: string): string[] {
   return BRAND_GROUPS[label] ?? [label];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function downloadBlob(res: { data: any; headers: any }, fallback: string) {
   const url   = URL.createObjectURL(new Blob([res.data]));
   const link  = document.createElement('a');
@@ -341,7 +340,6 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
         setBrandOptions(mergeBrandOptions(raw));
       })
       .catch(() => { /* keep empty */ });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // When brand changes, fetch its POs
@@ -371,7 +369,6 @@ function OrderWiseTab({ headers }: { headers: Record<string, string> }) {
       })
       .catch(() => { setPos([]); setSel({}); setError('Failed to load purchase orders.'); })
       .finally(() => setLoadingPos(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brand]);
 
   function togglePO(po: string) {
@@ -643,7 +640,6 @@ export default function ProductCostingGenerator() {
         });
       })
       .catch(() => { /* silently keep presets */ });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
   // ── new brand upload state ────────────────────────────────────────────────

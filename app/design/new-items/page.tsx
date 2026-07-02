@@ -8,7 +8,7 @@ import axios from 'axios';
 import {
   ChevronLeft, ChevronRight, Palette, Search, X, ZoomIn,
   Video, Pencil, Plus, Trash2, Check, Loader2, Download,
-  LayoutList, AlignJustify, ExternalLink, Zap, Image,
+  LayoutList, AlignJustify, ExternalLink, Zap, Image as ImageIcon,
   Upload, FileSpreadsheet, CheckCircle2, AlertCircle, SkipForward,
   Star, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Package,
 } from 'lucide-react';
@@ -888,7 +888,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
       const rest  = (p.images || []).filter((u: string) => u && u !== p.image_url && !isGDriveUrl(u));
       setAllImages([...main, ...rest]);
     }).catch((err) => { console.error('[design/new-items] media re-fetch failed:', err?.response?.data || err?.message); });
-  }, [activeSection]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeSection]);
 
   const handleSheetUploadClick = (slot: string) => {
     sheetPendingSlot.current = slot;
@@ -1257,7 +1257,7 @@ function UnifiedEditModal({ product, accessToken, onClose, onSaved, initialSecti
                   {driveLinks.length === 0 && <p className='text-sm text-gray-400 text-center py-4'>No drive links yet</p>}
                   {driveLinks.map((url, i) => (
                     <div key={i} className='flex items-center gap-2 bg-gray-50 dark:bg-zinc-800 rounded-lg px-3 py-2'>
-                      <Image className='w-3.5 h-3.5 text-blue-400 shrink-0' />
+                      <ImageIcon className='w-3.5 h-3.5 text-blue-400 shrink-0' />
                       <a href={url} target='_blank' rel='noreferrer'
                         className='flex-1 text-xs text-blue-600 dark:text-blue-400 truncate hover:underline flex items-center gap-1'>
                         {url} <ExternalLink className='w-3 h-3 shrink-0' />
