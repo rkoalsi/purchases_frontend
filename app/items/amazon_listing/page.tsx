@@ -66,6 +66,7 @@ type Product = {
   brand?: string;
   status?: string;
   purchase_status?: string;
+  is_combo_product?: boolean;
   is_listed?: boolean;
   amazon_status?: string | null;
   active_platforms?: string[] | null;
@@ -697,7 +698,14 @@ export default function AmazonListingPage() {
                         </td>
                       )}
                       <td className={`${TD} font-mono text-xs`}>{p.cf_sku_code || '—'}</td>
-                      <td className={TD}>{p.name || '—'}</td>
+                      <td className={TD}>
+                        {p.name || '—'}
+                        {p.is_combo_product && (
+                          <span className="ml-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                            Combo
+                          </span>
+                        )}
+                      </td>
                       <td className={TD}>{p.brand || '—'}</td>
                       <td className={`${TD} capitalize`}>{p.status || '—'}</td>
                       <td className={`${TD} capitalize`}>{p.purchase_status || '—'}</td>
