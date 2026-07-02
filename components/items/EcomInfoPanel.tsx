@@ -56,7 +56,6 @@ export default function EcomInfoPanel({
       })
       .catch((e) => setError(e.response?.data?.detail || e.message || 'Failed to load'))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sku]);
 
   const setFeat = (i: number, v: string) =>

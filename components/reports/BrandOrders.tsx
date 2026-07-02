@@ -603,7 +603,7 @@ export default function BrandOrders() {
     setTimeout(() => {
       document.getElementById(`order-${order._id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 150);
-  }, [orders, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orders, searchParams]);
 
   const fetchOrderDocs = useCallback(async (orderId: string) => {
     setDocsLoading(prev => ({ ...prev, [orderId]: true }));

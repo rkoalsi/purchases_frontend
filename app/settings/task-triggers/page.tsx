@@ -429,7 +429,7 @@ export default function TaskTriggersPage() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accessToken]);
 
   useEffect(() => { load(); }, [load]);
 
